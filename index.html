@@ -105,7 +105,7 @@
 
     /* ---------- หน้ารายการเอกสาร ---------- */
     function renderList(docs){
-      if(!docs.length){ app.innerHTML = '<div class="msg">ไม่มีเอกสารที่ต้องตรวจ/ยืนยันในขณะนี้ 🎉<br>ส่งรูปเกียรติบัตรเข้ามาที่แชตได้เลยครับ</div>'; return; }
+      if(!docs.length){ app.innerHTML = '<div class="msg">ตอนนี้ไม่มีเอกสารค้างตรวจแล้วครับเจ้านาย เก่งมาก! 🐶🎉<br>ส่งรูปเกียรติบัตรมาที่แชตน้องชาโปรได้เลยน้า</div>'; return; }
       var badge = { AI_REVIEW:'<span class="badge b-ai">AI อ่านแล้ว</span>', MANUAL_REVIEW:'<span class="badge b-manual">กรอกเอง</span>',
         DRAFT:'<span class="badge b-draft">ร่าง</span>', FILE_STORED:'<span class="badge b-manual">รอกรอก</span>' };
       var html = '<div class="msg">เลือกเอกสารที่ต้องการตรวจและยืนยัน</div><div class="card">';
@@ -187,7 +187,7 @@
       setFormMsg('<div class="msg">กำลังยืนยันบันทึก...</div>');
       api('confirm', { certificateId: curCert.certificateId, formData: d })
         .then(function(){
-          app.innerHTML = '<div class="msg ok">บันทึกเอกสารสำเร็จแล้ว ✅<br>ระบบส่งการแจ้งเตือนกลับทาง LINE แล้ว</div>'+
+          app.innerHTML = '<div class="msg ok">บันทึกสำเร็จแล้วครับเจ้านาย! ✅🐾<br>น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า</div>'+
             '<div class="btns"><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
         })
         .catch(function(e){ setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
