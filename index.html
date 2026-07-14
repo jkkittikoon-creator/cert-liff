@@ -31,6 +31,12 @@
     .conf-gray { border-left-color: #9e9e9e; }
     .note { font-size: 12px; color: #666; margin-top: 3px; }
     .summary { padding: 10px 12px; border-radius: 8px; background: #fff8e1; font-size: 13px; margin-bottom: 12px; }
+    .dup-warn { padding: 12px 14px; border-radius: 8px; background: #fff3e0; border: 1px solid #ffb74d; color: #7a4b00; font-size: 13px; margin-bottom: 12px; }
+    .dup-warn.dup-exact { background: #fdecea; border-color: #e57373; color: #8a1c14; }
+    .dup-warn b { display: block; margin-bottom: 6px; font-size: 14px; }
+    .dup-warn ul { margin: 6px 0 0; padding-left: 18px; }
+    .dup-warn li { margin-bottom: 3px; }
+    .dup-warn .foot { margin-top: 8px; font-size: 12px; opacity: 0.85; }
     .btns { display: flex; gap: 10px; margin-top: 8px; }
     button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
     .b-primary { background: #06c755; color: #fff; }
@@ -155,15 +161,36 @@
         ? '<div class="summary">แถบสีความมั่นใจ: <b style="color:#c62828">แดง '+red+'</b> (ต้องตรวจ), <b style="color:#f9a825">เหลือง '+yellow+'</b> (ควรตรวจ), เขียว = มั่นใจสูง — กรุณาตรวจก่อนยืนยัน</div>'
         : '';
 
+      var dupHtml = dupBanner(data.duplicateCheck);
+
       app.innerHTML =
         '<div id="formMsg"></div>'+
         '<div class="card preview">'+prev+'</div>'+
+        dupHtml+
         summary+
         '<div class="card">'+fieldsHtml+
         '<div class="btns">'+
         '<button class="b-second" onclick="saveDraft()">บันทึกร่าง</button>'+
         '<button class="b-primary" onclick="confirmSave()">ยืนยันบันทึก</button>'+
         '</div></div>';
+    }
+
+    /* ---------- แถบเตือนเอกสารซ้ำ (ข้อ 13) ---------- */
+    function dupBanner(dc){
+      if(!dc || !dc.level || dc.level==='NONE') return '';
+      var head = dc.level==='PROBABLE' ? '⚠️ อาจซ้ำ: เลขที่เอกสารตรงกับที่เคยเก็บไว้'
+        : dc.level==='EXACT' ? '🚫 ซ้ำ: ไฟล์เดียวกับที่เคยเก็บไว้'
+        : '⚠️ อาจซ้ำ: กิจกรรม/หน่วยงาน/วันที่ ใกล้เคียงกับที่เคยเก็บไว้';
+      var items = (dc.matches||[]).slice(0,3).map(function(m){
+        var t = esc(m.activityName || m.documentType || '(ไม่มีชื่อกิจกรรม)');
+        if(m.receivedDate) t += ' — ' + esc(m.receivedDate);
+        if(m.certificateNumber) t += ' [เลขที่ ' + esc(m.certificateNumber) + ']';
+        return '<li>'+t+'</li>';
+      }).join('');
+      var cls = dc.level==='EXACT' ? ' dup-exact' : '';
+      return '<div class="dup-warn'+cls+'"><b>'+head+'</b>'+
+        (items ? '<ul>'+items+'</ul>' : '')+
+        '<div class="foot">ถ้ากดยืนยันบันทึก ระบบจะจดไว้ว่าเจ้านายตัดสินใจเก็บแม้อาจซ้ำ (ข้อ 13)</div></div>';
     }
 
     function edited(name){ var el=document.getElementById('ff_'+name); if(el) el.className='field conf-gray'; }
