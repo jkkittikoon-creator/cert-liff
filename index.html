@@ -37,6 +37,17 @@
     .dup-warn ul { margin: 6px 0 0; padding-left: 18px; }
     .dup-warn li { margin-bottom: 3px; }
     .dup-warn .foot { margin-top: 8px; font-size: 12px; opacity: 0.85; }
+    .save-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center;
+      justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s ease;
+    }
+    .save-overlay.show { opacity: 1; pointer-events: auto; }
+    .save-card { background: #fff; border-radius: 14px; padding: 28px 36px; text-align: center; min-width: 220px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+    .save-spinner { width: 40px; height: 40px; border: 4px solid #e0e0e0; border-top-color: #06c755; border-radius: 50%; margin: 0 auto 14px; animation: save-spin .8s linear infinite; }
+    @keyframes save-spin { to { transform: rotate(360deg); } }
+    .save-check { font-size: 40px; margin-bottom: 10px; }
+    .save-text { font-size: 15px; color: #222; font-weight: bold; }
+    .save-sub { font-size: 12px; color: #888; margin-top: 4px; }
     .btns { display: flex; gap: 10px; margin-top: 8px; }
     button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; }
     .b-primary { background: #06c755; color: #fff; }
@@ -200,6 +211,27 @@
     }
     function setFormMsg(html){ var m=document.getElementById('formMsg'); if(m) m.innerHTML=html; }
 
+    /* ---------- โอเวอร์เลย์ "กำลังบันทึก" (ใช้ตอนกดยืนยันบันทึก) ---------- */
+    function showSaveOverlay(text, sub){
+      var el = document.getElementById('saveOverlay');
+      if(!el){ el = document.createElement('div'); el.id = 'saveOverlay'; document.body.appendChild(el); }
+      el.className = 'save-overlay show';
+      el.innerHTML = '<div class="save-card"><div class="save-spinner"></div>' +
+        '<div class="save-text">'+esc(text)+'</div>' +
+        (sub ? '<div class="save-sub">'+esc(sub)+'</div>' : '') + '</div>';
+    }
+    function setSaveOverlaySuccess(text, sub){
+      var el = document.getElementById('saveOverlay');
+      if(!el) return;
+      el.innerHTML = '<div class="save-card"><div class="save-check">✅</div>' +
+        '<div class="save-text">'+esc(text)+'</div>' +
+        (sub ? '<div class="save-sub">'+esc(sub)+'</div>' : '') + '</div>';
+    }
+    function hideSaveOverlay(){
+      var el = document.getElementById('saveOverlay');
+      if(el) el.className = 'save-overlay';
+    }
+
     function saveDraft(){
       setFormMsg('<div class="msg">กำลังบันทึกร่าง...</div>');
       api('savedraft', { certificateId: curCert.certificateId, formData: collect() })
@@ -211,13 +243,17 @@
       var d = collect();
       var missing = REQUIRED.filter(function(f){ return !d[f]; }).map(function(f){ return LABELS[f]; });
       if(missing.length){ setFormMsg('<div class="msg err">กรุณากรอกให้ครบ: '+esc(missing.join(', '))+'</div>'); return; }
-      setFormMsg('<div class="msg">กำลังยืนยันบันทึก...</div>');
+      showSaveOverlay('กำลังบันทึกข้อมูล...', 'กรุณารอสักครู่นะครับ 🐾');
       api('confirm', { certificateId: curCert.certificateId, formData: d })
         .then(function(){
-          app.innerHTML = '<div class="msg ok">บันทึกสำเร็จแล้วครับเจ้านาย! ✅🐾<br>น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า</div>'+
-            '<div class="btns"><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
+          setSaveOverlaySuccess('บันทึกสำเร็จแล้วครับเจ้านาย! ✅', 'น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า');
+          setTimeout(function(){
+            hideSaveOverlay();
+            app.innerHTML = '<div class="msg ok">บันทึกสำเร็จแล้วครับเจ้านาย! ✅🐾<br>น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า</div>'+
+              '<div class="btns"><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
+          }, 1300);
         })
-        .catch(function(e){ setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+        .catch(function(e){ hideSaveOverlay(); setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
     }
 
     function closeOrHome(){
