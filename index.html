@@ -64,6 +64,13 @@
     .cv-img { max-width: 100%; max-height: 100%; transform-origin: center center; user-select: none; -webkit-user-drag: none; will-change: transform; }
     .cv-close { position: fixed; top: 14px; right: 14px; z-index: 301; flex: none; width: auto; padding: 8px 14px; background: #fff; color: #222; border-radius: 6px; }
     .cv-reset { position: fixed; bottom: 18px; right: 18px; z-index: 301; flex: none; width: auto; padding: 10px 16px; background: #1a73e8; color: #fff; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+    /* แดชบอร์ด (แบบ B) */
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .stat { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center; border-top: 3px solid #ccc; }
+    .stat .n { font-size: 26px; font-weight: bold; line-height: 1.1; }
+    .stat .l { font-size: 12px; color: #777; margin-top: 3px; }
+    .chart-card { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 12px; }
+    .chart-card h3 { font-size: 14px; margin: 0 0 10px; color: #333; }
   </style>
 </head>
 <body>
@@ -73,6 +80,7 @@
   <div id="viewerRoot"></div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     /* ===== ตั้งค่า (แก้ที่นี่ถ้าเปลี่ยน) ===== */
     var LIFF_ID = '2010685002-tqhkzAHP';
@@ -122,6 +130,13 @@
       if (st){ try { var s2 = new URLSearchParams(st.charAt(0)==='?'?st.slice(1):st); if (s2.get('cert')) return s2.get('cert'); } catch(e){} }
       return '';
     }
+    function getTabParam(){
+      var sp = new URLSearchParams(location.search);
+      if (sp.get('tab')) return sp.get('tab');
+      var st = sp.get('liff.state');
+      if (st){ try { var s2 = new URLSearchParams(st.charAt(0)==='?'?st.slice(1):st); if (s2.get('tab')) return s2.get('tab'); } catch(e){} }
+      return '';
+    }
 
     /* ---------- confidence UI (F4: เกณฑ์ตายตัว ให้สถานะเดียวกันได้สีเดียวกันเสมอ) ---------- */
     function confClass(ai){
@@ -151,11 +166,17 @@
         .then(function(docs){ renderDocs(docs, lastList); })
         .catch(function(e){ showErr(e.message); });
     }
-    function renderDocs(docs, which){
-      var tabs = '<div class="btns" style="margin-bottom:12px;">'+
-        '<button class="'+(which==='pending'?'b-primary':'b-second')+'" onclick="showList(\'pending\')">🕒 รอตรวจ/แก้ไข</button>'+
-        '<button class="'+(which==='saved'?'b-primary':'b-second')+'" onclick="showList(\'saved\')">✅ บันทึกแล้ว</button>'+
+    // แถบแท็บใช้ร่วมกัน 3 หน้า (รอตรวจ / บันทึกแล้ว / แดชบอร์ด)
+    function tabsBar(which){
+      function b(id, onclk, label){ return '<button class="'+(which===id?'b-primary':'b-second')+'" style="font-size:13px;padding:10px 6px;" onclick="'+onclk+'">'+label+'</button>'; }
+      return '<div class="btns" style="margin-bottom:12px;">'+
+        b('pending', "showList('pending')", '🕒 รอตรวจ')+
+        b('saved', "showList('saved')", '✅ บันทึกแล้ว')+
+        b('dash', 'showDash()', '📊 แดชบอร์ด')+
         '</div>';
+    }
+    function renderDocs(docs, which){
+      var tabs = tabsBar(which);
       var closeBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
       if(!docs.length){
         var empty = which==='saved'
@@ -176,6 +197,70 @@
       });
       html += '</div>' + closeBtn;
       app.innerHTML = html;
+    }
+
+    /* ---------- แดชบอร์ด (แบบ B): สถิติ + กราฟ Chart.js ---------- */
+    var _charts = [];
+    function destroyCharts(){ _charts.forEach(function(c){ try{ c.destroy(); }catch(e){} }); _charts = []; }
+    var DASH_COLORS = ['#1a73e8','#06c755','#f9a825','#8e24aa','#e53935','#00acc1','#fb8c00','#546e7a'];
+
+    function showDash(){
+      app.innerHTML = tabsBar('dash') + '<div class="center">กำลังโหลดแดชบอร์ด...</div>';
+      api('dashboard').then(renderDash).catch(function(e){ showErr(e.message); });
+    }
+
+    function statTile(n, label, color){
+      return '<div class="stat" style="border-top-color:'+color+';"><div class="n" style="color:'+color+';">'+esc(n)+'</div><div class="l">'+esc(label)+'</div></div>';
+    }
+
+    function renderDash(s){
+      destroyCharts();
+      var typeKeys = Object.keys(s.byType);
+      var yearKeys = Object.keys(s.byYear).sort();
+
+      var tiles = '<div class="stat-grid">'+
+        statTile(s.total, 'เอกสารทั้งหมด', '#1a73e8')+
+        statTile(s.saved, 'บันทึกแล้ว', '#2e7d32')+
+        statTile(s.pending, 'รอตรวจ/แก้ไข', '#f9a825')+
+        statTile(s.hours, 'ชั่วโมงอบรมรวม', '#8e24aa')+
+        '</div>';
+
+      var typeCard = typeKeys.length ? '<div class="chart-card"><h3>แยกตามประเภทเอกสาร</h3><canvas id="cType"></canvas></div>' : '';
+      var yearCard = yearKeys.length ? '<div class="chart-card"><h3>เอกสารแยกตามปีการศึกษา</h3><canvas id="cYear"></canvas></div>' : '';
+
+      var recent = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:8px;">เอกสารล่าสุด</div>';
+      if(!s.latest.length){ recent += '<div class="note">ยังไม่มีเอกสารในระบบครับ 🐶</div>'; }
+      else { s.latest.forEach(function(d){
+        recent += '<div class="doc-item" style="cursor:default;"><div><div>'+esc(d.name)+'</div>'+
+          '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+'</div></div></div>';
+      }); }
+      recent += '</div>';
+
+      var closeBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+
+      if(!s.total){
+        app.innerHTML = tabsBar('dash') + '<div class="msg">ยังไม่มีข้อมูลสำหรับแดชบอร์ดครับ 🐶<br>ส่งรูป/PDF เกียรติบัตรมาที่แชตน้องชาโปรได้เลยน้า</div>' + closeBtn;
+        return;
+      }
+
+      app.innerHTML = tabsBar('dash') + tiles + typeCard + yearCard + recent + closeBtn;
+
+      if(typeof Chart === 'undefined') return; // เผื่อโหลด Chart.js ไม่สำเร็จ (ยังเห็นตัวเลขได้)
+      Chart.defaults.font.family = "'Sarabun', sans-serif";
+      if(typeKeys.length){
+        _charts.push(new Chart(document.getElementById('cType'), {
+          type: 'doughnut',
+          data: { labels: typeKeys, datasets: [{ data: typeKeys.map(function(k){return s.byType[k];}), backgroundColor: DASH_COLORS }] },
+          options: { responsive:true, plugins:{ legend:{ position:'bottom' } } }
+        }));
+      }
+      if(yearKeys.length){
+        _charts.push(new Chart(document.getElementById('cYear'), {
+          type: 'bar',
+          data: { labels: yearKeys, datasets: [{ label:'จำนวน (ใบ)', data: yearKeys.map(function(k){return s.byYear[k];}), backgroundColor: '#06c755' }] },
+          options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } }
+        }));
+      }
     }
 
     /* ---------- หน้าฟอร์มตรวจ/ยืนยัน ---------- */
@@ -475,6 +560,7 @@
       var cert = getCertParam();
       app.innerHTML = '<div class="center">กำลังโหลด...</div>';
       if(cert){ openDoc(cert); }
+      else if(getTabParam()==='dash'){ showDash(); }
       else { showList('pending'); }
     }
 
