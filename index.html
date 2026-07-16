@@ -142,19 +142,39 @@
       return '<div class="note">'+lbl+' ('+pct+'%)'+ev+'</div>';
     }
 
-    /* ---------- หน้ารายการเอกสาร ---------- */
-    function renderList(docs){
-      if(!docs.length){ app.innerHTML = '<div class="msg">ตอนนี้ไม่มีเอกสารค้างตรวจแล้วครับเจ้านาย เก่งมาก! 🐶🎉<br>ส่งรูปเกียรติบัตรมาที่แชตน้องชาโปรได้เลยน้า</div>'; return; }
+    /* ---------- หน้ารายการเอกสาร (แท็บ: รอตรวจ/แก้ไข | บันทึกแล้ว) ---------- */
+    var lastList = 'pending';
+    function showList(which){
+      lastList = which || 'pending';
+      app.innerHTML = '<div class="center">กำลังโหลด...</div>';
+      api(lastList==='saved' ? 'listsaved' : 'list')
+        .then(function(docs){ renderDocs(docs, lastList); })
+        .catch(function(e){ showErr(e.message); });
+    }
+    function renderDocs(docs, which){
+      var tabs = '<div class="btns" style="margin-bottom:12px;">'+
+        '<button class="'+(which==='pending'?'b-primary':'b-second')+'" onclick="showList(\'pending\')">🕒 รอตรวจ/แก้ไข</button>'+
+        '<button class="'+(which==='saved'?'b-primary':'b-second')+'" onclick="showList(\'saved\')">✅ บันทึกแล้ว</button>'+
+        '</div>';
+      var closeBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+      if(!docs.length){
+        var empty = which==='saved'
+          ? 'ยังไม่มีเอกสารที่บันทึกแล้วครับ 🐶'
+          : 'ตอนนี้ไม่มีเอกสารค้างตรวจแล้วครับเจ้านาย เก่งมาก! 🐶🎉<br>ส่งรูปเกียรติบัตรมาที่แชตน้องชาโปรได้เลยน้า';
+        app.innerHTML = tabs + '<div class="msg">'+empty+'</div>' + closeBtn;
+        return;
+      }
       var badge = { AI_REVIEW:'<span class="badge b-ai">AI อ่านแล้ว</span>', MANUAL_REVIEW:'<span class="badge b-manual">กรอกเอง</span>',
-        DRAFT:'<span class="badge b-draft">ร่าง</span>', FILE_STORED:'<span class="badge b-manual">รอกรอก</span>' };
-      var html = '<div class="msg">เลือกเอกสารที่ต้องการตรวจและยืนยัน</div><div class="card">';
+        DRAFT:'<span class="badge b-draft">ร่าง</span>', FILE_STORED:'<span class="badge b-manual">รอกรอก</span>',
+        SAVED:'<span class="badge" style="background:#c8e6c9;color:#1b5e20;">บันทึกแล้ว</span>' };
+      var html = tabs + '<div class="msg">'+(which==='saved'?'เลือกเอกสารที่ต้องการแก้ไข':'เลือกเอกสารที่ต้องการตรวจและยืนยัน')+'</div><div class="card">';
       docs.forEach(function(d){
         html += '<div class="doc-item" onclick="openDoc(\''+d.certificateId+'\')">'+
           '<div><div>'+esc(d.recipientName||d.fileName||'เอกสาร')+'</div>'+
           '<div class="note">'+esc(d.documentType||'-')+'</div></div>'+
           (badge[d.status]||'')+'</div>';
       });
-      html += '</div>';
+      html += '</div>' + closeBtn;
       app.innerHTML = html;
     }
 
@@ -208,6 +228,7 @@
       var c = data.certificate, ai = data.aiResult || {}, dd = data.dropdowns || {};
       var isPdf = c.mimeType === 'application/pdf';
       var isImage = !!data.previewBase64 && !isPdf;
+      var isSaved = c.status === 'SAVED'; // เอกสารบันทึกยืนยันแล้ว → ใช้โหมด "บันทึกการแก้ไข"
       // F3+F8: เก็บ src รูปไว้ให้ตัวดูซูม + แตะรูปเปิดตัวดูได้
       window.imgSrc = isImage ? ('data:'+c.mimeType+';base64,'+data.previewBase64) : '';
       var prev = isPdf
@@ -223,16 +244,27 @@
       var dupHtml = dupBanner(data.duplicateCheck);
       var floatBtn = isImage ? '<button class="cert-float" onclick="openViewer()">🔍 ดูเกียรติบัตร</button>' : '';
 
+      // เอกสาร SAVED: แจ้งเตือน + ปุ่ม "บันทึกการแก้ไข" (สร้างเวอร์ชันใหม่) แทน "บันทึกร่าง/ยืนยันบันทึก"
+      var savedNotice = isSaved
+        ? '<div class="msg">📌 เอกสารนี้บันทึกยืนยันแล้ว — แก้ไขได้เลย ระบบจะบันทึกเป็นเวอร์ชันใหม่ (เก็บประวัติเดิมไว้)</div>'
+        : '';
+      var btns = isSaved
+        ? '<button class="b-primary" onclick="updateDoc()">บันทึกการแก้ไข</button>'
+        : '<button class="b-second" onclick="saveDraft()">บันทึกร่าง</button>' +
+          '<button class="b-primary" onclick="confirmSave()">ยืนยันบันทึก</button>';
+
+      var backBtn = '<button class="b-second" style="width:100%;margin-bottom:10px;" onclick="showList(lastList)">← กลับไปหน้ารายการ</button>';
+      var qrBtn = isSaved ? '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showQr()">🔳 ดู QR ตรวจสอบเอกสาร</button>' : '';
+
       app.innerHTML =
         '<div id="formMsg"></div>'+
+        backBtn+
+        savedNotice+
         '<div class="card preview">'+prev+'</div>'+
         dupHtml+
         summary+
         '<div class="card">'+fieldsHtml+
-        '<div class="btns">'+
-        '<button class="b-second" onclick="saveDraft()">บันทึกร่าง</button>'+
-        '<button class="b-primary" onclick="confirmSave()">ยืนยันบันทึก</button>'+
-        '</div></div>'+
+        '<div class="btns">'+btns+'</div>'+qrBtn+'</div>'+
         floatBtn;
       updateBanner();
     }
@@ -387,8 +419,48 @@
           setTimeout(function(){
             hideSaveOverlay();
             app.innerHTML = '<div class="msg ok">บันทึกสำเร็จแล้วครับเจ้านาย! ✅🐾<br>น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า</div>'+
-              '<div class="btns"><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
+              '<div class="btns"><button class="b-second" onclick="showList(\'pending\')">ตรวจเอกสารถัดไป</button><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
           }, 1300);
+        })
+        .catch(function(e){ hideSaveOverlay(); setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+    }
+
+    // ดู QR ตรวจสอบเอกสาร (เฉพาะ SAVED) — เรนเดอร์ภาพ QR จาก verifyUrl (ลิงก์ตรวจสอบสาธารณะ ไม่มีข้อมูลส่วนตัว)
+    function showQr(){
+      api('qr', { certificateId: curCert.certificateId }).then(function(d){
+        var url = 'https://quickchart.io/qr?size=260&margin=2&text='+encodeURIComponent(d.verifyUrl);
+        document.getElementById('viewerRoot').innerHTML =
+          '<div class="cv-overlay" style="flex-direction:column;background:rgba(0,0,0,0.85);">'+
+          '<div style="background:#fff;padding:20px;border-radius:12px;text-align:center;max-width:300px;">'+
+          '<div style="font-weight:bold;margin-bottom:10px;">🔳 QR ตรวจสอบเอกสาร</div>'+
+          '<img src="'+url+'" style="width:240px;height:240px;" alt="QR">'+
+          '<div class="note" style="word-break:break-all;margin-top:8px;">'+esc(d.verifyUrl)+'</div></div>'+
+          '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
+      }).catch(function(e){ setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+    }
+
+    // แก้ไขเอกสารที่บันทึกยืนยันแล้ว (SAVED) → สร้างเวอร์ชันใหม่
+    function updateDoc(){
+      var missing = REQUIRED.filter(function(f){ return !String(vfval(f)||'').trim(); });
+      if(missing.length){
+        setFormMsg('<div class="msg err"><b>กรุณากรอกข้อมูลที่จำเป็นให้ครบ:</b> '+
+          esc(missing.map(function(f){ return LABELS[f]; }).join(', '))+'</div>');
+        var ff = document.getElementById('ff_'+missing[0]);
+        if(ff) ff.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
+      if(!window.confirm('ยืนยันการบันทึกการแก้ไขใช่หรือไม่?\n\nระบบจะบันทึกเป็นเวอร์ชันใหม่ (เก็บประวัติเดิมไว้)')) return;
+      showSaveOverlay('กำลังบันทึกการแก้ไข...', 'กรุณารอสักครู่นะครับ 🐾');
+      api('update', { certificateId: curCert.certificateId, formData: collect() })
+        .then(function(r){
+          hideSaveOverlay();
+          if(r && r.changed===false){ setFormMsg('<div class="msg ok">ไม่มีข้อมูลที่เปลี่ยนแปลง</div>'); return; }
+          setSaveOverlaySuccess('บันทึกการแก้ไขแล้ว ✅');
+          setTimeout(function(){
+            hideSaveOverlay();
+            app.innerHTML = '<div class="msg ok">บันทึกการแก้ไขเรียบร้อยแล้วครับเจ้านาย! ✅🐾</div>'+
+              '<div class="btns"><button class="b-second" onclick="showList(\'saved\')">กลับหน้ารายการ</button><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
+          }, 1000);
         })
         .catch(function(e){ hideSaveOverlay(); setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
     }
@@ -403,7 +475,7 @@
       var cert = getCertParam();
       app.innerHTML = '<div class="center">กำลังโหลด...</div>';
       if(cert){ openDoc(cert); }
-      else { api('list').then(renderList).catch(function(e){ showErr(e.message); }); }
+      else { showList('pending'); }
     }
 
     liff.init({ liffId: LIFF_ID })
