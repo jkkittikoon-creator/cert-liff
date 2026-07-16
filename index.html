@@ -273,27 +273,67 @@
     /* ---------- เอกสารของฉัน (ในแดชบอร์ด): ค้นหา + QR ไฟล์ + ดาวน์โหลด ---------- */
     var _dashLatest = [];   // เก็บรายการล่าสุดไว้ กดล้างคำค้นแล้วกลับมาแสดงได้ทันที
 
-    // แถวเอกสาร: ชื่อ/ประเภท/สถานะ + ปุ่ม QR ไฟล์ และ เปิด/ดาวน์โหลด (เฉพาะ SAVED ที่มีไฟล์แนบ)
+    var _dashDocs = {};   // เก็บข้อมูลรายเอกสารไว้ใช้ตอนลบ/กู้คืน (วาดแถวเดิมกลับคืนได้)
+
+    // เนื้อในแถวเอกสาร: ชื่อ/ประเภท/สถานะ + ปุ่ม QR/Drive/ดาวน์โหลด (เฉพาะมีไฟล์แนบ) + ปุ่มลบ (SAVED ทุกใบ)
+    function dashDocRowInner(d){
+      var btns = '';
+      if(d.status==='SAVED'){
+        var act = '';
+        if(d.hasFile){
+          act = '<button class="b-second" style="padding:8px 4px;font-size:12px;" onclick="fileQr(\''+d.certificateId+'\')">🔳 QR ไฟล์</button>'+
+            '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="openDrive(\''+d.certificateId+'\')">📂 เปิด Drive</button>'+
+            '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="openFile(\''+d.certificateId+'\')">⬇️ ดาวน์โหลด</button>';
+        } else {
+          btns = '<div class="note" style="margin-top:6px;">ไม่มีไฟล์แนบ (นำเข้าย้อนหลัง)</div>';
+        }
+        btns += '<div class="dash-btns">'+act+
+          '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="deleteDoc(\''+d.certificateId+'\')" title="ลบไปถังขยะ">🗑️</button></div>';
+      }
+      return '<div class="dash-name">'+esc(d.name)+'</div>'+
+        '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+'</div>'+btns;
+    }
+
     function dashDocsHtml(docs, caption){
       if(!docs.length) return '<div class="note">ไม่พบเอกสารครับ 🐶</div>';
       var h = caption ? '<div class="note" style="margin-bottom:6px;">'+esc(caption)+'</div>' : '';
       docs.forEach(function(d){
-        var btns = '';
-        if(d.status==='SAVED' && d.hasFile){
-          btns = '<div class="dash-btns">'+
-            '<button class="b-second" style="padding:8px 4px;font-size:12px;" onclick="fileQr(\''+d.certificateId+'\')">🔳 QR ไฟล์</button>'+
-            '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="openDrive(\''+d.certificateId+'\')">📂 เปิด Drive</button>'+
-            '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="openFile(\''+d.certificateId+'\')">⬇️ ดาวน์โหลด</button>'+
-            '</div>';
-        } else if(d.status==='SAVED' && !d.hasFile){
-          btns = '<div class="note" style="margin-top:6px;">ไม่มีไฟล์แนบ (นำเข้าย้อนหลัง)</div>';
-        }
-        h += '<div class="doc-item dash-doc">'+
-          '<div class="dash-name">'+esc(d.name)+'</div>'+
-          '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+'</div>'+
-          btns+'</div>';
+        _dashDocs[d.certificateId] = d;
+        h += '<div class="doc-item dash-doc" id="dd_'+d.certificateId+'">'+dashDocRowInner(d)+'</div>';
       });
       return h;
+    }
+
+    // ลบไปถังขยะ (soft-delete) — ยืนยันก่อน แล้วแถวเปลี่ยนเป็นข้อความ "ลบแล้ว" พร้อมปุ่มกู้คืน (undo ได้ทันที)
+    function deleteDoc(certId){
+      var d = _dashDocs[certId] || {};
+      if(!confirm('ลบ "'+(d.name||'เอกสารนี้')+'" ไปที่ถังขยะ?\n\nกู้คืนได้ทันทีหลังลบ หรือภายหลังจากถังขยะในหน้าเว็บครับ')) return;
+      var row = document.getElementById('dd_'+certId);
+      if(row) row.innerHTML = '<div class="note">กำลังลบ... 🐾</div>';
+      api('delete', { certificateId: certId })
+        .then(function(){
+          _dashLatest = _dashLatest.filter(function(x){ return x.certificateId!==certId; });
+          if(row) row.innerHTML = '<div class="note">🗑️ ลบ "'+esc(d.name||'เอกสาร')+'" ไปที่ถังขยะแล้ว</div>'+
+            '<button class="b-second" style="margin-top:6px;padding:6px 12px;font-size:12px;" onclick="restoreDoc(\''+certId+'\')">↩️ กู้คืน</button>';
+        })
+        .catch(function(e){ if(row) row.innerHTML = dashDocRowInner(d); alert(e.message); });
+    }
+
+    // กู้คืนจากถังขยะ — วาดแถวเดิมกลับคืนพร้อมปุ่มครบ
+    function restoreDoc(certId){
+      var d = _dashDocs[certId] || {};
+      var row = document.getElementById('dd_'+certId);
+      if(row) row.innerHTML = '<div class="note">กำลังกู้คืน... 🐾</div>';
+      api('restore', { certificateId: certId })
+        .then(function(){
+          _dashLatest.unshift(d);
+          if(row) row.innerHTML = dashDocRowInner(d);
+        })
+        .catch(function(e){
+          if(row) row.innerHTML = '<div class="note">🗑️ อยู่ในถังขยะ</div>'+
+            '<button class="b-second" style="margin-top:6px;padding:6px 12px;font-size:12px;" onclick="restoreDoc(\''+certId+'\')">↩️ กู้คืน</button>';
+          alert(e.message);
+        });
     }
 
     function dashSearch(){
