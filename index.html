@@ -172,13 +172,14 @@
         .then(function(docs){ renderDocs(docs, lastList); })
         .catch(function(e){ showErr(e.message); });
     }
-    // แถบแท็บใช้ร่วมกัน 3 หน้า (รอตรวจ / บันทึกแล้ว / แดชบอร์ด)
+    // แถบแท็บใช้ร่วมกัน 4 หน้า (รอตรวจ / บันทึกแล้ว / แดชบอร์ด / ถังขยะ)
     function tabsBar(which){
-      function b(id, onclk, label){ return '<button class="'+(which===id?'b-primary':'b-second')+'" style="font-size:13px;padding:10px 6px;" onclick="'+onclk+'">'+label+'</button>'; }
-      return '<div class="btns" style="margin-bottom:12px;">'+
+      function b(id, onclk, label){ return '<button class="'+(which===id?'b-primary':'b-second')+'" style="font-size:12px;padding:9px 3px;" onclick="'+onclk+'">'+label+'</button>'; }
+      return '<div class="btns" style="margin-bottom:12px;gap:6px;">'+
         b('pending', "showList('pending')", '🕒 รอตรวจ')+
-        b('saved', "showList('saved')", '✅ บันทึกแล้ว')+
-        b('dash', 'showDash()', '📊 แดชบอร์ด')+
+        b('saved', "showList('saved')", '✅ บันทึก')+
+        b('dash', 'showDash()', '📊 สรุป')+
+        b('trash', 'showTrash()', '🗑️ ถังขยะ')+
         '</div>';
     }
     function renderDocs(docs, which){
@@ -224,6 +225,7 @@
       _dashLatest = s.latest || [];
       var typeKeys = Object.keys(s.byType);
       var yearKeys = Object.keys(s.byYear).sort();
+      var hoursYearKeys = Object.keys(s.hoursByYear || {}).sort();
 
       var tiles = '<div class="stat-grid">'+
         statTile(s.total, 'เอกสารทั้งหมด', '#1a73e8')+
@@ -233,14 +235,32 @@
         '</div>';
 
       var typeCard = typeKeys.length ? '<div class="chart-card"><h3>แยกตามประเภทเอกสาร</h3><canvas id="cType"></canvas></div>' : '';
-      var yearCard = yearKeys.length ? '<div class="chart-card"><h3>เอกสารแยกตามปีการศึกษา</h3><canvas id="cYear"></canvas></div>' : '';
+      var yearCard = yearKeys.length ? '<div class="chart-card"><h3>เอกสารแยกตามปีการศึกษา <span style="font-weight:normal;color:#999;font-size:12px;">(แตะแท่งเพื่อกรอง)</span></h3><canvas id="cYear"></canvas></div>' : '';
+      var hoursCard = hoursYearKeys.length ? '<div class="chart-card"><h3>ชั่วโมงอบรมแยกตามปีการศึกษา</h3><canvas id="cHours"></canvas></div>' : '';
 
-      // เอกสารของฉัน: ค้นหา + QR ไฟล์ + ดาวน์โหลด (ครบวงจร)
+      // ปุ่มดาวน์โหลดรายงานผลงาน (ข้อ 21) — สร้างไฟล์ PDF ผลงานของตัวเองไว้แนบประเมิน/ว.PA
+      var reportCard = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:6px;">📄 รายงานผลงาน</div>'+
+        '<div class="note" style="margin-bottom:8px;">รวมเอกสารที่บันทึกแล้วเป็นไฟล์รายงานราชการ (PDF) พร้อมภาพเกียรติบัตร</div>'+
+        '<button class="b-second" id="dlReportBtn" style="width:100%;" onclick="downloadReport()">📄 ดาวน์โหลดรายงานผลงาน (PDF)</button></div>';
+
+      // ชิปกรองด่วน (ทั้งหมด / ตามประเภท / ตามปี) — แตะแล้วค้นหาให้ทันที
+      _dashChips = [{ q:'', label:'ทั้งหมด' }];
+      typeKeys.forEach(function(t){ _dashChips.push({ q:t, label:t }); });
+      hoursYearKeys.concat(yearKeys).filter(function(y){ return /^\d{4}$/.test(y); })
+        .filter(function(y,i,a){ return a.indexOf(y)===i; }).sort()
+        .forEach(function(y){ _dashChips.push({ q:y, label:'ปี '+y }); });
+      var chipsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">'+
+        _dashChips.map(function(c, i){
+          return '<button class="b-second" style="flex:none;width:auto;padding:6px 12px;font-size:12px;border-radius:16px;" onclick="dashChip('+i+')">'+esc(c.label)+'</button>';
+        }).join('')+'</div>';
+
+      // เอกสารของฉัน: ค้นหา + ชิปกรอง + QR ไฟล์ + Drive + ดาวน์โหลด + ลบ (ครบวงจร)
       var recent = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:8px;">📂 เอกสารของฉัน</div>'+
         '<div style="display:flex;gap:8px;margin-bottom:10px;">'+
         '<input type="text" id="dq" placeholder="ค้นหา เช่น อบรม canva, ปี 2568..." style="flex:1;padding:9px 10px;font-size:14px;border:1px solid #ccc;border-radius:6px;" onkeydown="if(event.key===\'Enter\')dashSearch()">'+
         '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="dashSearch()">🔍 ค้นหา</button>'+
         '</div>'+
+        chipsHtml+
         '<div id="dashDocs">'+dashDocsHtml(s.latest, 'ล่าสุด 5 รายการ — พิมพ์ค้นหาเพื่อดูทั้งหมด')+'</div></div>';
 
       var closeBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
@@ -250,7 +270,7 @@
         return;
       }
 
-      app.innerHTML = tabsBar('dash') + tiles + typeCard + yearCard + recent + closeBtn;
+      app.innerHTML = tabsBar('dash') + tiles + typeCard + yearCard + hoursCard + reportCard + recent + closeBtn;
 
       if(typeof Chart === 'undefined') return; // เผื่อโหลด Chart.js ไม่สำเร็จ (ยังเห็นตัวเลขได้)
       Chart.defaults.font.family = "'Sarabun', sans-serif";
@@ -265,29 +285,41 @@
         _charts.push(new Chart(document.getElementById('cYear'), {
           type: 'bar',
           data: { labels: yearKeys, datasets: [{ label:'จำนวน (ใบ)', data: yearKeys.map(function(k){return s.byYear[k];}), backgroundColor: '#06c755' }] },
-          options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } }
+          options: {
+            responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } },
+            // แตะแท่งปี → กรองรายการ "เอกสารของฉัน" ให้เหลือเฉพาะปีนั้น
+            onClick: function(evt, els){ if(els && els.length){ dashFilterQuery(yearKeys[els[0].index]); } }
+          }
+        }));
+      }
+      if(hoursYearKeys.length){
+        _charts.push(new Chart(document.getElementById('cHours'), {
+          type: 'bar',
+          data: { labels: hoursYearKeys, datasets: [{ label:'ชั่วโมง', data: hoursYearKeys.map(function(k){return s.hoursByYear[k];}), backgroundColor: '#8e24aa' }] },
+          options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }
         }));
       }
     }
 
     /* ---------- เอกสารของฉัน (ในแดชบอร์ด): ค้นหา + QR ไฟล์ + ดาวน์โหลด ---------- */
     var _dashLatest = [];   // เก็บรายการล่าสุดไว้ กดล้างคำค้นแล้วกลับมาแสดงได้ทันที
+    var _dashChips = [];    // ชิปกรองด่วน (ทั้งหมด/ประเภท/ปี) — แต่ละตัว {q, label}
 
     var _dashDocs = {};   // เก็บข้อมูลรายเอกสารไว้ใช้ตอนลบ/กู้คืน (วาดแถวเดิมกลับคืนได้)
 
-    // เนื้อในแถวเอกสาร: ชื่อ/ประเภท/สถานะ + ปุ่ม QR/Drive/ดาวน์โหลด (เฉพาะมีไฟล์แนบ) + ปุ่มลบ (SAVED ทุกใบ)
+    // เนื้อในแถวเอกสาร: ชื่อ/ประเภท/สถานะ + ปุ่ม QR/Drive/ดาวน์โหลด (มีไฟล์) หรือ แนบไฟล์ (ไม่มีไฟล์) + ปุ่มลบ (SAVED ทุกใบ)
     function dashDocRowInner(d){
-      var btns = '';
+      var btns = '', extra = '', act = '';
       if(d.status==='SAVED'){
-        var act = '';
         if(d.hasFile){
           act = '<button class="b-second" style="padding:8px 4px;font-size:12px;" onclick="fileQr(\''+d.certificateId+'\')">🔳 QR ไฟล์</button>'+
             '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="openDrive(\''+d.certificateId+'\')">📂 เปิด Drive</button>'+
             '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="openFile(\''+d.certificateId+'\')">⬇️ ดาวน์โหลด</button>';
         } else {
-          btns = '<div class="note" style="margin-top:6px;">ไม่มีไฟล์แนบ (นำเข้าย้อนหลัง)</div>';
+          extra = '<div class="note" style="margin-top:6px;">ยังไม่มีไฟล์แนบ (นำเข้าย้อนหลัง) — แนบเพิ่มได้</div>';
+          act = '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="attachFile(\''+d.certificateId+'\')">📎 แนบไฟล์</button>';
         }
-        btns += '<div class="dash-btns">'+act+
+        btns = extra + '<div class="dash-btns">'+act+
           '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="deleteDoc(\''+d.certificateId+'\')" title="ลบไปถังขยะ">🗑️</button></div>';
       }
       return '<div class="dash-name">'+esc(d.name)+'</div>'+
@@ -344,6 +376,111 @@
       api('search', { query: q })
         .then(function(docs){ box.innerHTML = dashDocsHtml(docs, 'ผลค้นหา "'+q+'" — '+docs.length+' รายการ'+(docs.length>=20?' (แสดงสูงสุด 20)':'')); })
         .catch(function(e){ box.innerHTML = '<div class="msg err">'+esc(e.message)+'</div>'; });
+    }
+
+    // ใส่คำค้นลงช่องแล้วค้นหาทันที (ใช้ตอนแตะแท่งกราฟปี) — เลื่อนมาที่รายการให้เห็นผล
+    function dashFilterQuery(q){
+      var dq = document.getElementById('dq'); if(dq) dq.value = q || '';
+      var box = document.getElementById('dashDocs'); if(box) box.scrollIntoView({ behavior:'smooth', block:'center' });
+      dashSearch();
+    }
+
+    // ชิปกรองด่วน: q ว่าง = แสดงล่าสุด 5, มีค่า = ค้นหา
+    function dashChip(i){
+      var c = _dashChips[i] || { q:'' };
+      dashFilterQuery(c.q);
+    }
+
+    /* ---------- ดาวน์โหลดรายงานผลงาน (PDF) ---------- */
+    function downloadReport(){
+      var btn = document.getElementById('dlReportBtn');
+      if(btn){ btn.disabled = true; btn.textContent = '⏳ กำลังสร้างรายงาน... (อาจใช้เวลาสักครู่)'; }
+      api('report', { format: 'pdf' })
+        .then(function(d){
+          saveBase64File(d.base64, d.fileName, d.mimeType);
+          if(btn){ btn.disabled = false; btn.textContent = '📄 ดาวน์โหลดรายงานผลงาน (PDF) แล้ว ✅'; }
+        })
+        .catch(function(e){
+          if(btn){ btn.disabled = false; btn.textContent = '📄 ดาวน์โหลดรายงานผลงาน (PDF)'; }
+          alert(e.message);
+        });
+    }
+
+    // แปลง base64 → ไฟล์ แล้วสั่งดาวน์โหลด (ในแอป LINE ถ้าดาวน์โหลดตรงไม่ได้ ให้เปิดในเบราว์เซอร์ภายนอกแทน)
+    function saveBase64File(b64, name, mime){
+      try {
+        var bin = atob(b64), len = bin.length, arr = new Uint8Array(len);
+        for(var i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+        var blob = new Blob([arr], { type: mime || 'application/octet-stream' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = name || 'report';
+        document.body.appendChild(a); a.click();
+        setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
+      } catch(e){ alert('ดาวน์โหลดไม่สำเร็จ: ' + (e.message||e)); }
+    }
+
+    /* ---------- แนบไฟล์ให้เอกสารที่นำเข้าย้อนหลัง (ยังไม่มีไฟล์) ---------- */
+    function attachFile(certId){
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp,application/pdf';
+      inp.onchange = function(){ var f = inp.files && inp.files[0]; if(f) doAttach(certId, f); };
+      inp.click();
+    }
+    function doAttach(certId, file){
+      var isPdf = file.type === 'application/pdf';
+      var maxBytes = isPdf ? 20*1024*1024 : 10*1024*1024;
+      if(file.size > maxBytes){ alert('ไฟล์ใหญ่เกินกำหนด (รูปสูงสุด 10MB, PDF สูงสุด 20MB)'); return; }
+      var d = _dashDocs[certId] || {};
+      var row = document.getElementById('dd_'+certId);
+      if(row) row.innerHTML = '<div class="dash-name">'+esc(d.name||'เอกสาร')+'</div><div class="note">กำลังแนบไฟล์... 🐾</div>';
+      var reader = new FileReader();
+      reader.onload = function(){
+        var b64 = String(reader.result||'').split(',')[1] || '';
+        api('attach', { certificateId: certId, fileName: file.name, mimeType: file.type, base64: b64 })
+          .then(function(){
+            d.hasFile = true; d.fileName = file.name; _dashDocs[certId] = d;
+            _dashLatest.forEach(function(x){ if(x.certificateId===certId){ x.hasFile = true; x.fileName = file.name; } });
+            if(row) row.innerHTML = dashDocRowInner(d);
+          })
+          .catch(function(e){ if(row) row.innerHTML = dashDocRowInner(d); alert(e.message); });
+      };
+      reader.onerror = function(){ if(row) row.innerHTML = dashDocRowInner(d); alert('อ่านไฟล์ไม่สำเร็จ'); };
+      reader.readAsDataURL(file);
+    }
+
+    /* ---------- แท็บถังขยะ: ดูรายการที่ลบ + กู้คืน ---------- */
+    function showTrash(){
+      app.innerHTML = tabsBar('trash') + '<div class="center">กำลังโหลดถังขยะ...</div>';
+      api('trash').then(renderTrash).catch(function(e){ showErr(e.message); });
+    }
+    function trashRowInner(d){
+      return '<div class="dash-name">'+esc(d.name)+'</div>'+
+        '<div class="note">'+esc(d.documentType||'-')+(d.academicYear?' • ปี '+esc(d.academicYear):'')+(d.deletedAt?' • ลบเมื่อ '+esc(d.deletedAt):'')+'</div>'+
+        '<div class="dash-btns"><button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="trashRestore(\''+d.certificateId+'\')">↩️ กู้คืน</button></div>';
+    }
+    function renderTrash(docs){
+      var tabs = tabsBar('trash');
+      var closeBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+      if(!docs.length){
+        app.innerHTML = tabs + '<div class="msg">ถังขยะว่างเปล่าครับ 🐶 ไม่มีเอกสารที่ถูกลบ</div>' + closeBtn;
+        return;
+      }
+      var h = tabs + '<div class="msg">🗑️ เอกสารในถังขยะ '+docs.length+' รายการ — กดกู้คืนเพื่อนำกลับไปที่ "บันทึกแล้ว"</div><div class="card">';
+      docs.forEach(function(d){
+        _dashDocs[d.certificateId] = d;
+        h += '<div class="doc-item dash-doc" id="tr_'+d.certificateId+'">'+trashRowInner(d)+'</div>';
+      });
+      h += '</div>' + closeBtn;
+      app.innerHTML = h;
+    }
+    function trashRestore(certId){
+      var d = _dashDocs[certId] || {};
+      var row = document.getElementById('tr_'+certId);
+      if(row) row.innerHTML = '<div class="note">กำลังกู้คืน... 🐾</div>';
+      api('restore', { certificateId: certId })
+        .then(function(){ if(row) row.innerHTML = '<div class="note">✅ กู้คืน "'+esc(d.name||'เอกสาร')+'" กลับไปที่ "บันทึกแล้ว" เรียบร้อยแล้ว</div>'; })
+        .catch(function(e){ if(row) row.innerHTML = trashRowInner(d); alert(e.message); });
     }
 
     // QR เปิดดูไฟล์เกียรติบัตรใบนั้น — สแกนแล้วพาไปลิงก์ Google Drive ของไฟล์ใบนั้นโดยตรง
