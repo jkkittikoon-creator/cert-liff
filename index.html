@@ -391,33 +391,25 @@
       dashFilterQuery(c.q);
     }
 
-    /* ---------- ดาวน์โหลดรายงานผลงาน (PDF) ---------- */
+    /* ---------- รายงานผลงาน: สร้างแล้วเปิดหน้าพรีวิว+ดาวน์โหลดในเบราว์เซอร์ภายนอก ----------
+       เหตุผล: เบราว์เซอร์ในแอป LINE บล็อกการดาวน์โหลดไฟล์ตรง ๆ จึงให้เซิร์ฟเวอร์คืน "ลิงก์หน้ารายงาน"
+       (โทเคนลับ HMAC) แล้วเปิดภายนอก — ในหน้านั้นมีพรีวิว PDF + ปุ่มดาวน์โหลด PDF/Word ครบ */
+    var _reportUrl = '';   // เก็บลิงก์รายงานล่าสุดไว้ กดซ้ำได้โดยไม่ต้องสร้างใหม่
     function downloadReport(){
       var btn = document.getElementById('dlReportBtn');
+      if(_reportUrl){ liffOpen(_reportUrl); return; }
       if(btn){ btn.disabled = true; btn.textContent = '⏳ กำลังสร้างรายงาน... (อาจใช้เวลาสักครู่)'; }
-      api('report', { format: 'pdf' })
+      api('report', {})
         .then(function(d){
-          saveBase64File(d.base64, d.fileName, d.mimeType);
-          if(btn){ btn.disabled = false; btn.textContent = '📄 ดาวน์โหลดรายงานผลงาน (PDF) แล้ว ✅'; }
+          _reportUrl = d.viewUrl || '';
+          if(btn){ btn.disabled = false; btn.textContent = '📄 เปิดดูรายงานอีกครั้ง ('+(d.total||0)+' รายการ)'; }
+          if(_reportUrl) liffOpen(_reportUrl);
+          else alert('สร้างรายงานสำเร็จ แต่ไม่ได้รับลิงก์เปิดดู — กรุณาอัปเดตโค้ดฝั่ง Apps Script เป็นเวอร์ชันล่าสุดครับ');
         })
         .catch(function(e){
           if(btn){ btn.disabled = false; btn.textContent = '📄 ดาวน์โหลดรายงานผลงาน (PDF)'; }
           alert(e.message);
         });
-    }
-
-    // แปลง base64 → ไฟล์ แล้วสั่งดาวน์โหลด (ในแอป LINE ถ้าดาวน์โหลดตรงไม่ได้ ให้เปิดในเบราว์เซอร์ภายนอกแทน)
-    function saveBase64File(b64, name, mime){
-      try {
-        var bin = atob(b64), len = bin.length, arr = new Uint8Array(len);
-        for(var i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
-        var blob = new Blob([arr], { type: mime || 'application/octet-stream' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url; a.download = name || 'report';
-        document.body.appendChild(a); a.click();
-        setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1500);
-      } catch(e){ alert('ดาวน์โหลดไม่สำเร็จ: ' + (e.message||e)); }
     }
 
     /* ---------- แนบไฟล์ให้เอกสารที่นำเข้าย้อนหลัง (ยังไม่มีไฟล์) ---------- */
