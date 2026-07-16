@@ -21,9 +21,11 @@
     .b-manual { background: #e2e3e5; color: #383d41; }
     .b-draft { background: #fff3cd; color: #856404; }
     .preview img, .preview embed { width: 100%; max-height: 320px; object-fit: contain; border: 1px solid #ddd; border-radius: 6px; background:#fafafa; }
+    .preview img { cursor: zoom-in; }
+    .cert-hint { font-size: 12px; color: #888; text-align: center; margin-top: 6px; }
     .field { margin-bottom: 12px; padding-left: 10px; border-left: 4px solid transparent; }
     .field label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
-    .field input, .field select { width: 100%; padding: 9px 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; }
+    .field input, .field select, .other-in { width: 100%; padding: 9px 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; }
     .req { color: #c0392b; }
     .conf-green { border-left-color: #2e7d32; }
     .conf-yellow { border-left-color: #f9a825; }
@@ -54,13 +56,21 @@
     .b-second { background: #e9edf3; color: #333; }
     button:disabled { opacity: 0.5; }
     .center { text-align: center; padding: 40px 0; color: #666; }
+    /* verify-form F3+F8: ตัวดูเกียรติบัตรแบบซูม/แพน + ปุ่มลอย */
+    .cert-float { position: fixed; bottom: 18px; right: 18px; z-index: 150; flex: none; width: auto; padding: 10px 16px;
+      background: #06c755; color: #fff; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .cv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 300; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .cv-stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
+    .cv-img { max-width: 100%; max-height: 100%; transform-origin: center center; user-select: none; -webkit-user-drag: none; will-change: transform; }
+    .cv-close { position: fixed; top: 14px; right: 14px; z-index: 301; flex: none; width: auto; padding: 8px 14px; background: #fff; color: #222; border-radius: 6px; }
+    .cv-reset { position: fixed; bottom: 18px; right: 18px; z-index: 301; flex: none; width: auto; padding: 10px 16px; background: #1a73e8; color: #fff; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h2>ตรวจและยืนยันเอกสาร</h2>
     <div id="app"><div class="center">กำลังเชื่อมต่อ LINE...</div></div>
   </div>
+  <div id="viewerRoot"></div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
@@ -72,13 +82,23 @@
     var app = document.getElementById('app');
     var FIELDS = ['documentType','academicYear','recipientName','position','activityName',
       'hours','awardResult','competitionLevel','participationRole','issuer','receivedDate','certificateNumber'];
-    var REQUIRED = ['documentType','academicYear','recipientName','position','activityName','issuer','receivedDate'];
+    // verify-form F2: ปีการศึกษาไม่บังคับแล้ว
+    var REQUIRED = ['documentType','recipientName','position','activityName','issuer','receivedDate'];
     var LABELS = {
       documentType:'ประเภทเอกสาร', academicYear:'ปีการศึกษา', recipientName:'ชื่อผู้ได้รับ',
       position:'ตำแหน่ง', activityName:'ชื่อกิจกรรม/หลักสูตร', hours:'จำนวนชั่วโมง',
       awardResult:'ผลรางวัล', competitionLevel:'ระดับการแข่งขัน', participationRole:'บทบาท',
       issuer:'หน่วยงานที่ออก', receivedDate:'วันที่ได้รับ', certificateNumber:'เลขที่เอกสาร'
     };
+    // verify-form F1: ฟิลด์ dropdown + "อื่นๆ"  (documentType/competitionLevel ดึงตัวเลือกจากเซิร์ฟเวอร์)
+    var SELECT_FIELDS = ['documentType','academicYear','awardResult','competitionLevel','participationRole'];
+    var PROFILE_FIELDS = ['recipientName','position']; // F9: มาจากโปรไฟล์ ไม่ผ่าน AI
+    var OPTIONS = {
+      awardResult: ['ชนะเลิศ','รองชนะเลิศอันดับ 1','รองชนะเลิศอันดับ 2','เหรียญทอง','เหรียญเงิน','เหรียญทองแดง','ชมเชย','ผ่านการอบรม','เข้าร่วม'],
+      participationRole: ['ผู้เข้าร่วม','ผู้เข้าแข่งขัน','ผู้เข้ารับการอบรม','วิทยากร','คณะกรรมการ','ครูผู้ควบคุม/ผู้ฝึกสอน','ผู้จัดกิจกรรม'],
+      academicYear: (function(){ var y=new Date().getFullYear()+543,a=[]; for(var i=0;i<8;i++)a.push(String(y-i)); return a; })()
+    };
+    var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function showErr(m){ app.innerHTML = '<div class="msg err">'+esc(m)+'</div>'; }
@@ -103,13 +123,15 @@
       return '';
     }
 
-    /* ---------- confidence UI (ตามข้อ 7.1) ---------- */
+    /* ---------- confidence UI (F4: เกณฑ์ตายตัว ให้สถานะเดียวกันได้สีเดียวกันเสมอ) ---------- */
     function confClass(ai){
       if(!ai) return '';
       if(ai.source==='USER_ENTERED'||ai.source==='USER_EDITED') return 'conf-gray';
-      if(ai.source==='NOT_FOUND'||ai.confidence<0.5) return 'conf-red';
-      if(ai.source==='AI_INFERRED'||ai.confidence<0.85) return 'conf-yellow';
-      return 'conf-green';
+      if(ai.source==='NOT_FOUND') return 'conf-red';               // อ่านไม่ได้เลย = แดงเสมอ
+      var conf = Number(ai.confidence)||0;
+      if(conf>=0.95) return 'conf-green';
+      if(conf>=0.70) return 'conf-yellow';
+      return 'conf-red';
     }
     function confNote(ai){
       if(!ai) return '';
@@ -143,36 +165,63 @@
       api('get', { certificateId: certId }).then(renderForm).catch(function(e){ showErr(e.message); });
     }
 
+    // F1: สร้าง select + "อื่นๆ (พิมพ์เอง)" — ถ้าค่าเดิมไม่อยู่ในลิสต์ เลือก "อื่นๆ" แล้วโชว์ช่องพิมพ์พร้อมค่าเดิม
+    function buildSelect(name, options, val){
+      var inList = val && options.indexOf(val)!==-1;
+      var opts = '<option value="">-- เลือก --</option>';
+      options.forEach(function(o){ opts += '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; });
+      opts += '<option value="__other__"'+((!inList&&val)?' selected':'')+'>อื่นๆ (พิมพ์เอง)</option>';
+      var show = (!inList && val) ? '' : 'display:none;';
+      return '<select id="f_'+name+'" onchange="onSel(\''+name+'\')">'+opts+'</select>'+
+        '<input type="text" id="fo_'+name+'" class="other-in" style="margin-top:6px;'+show+'" value="'+((!inList&&val)?esc(val):'')+'" '+
+        'placeholder="พิมพ์'+esc(LABELS[name])+'..." oninput="edited(\''+name+'\')">';
+    }
+
+    function renderField(name, ai, c, dd){
+      var aiF = ai[name], cls = confClass(aiF);
+      var val = c[name]==null?'':c[name];
+      var req = REQUIRED.indexOf(name)!==-1 ? ' <span class="req">*</span>' : '';
+      var note = confNote(aiF), input;
+      if(PROFILE_FIELDS.indexOf(name)!==-1){
+        // F9: ชื่อผู้ได้รับ/ตำแหน่ง มาจากโปรไฟล์ (ไม่มีแถบสี + หมายเหตุที่มา)
+        cls = '';
+        note = '<div class="note" style="color:#3949ab;">ℹ️ ดึงจากโปรไฟล์ผู้ใช้งาน — หากไม่ถูกต้องแก้ที่โปรไฟล์</div>';
+        input = '<input type="text" id="f_'+name+'" value="'+esc(val)+'" oninput="edited(\''+name+'\')">';
+      } else if(SELECT_FIELDS.indexOf(name)!==-1){
+        var options = (name==='documentType'||name==='competitionLevel') ? (dd[name]||[]) : (OPTIONS[name]||[]);
+        input = buildSelect(name, options, val);
+      } else if(name==='receivedDate'){
+        // F5: วันที่ (เก็บ ค.ศ.) + หมายเหตุแสดง พ.ศ.
+        input = '<input type="date" id="f_'+name+'" value="'+esc(val)+'" oninput="onDate()">'+
+          '<div class="note" id="beNote" style="color:#00695c;">'+(val?'📅 '+toBE(val)+' (พ.ศ.)':'')+'</div>';
+      } else if(name==='hours'){
+        // F11: จำนวนชั่วโมงเป็นตัวเลข (ขึ้นแป้นตัวเลขบนมือถือ)
+        input = '<input type="number" inputmode="decimal" min="0" step="0.5" id="f_'+name+'" value="'+esc(val)+'" oninput="edited(\''+name+'\')">';
+      } else {
+        input = '<input type="text" id="f_'+name+'" value="'+esc(val)+'" oninput="edited(\''+name+'\')">';
+      }
+      return '<div class="field '+cls+'" id="ff_'+name+'"><label>'+LABELS[name]+req+'</label>'+input+note+'</div>';
+    }
+
     function renderForm(data){
       curCert = data.certificate;
       var c = data.certificate, ai = data.aiResult || {}, dd = data.dropdowns || {};
       var isPdf = c.mimeType === 'application/pdf';
+      var isImage = !!data.previewBase64 && !isPdf;
+      // F3+F8: เก็บ src รูปไว้ให้ตัวดูซูม + แตะรูปเปิดตัวดูได้
+      window.imgSrc = isImage ? ('data:'+c.mimeType+';base64,'+data.previewBase64) : '';
       var prev = isPdf
         ? '<embed src="data:'+c.mimeType+';base64,'+data.previewBase64+'" type="application/pdf" height="320">'
-        : '<img src="data:'+c.mimeType+';base64,'+data.previewBase64+'">';
+        : (isImage
+          ? '<img src="'+window.imgSrc+'" onclick="openViewer()"><div class="cert-hint">🔍 แตะรูปเพื่อขยาย/ซูมดูรายละเอียด</div>'
+          : '<div class="note" style="text-align:center;padding:20px;">ไม่มีไฟล์แนบ</div>');
 
-      var red=0, yellow=0, fieldsHtml='';
-      FIELDS.forEach(function(name){
-        var aiF = ai[name], cls = confClass(aiF);
-        if(cls==='conf-red') red++; else if(cls==='conf-yellow') yellow++;
-        var val = c[name]==null?'':c[name];
-        var req = REQUIRED.indexOf(name)!==-1 ? ' <span class="req">*</span>' : '';
-        var input;
-        if(name==='documentType'||name==='competitionLevel'){
-          var opts = (dd[name]||[]).map(function(v){ return '<option value="'+esc(v)+'"'+(v===val?' selected':'')+'>'+esc(v)+'</option>'; }).join('');
-          input = '<select id="f_'+name+'" oninput="edited(\''+name+'\')"><option value="">-- เลือก --</option>'+opts+'</select>';
-        } else {
-          var type = name==='hours'?'number':(name==='receivedDate'?'date':'text');
-          input = '<input type="'+type+'" id="f_'+name+'" value="'+esc(val)+'" oninput="edited(\''+name+'\')">';
-        }
-        fieldsHtml += '<div class="field '+cls+'" id="ff_'+name+'"><label>'+LABELS[name]+req+'</label>'+input+confNote(aiF)+'</div>';
-      });
+      var fieldsHtml = FIELDS.map(function(name){ return renderField(name, ai, c, dd); }).join('');
 
-      var summary = (data.aiResult && Object.keys(data.aiResult).length)
-        ? '<div class="summary">แถบสีความมั่นใจ: <b style="color:#c62828">แดง '+red+'</b> (ต้องตรวจ), <b style="color:#f9a825">เหลือง '+yellow+'</b> (ควรตรวจ), เขียว = มั่นใจสูง — กรุณาตรวจก่อนยืนยัน</div>'
-        : '';
-
+      // F7: แถบสรุปสี — คำนวณสด 3 สี (เติมด้วย updateBanner หลัง render)
+      var summary = (data.aiResult && Object.keys(data.aiResult).length) ? '<div class="summary" id="banner"></div>' : '';
       var dupHtml = dupBanner(data.duplicateCheck);
+      var floatBtn = isImage ? '<button class="cert-float" onclick="openViewer()">🔍 ดูเกียรติบัตร</button>' : '';
 
       app.innerHTML =
         '<div id="formMsg"></div>'+
@@ -183,7 +232,24 @@
         '<div class="btns">'+
         '<button class="b-second" onclick="saveDraft()">บันทึกร่าง</button>'+
         '<button class="b-primary" onclick="confirmSave()">ยืนยันบันทึก</button>'+
-        '</div></div>';
+        '</div></div>'+
+        floatBtn;
+      updateBanner();
+    }
+
+    // F7: นับ 3 สีสดจากสถานะฟิลด์จริง
+    function updateBanner(){
+      var el = document.getElementById('banner'); if(!el) return;
+      var g=0,y=0,r=0;
+      ['documentType','academicYear','activityName','hours','awardResult','competitionLevel',
+        'participationRole','issuer','receivedDate','certificateNumber'].forEach(function(n){
+        var ff = document.getElementById('ff_'+n); if(!ff) return;
+        if(/conf-green/.test(ff.className)) g++;
+        else if(/conf-yellow/.test(ff.className)) y++;
+        else if(/conf-red/.test(ff.className)) r++;
+      });
+      el.innerHTML = 'แถบสีความมั่นใจ (ปรับตามการแก้ไข): <b style="color:#2e7d32">เขียว '+g+'</b>, '+
+        '<b style="color:#f9a825">เหลือง '+y+'</b>, <b style="color:#c62828">แดง '+r+'</b> — กรุณาตรวจก่อนยืนยัน';
     }
 
     /* ---------- แถบเตือนเอกสารซ้ำ (ข้อ 13) ---------- */
@@ -204,14 +270,76 @@
         '<div class="foot">ถ้ากดยืนยันบันทึก ระบบจะจดไว้ว่าเจ้านายตัดสินใจเก็บแม้อาจซ้ำ (ข้อ 13)</div></div>';
     }
 
-    function edited(name){ var el=document.getElementById('ff_'+name); if(el) el.className='field conf-gray'; }
-
+    /* ---------- ตัวช่วยฟิลด์ ---------- */
+    function onSel(name){
+      var s=document.getElementById('f_'+name), o=document.getElementById('fo_'+name);
+      if(s&&o){ if(s.value==='__other__'){ o.style.display=''; o.focus(); } else { o.style.display='none'; o.value=''; } }
+      edited(name);
+    }
+    function edited(name){
+      var el=document.getElementById('ff_'+name);
+      if(el && PROFILE_FIELDS.indexOf(name)===-1) el.className='field conf-gray';
+      updateBanner();
+    }
+    function toBE(iso){
+      var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||'')); if(!m) return '';
+      return Number(m[3])+' '+THMONTHS[Number(m[2])-1]+' '+(Number(m[1])+543);
+    }
+    function onDate(){
+      var el=document.getElementById('f_receivedDate'), n=document.getElementById('beNote');
+      if(n) n.innerHTML=(el&&el.value)?'📅 '+toBE(el.value)+' (พ.ศ.)':'';
+      edited('receivedDate');
+    }
+    // ดึงค่าจริง — ถ้า select เลือก "อื่นๆ" ใช้ค่าจากช่องพิมพ์เอง
+    function vfval(name){
+      var s=document.getElementById('f_'+name);
+      if(s && s.tagName==='SELECT'){ if(s.value==='__other__'){ var o=document.getElementById('fo_'+name); return o?o.value.trim():''; } return s.value; }
+      return s?s.value:'';
+    }
     function collect(){
-      var d={}; FIELDS.forEach(function(f){ var el=document.getElementById('f_'+f); if(el) d[f]=el.value; }); return d;
+      var d={}; FIELDS.forEach(function(f){ d[f]=vfval(f); }); return d;
     }
     function setFormMsg(html){ var m=document.getElementById('formMsg'); if(m) m.innerHTML=html; }
 
-    /* ---------- โอเวอร์เลย์ "กำลังบันทึก" (ใช้ตอนกดยืนยันบันทึก) ---------- */
+    /* ---------- ตัวดูเกียรติบัตร ซูม/แพน (F3+F8) ---------- */
+    var zS=1, zTx=0, zTy=0;
+    function zApply(){ var im=document.getElementById('cvImg'); if(im) im.style.transform='translate('+zTx+'px,'+zTy+'px) scale('+zS+')'; }
+    function zClamp(s){ return Math.max(1, Math.min(5, s)); }
+    function zReset(){ zS=1; zTx=0; zTy=0; zApply(); }
+    function openViewer(){
+      if(!window.imgSrc) return;
+      document.getElementById('viewerRoot').innerHTML =
+        '<div class="cv-overlay"><div class="cv-stage" id="cvStage"><img class="cv-img" id="cvImg" src="'+window.imgSrc+'" draggable="false"></div>'+
+        '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button><button class="cv-reset" onclick="zReset()">⟲ รีเซ็ต</button></div>';
+      zBind();
+    }
+    function closeViewer(){ document.getElementById('viewerRoot').innerHTML=''; }
+    function zDist(t){ return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+    function zDouble(px,py,st){
+      if(zS>1){ zReset(); return; }
+      var rc=st.getBoundingClientRect(), cx=rc.left+rc.width/2, cy=rc.top+rc.height/2;
+      zS=2.5; zTx=(px-cx)*(1-zS); zTy=(py-cy)*(1-zS); zApply();
+    }
+    function zBind(){
+      zReset();
+      var st=document.getElementById('cvStage'); if(!st) return;
+      var sd=0, ss=1, pan=false, lx=0, ly=0, lt=0;
+      st.addEventListener('touchstart', function(e){
+        if(e.touches.length===2){ sd=zDist(e.touches); ss=zS; }
+        else if(e.touches.length===1){ var n=Date.now();
+          if(n-lt<300){ zDouble(e.touches[0].clientX,e.touches[0].clientY,st); lt=0; }
+          else { lt=n; pan=zS>1; lx=e.touches[0].clientX; ly=e.touches[0].clientY; } }
+      }, {passive:false});
+      st.addEventListener('touchmove', function(e){
+        if(e.touches.length===2){ e.preventDefault(); zS=zClamp(ss*(zDist(e.touches)/(sd||1))); zApply(); }
+        else if(e.touches.length===1 && pan){ e.preventDefault(); var t=e.touches[0]; zTx+=t.clientX-lx; zTy+=t.clientY-ly; lx=t.clientX; ly=t.clientY; zApply(); }
+      }, {passive:false});
+      st.addEventListener('touchend', function(){ pan=zS>1; });
+      st.addEventListener('wheel', function(e){ e.preventDefault(); zS=zClamp(zS*(e.deltaY<0?1.15:0.87)); zApply(); }, {passive:false});
+      st.addEventListener('dblclick', function(e){ zDouble(e.clientX,e.clientY,st); });
+    }
+
+    /* ---------- โอเวอร์เลย์ "กำลังบันทึก" ---------- */
     function showSaveOverlay(text, sub){
       var el = document.getElementById('saveOverlay');
       if(!el){ el = document.createElement('div'); el.id = 'saveOverlay'; document.body.appendChild(el); }
@@ -239,10 +367,19 @@
         .catch(function(e){ setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
     }
 
+    // F10 + F11: validation summary + เลื่อนไปหาฟิลด์ที่ขาด + confirm dialog ก่อนบันทึกจริง
     function confirmSave(){
+      var missing = REQUIRED.filter(function(f){ return !String(vfval(f)||'').trim(); });
+      if(missing.length){
+        setFormMsg('<div class="msg err"><b>กรุณากรอกข้อมูลที่จำเป็นให้ครบก่อนบันทึก:</b> '+
+          esc(missing.map(function(f){ return LABELS[f]; }).join(', '))+'</div>');
+        var ff = document.getElementById('ff_'+missing[0]);
+        if(ff) ff.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
+      if(!window.confirm('ยืนยันการบันทึกข้อมูลนี้ใช่หรือไม่?\n\nเมื่อบันทึกแล้วข้อมูลจะถูกนำไปใช้ในระบบจัดเก็บเอกสาร/ว.PA')) return;
+
       var d = collect();
-      var missing = REQUIRED.filter(function(f){ return !d[f]; }).map(function(f){ return LABELS[f]; });
-      if(missing.length){ setFormMsg('<div class="msg err">กรุณากรอกให้ครบ: '+esc(missing.join(', '))+'</div>'); return; }
       showSaveOverlay('กำลังบันทึกข้อมูล...', 'กรุณารอสักครู่นะครับ 🐾');
       api('confirm', { certificateId: curCert.certificateId, formData: d })
         .then(function(){
