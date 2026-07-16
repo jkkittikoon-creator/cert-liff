@@ -299,22 +299,24 @@
         .catch(function(e){ box.innerHTML = '<div class="msg err">'+esc(e.message)+'</div>'; });
     }
 
-    // QR เปิดดูไฟล์เกียรติบัตรใบนั้น — สแกนแล้วเห็นไฟล์จริง + ปุ่มดาวน์โหลด (Drive ยังเป็นส่วนตัว)
+    // QR เปิดดูไฟล์เกียรติบัตรใบนั้น — สแกนแล้วพาไปลิงก์ Google Drive ของไฟล์ใบนั้นโดยตรง
+    // (เซิร์ฟเวอร์เปิดแชร์เฉพาะไฟล์นั้นแบบ "มีลิงก์-ดูได้" ให้อัตโนมัติ + บันทึก Audit)
     function fileQr(certId){
       document.getElementById('viewerRoot').innerHTML =
         '<div class="cv-overlay" style="flex-direction:column;background:rgba(0,0,0,0.85);">'+
         '<div style="background:#fff;padding:20px;border-radius:12px;text-align:center;max-width:300px;">'+
         '<div class="note">กำลังสร้าง QR...</div></div></div>';
       api('fileqr', { certificateId: certId }).then(function(d){
-        var url = 'https://quickchart.io/qr?size=260&margin=2&text='+encodeURIComponent(d.fileViewUrl);
+        var link = d.driveUrl || d.fileViewUrl;
+        var url = 'https://quickchart.io/qr?size=260&margin=2&text='+encodeURIComponent(link);
         document.getElementById('viewerRoot').innerHTML =
           '<div class="cv-overlay" style="flex-direction:column;background:rgba(0,0,0,0.85);">'+
           '<div style="background:#fff;padding:20px;border-radius:12px;text-align:center;max-width:300px;">'+
           '<div style="font-weight:bold;margin-bottom:4px;">🔳 QR เปิดดูเกียรติบัตร</div>'+
           '<div class="note" style="margin-bottom:8px;">'+esc(d.activityName||d.fileName||'')+'</div>'+
           '<img src="'+url+'" style="width:240px;height:240px;" alt="QR">'+
-          '<div class="note" style="margin-top:8px;">สแกนแล้วเปิดดูไฟล์ใบนี้ + ดาวน์โหลดได้ทันที</div>'+
-          '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="liffOpen(\''+d.fileViewUrl+'\')">เปิดลิงก์นี้</button></div>'+
+          '<div class="note" style="margin-top:8px;">สแกนแล้วเปิดไฟล์ใบนี้ใน Google Drive ได้ทันที</div>'+
+          '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="liffOpen(\''+link+'\')">เปิดลิงก์นี้</button></div>'+
           '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
       }).catch(function(e){
         document.getElementById('viewerRoot').innerHTML = '';
@@ -322,10 +324,10 @@
       });
     }
 
-    // เปิด/ดาวน์โหลดไฟล์ — เปิดหน้า fileview ในเบราว์เซอร์ภายนอก (มีปุ่มดาวน์โหลดในหน้านั้น)
+    // เปิด/ดาวน์โหลดไฟล์ — เปิดลิงก์ Google Drive ของไฟล์ใบนั้นในเบราว์เซอร์ภายนอก (กดดาวน์โหลดใน Drive ได้เลย)
     function openFile(certId){
       api('fileqr', { certificateId: certId })
-        .then(function(d){ liffOpen(d.fileViewUrl); })
+        .then(function(d){ liffOpen(d.driveUrl || d.fileViewUrl); })
         .catch(function(e){ alert(e.message); });
     }
 
