@@ -281,8 +281,9 @@
         var btns = '';
         if(d.status==='SAVED' && d.hasFile){
           btns = '<div class="dash-btns">'+
-            '<button class="b-second" style="padding:8px 6px;font-size:13px;" onclick="fileQr(\''+d.certificateId+'\')">🔳 QR ไฟล์</button>'+
-            '<button class="b-second" style="padding:8px 6px;font-size:13px;color:#1a73e8;" onclick="openFile(\''+d.certificateId+'\')">⬇️ เปิด/ดาวน์โหลด</button>'+
+            '<button class="b-second" style="padding:8px 4px;font-size:12px;" onclick="fileQr(\''+d.certificateId+'\')">🔳 QR ไฟล์</button>'+
+            '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="openDrive(\''+d.certificateId+'\')">📂 เปิด Drive</button>'+
+            '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="openFile(\''+d.certificateId+'\')">⬇️ ดาวน์โหลด</button>'+
             '</div>';
         } else if(d.status==='SAVED' && !d.hasFile){
           btns = '<div class="note" style="margin-top:6px;">ไม่มีไฟล์แนบ (นำเข้าย้อนหลัง)</div>';
@@ -348,6 +349,14 @@
     function openFile(certId){
       api('fileqr', { certificateId: certId })
         .then(function(d){ liffOpen(d.fileViewUrl); })
+        .catch(function(e){ alert(e.message); });
+    }
+
+    // เปิดไฟล์เกียรติบัตรใบนั้นใน Google Drive โดยตรง (ไม่ต้องล็อกอิน)
+    // share: true → เซิร์ฟเวอร์เปิดแชร์เฉพาะไฟล์ใบนี้แบบ "มีลิงก์-ดูได้" ให้อัตโนมัติ + บันทึก Audit
+    function openDrive(certId){
+      api('fileqr', { certificateId: certId, share: true })
+        .then(function(d){ liffOpen(d.driveUrl || d.fileViewUrl); })
         .catch(function(e){ alert(e.message); });
     }
 
