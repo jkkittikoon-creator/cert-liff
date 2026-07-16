@@ -16,6 +16,11 @@
     .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; }
     .doc-item:last-child { border-bottom: none; }
     .doc-item:active { background: #f0f4fa; }
+    /* แถวเอกสารในแดชบอร์ด: เรียงแนวตั้ง ชื่อกินเต็มความกว้าง → ข้อความไทยตัดคำธรรมชาติ ไม่ถูกบีบเป็นคอลัมน์แคบ */
+    .dash-doc { display: block; cursor: default; }
+    .dash-doc .dash-name { overflow-wrap: break-word; word-break: normal; }
+    .dash-doc .dash-btns { display: flex; gap: 6px; margin-top: 8px; }
+    .dash-doc .dash-btns button { flex: 1; }
     .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
     .b-ai { background: #cce5ff; color: #004085; }
     .b-manual { background: #e2e3e5; color: #383d41; }
@@ -274,16 +279,16 @@
       docs.forEach(function(d){
         var btns = '';
         if(d.status==='SAVED' && d.hasFile){
-          btns = '<div style="display:flex;gap:6px;width:100%;margin-top:8px;">'+
+          btns = '<div class="dash-btns">'+
             '<button class="b-second" style="padding:8px 6px;font-size:13px;" onclick="fileQr(\''+d.certificateId+'\')">🔳 QR ไฟล์</button>'+
             '<button class="b-second" style="padding:8px 6px;font-size:13px;color:#1a73e8;" onclick="openFile(\''+d.certificateId+'\')">⬇️ เปิด/ดาวน์โหลด</button>'+
             '</div>';
         } else if(d.status==='SAVED' && !d.hasFile){
-          btns = '<div class="note" style="width:100%;margin-top:6px;">ไม่มีไฟล์แนบ (นำเข้าย้อนหลัง)</div>';
+          btns = '<div class="note" style="margin-top:6px;">ไม่มีไฟล์แนบ (นำเข้าย้อนหลัง)</div>';
         }
-        h += '<div class="doc-item" style="cursor:default;flex-wrap:wrap;">'+
-          '<div style="flex:1;min-width:0;"><div>'+esc(d.name)+'</div>'+
-          '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+'</div></div>'+
+        h += '<div class="doc-item dash-doc">'+
+          '<div class="dash-name">'+esc(d.name)+'</div>'+
+          '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+'</div>'+
           btns+'</div>';
       });
       return h;
