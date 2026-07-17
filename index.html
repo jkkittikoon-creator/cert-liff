@@ -538,8 +538,8 @@
     }
 
     function rcView(id){ var r = rcFind(id); if(r) liffOpen(r.viewUrl); }
-    function rcPdf(id){ var r = rcFind(id); if(r) liffOpen(r.pdfUrl || (r.viewUrl+'&dl=pdf')); }
-    function rcWord(id){ var r = rcFind(id); if(r) liffOpen(r.wordUrl || (r.viewUrl+'&format=word')); }
+    function rcPdf(id){ var r = rcFind(id); if(r) liffOpen(r.pdfUrl || (r.viewUrl+'&format=pdf&dl=1')); }
+    function rcWord(id){ var r = rcFind(id); if(r) liffOpen(r.wordUrl || (r.viewUrl+'&format=word&dl=1')); }
 
     // คัดลอกลิงก์เปิดดูรายงาน (หน้าโทเคน ไม่ใช่ลิงก์ Drive) ไว้แชร์ให้ผู้บริหารเปิดดูได้โดยไม่ต้องโหลดไฟล์
     function rcCopy(id){
