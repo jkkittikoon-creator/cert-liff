@@ -504,9 +504,9 @@
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
         '<div class="dash-name" style="flex:1;">'+esc(r.label)+todayBadge+'</div>'+rcBadge(r.kind)+'</div>'+
         '<div class="note">สร้างเมื่อ '+esc(rcThaiDate(r.createdAt))+(r.total!=='' ? ' • '+esc(r.total)+' รายการ' : '')+sizeText+' • ✅ พร้อมใช้งาน</div>'+
-        // แถวปุ่มหลัก 3 ปุ่ม: 👁️ ดู (พรีวิว) · ⬇️ PDF (แดง) · ⬇️ Word (น้ำเงิน)
+        // แถวปุ่มหลัก 3 ปุ่ม: 🔳 QR (สแกนเปิดรายงานจาก Drive + บันทึกรูปได้) · ⬇️ PDF (แดง) · ⬇️ Word (น้ำเงิน)
         '<div class="dash-btns">'+
-        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#5f6368;" onclick="rcView(\''+r.reportId+'\')">👁️ ดู</button>'+
+        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#5f6368;" onclick="rcQr(\''+r.reportId+'\')">🔳 QR Code</button>'+
         '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;font-weight:bold;" onclick="rcPdf(\''+r.reportId+'\')">⬇️ PDF</button>'+
         '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;font-weight:bold;" onclick="rcWord(\''+r.reportId+'\')">⬇️ Word</button>'+
         '</div>'+
@@ -537,11 +537,32 @@
       document.getElementById('rc_list').innerHTML = rcListHtml(list);
     }
 
-    function rcView(id){ var r = rcFind(id); if(r) liffOpen(r.viewUrl); }
-    function rcPdf(id){ var r = rcFind(id); if(r) liffOpen(r.pdfUrl || (r.viewUrl+'&format=pdf&dl=1')); }
-    function rcWord(id){ var r = rcFind(id); if(r) liffOpen(r.wordUrl || (r.viewUrl+'&format=word&dl=1')); }
+    // QR เปิดดูรายงาน — สแกนแล้วพาไปลิงก์ Google Drive ของไฟล์ PDF รายงานโดยตรง + บันทึกรูป QR ลงเครื่องได้
+    // (ใช้ _qrUrl/saveQrImage ชุดเดียวกับ QR เกียรติบัตร ไม่ต้องเรียกเซิร์ฟเวอร์เพราะ viewUrl มีอยู่แล้ว)
+    function rcQr(id){
+      var r = rcFind(id); if(!r || !r.viewUrl) return;
+      _qrUrl = 'https://quickchart.io/qr?size=520&margin=2&text='+encodeURIComponent(r.viewUrl);
+      _qrName = 'QR-' + r.reportId + '.png';
+      document.getElementById('viewerRoot').innerHTML =
+        '<div class="cv-overlay" style="flex-direction:column;background:rgba(0,0,0,0.85);">'+
+        '<div style="background:#fff;padding:20px;border-radius:12px;text-align:center;max-width:300px;">'+
+        '<div style="font-weight:bold;margin-bottom:4px;">🔳 QR เปิดดูรายงาน</div>'+
+        '<div class="note" style="margin-bottom:8px;">'+esc(r.label)+'</div>'+
+        '<img src="'+_qrUrl+'" style="width:240px;height:240px;" alt="QR">'+
+        '<div class="note" style="margin-top:8px;">สแกนแล้วเปิดรายงานใน Google Drive ได้ทันที ไม่ต้องล็อกอิน</div>'+
+        '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="saveQrImage()">💾 บันทึก QR ลงเครื่อง</button>'+
+        '<div class="note" style="margin-top:6px;font-size:11px;">หากไม่บันทึกอัตโนมัติ กดค้างที่รูป QR แล้วเลือก "บันทึกรูป"</div></div>'+
+        '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
+    }
+    function rcPdf(id){ var r = rcFind(id); if(r && r.pdfUrl) liffOpen(r.pdfUrl); }
+    // Word ต้องได้ไฟล์ .docx เท่านั้น — รายงานที่ไม่มีไฟล์ Word แจ้งผู้ใช้ตรงๆ ไม่ส่ง PDF แทน
+    function rcWord(id){
+      var r = rcFind(id); if(!r) return;
+      if(!r.wordUrl){ alert('รายงานฉบับนี้ไม่มีไฟล์ Word (.docx) ครับ 🐶\nดาวน์โหลดเป็น PDF ได้จากปุ่ม ⬇️ PDF'); return; }
+      liffOpen(r.wordUrl);
+    }
 
-    // คัดลอกลิงก์เปิดดูรายงาน (หน้าโทเคน ไม่ใช่ลิงก์ Drive) ไว้แชร์ให้ผู้บริหารเปิดดูได้โดยไม่ต้องโหลดไฟล์
+    // คัดลอกลิงก์เปิดดูรายงาน (ลิงก์ Drive /view ของ PDF — ลิงก์เดียวกับ QR) ไว้แชร์ให้ผู้บริหารเปิดได้โดยไม่ต้องล็อกอิน
     function rcCopy(id){
       var r = rcFind(id); if(!r || !r.viewUrl) return;
       function done(){ alert('คัดลอกลิงก์รายงานแล้วครับ 🔗\nวางส่งให้ผู้บริหารเปิดดูได้เลย (เปิดได้โดยไม่ต้องล็อกอิน)'); }
@@ -610,7 +631,8 @@
           prog.innerHTML = '<div class="msg ok">✅ สร้าง "'+esc(filters.reportLabel)+'" สำเร็จ ('+(d.total||0)+' รายการ) — กำลังเปิดพรีวิว...</div>';
           _reports.unshift({
             reportId: d.reportId, label: filters.reportLabel, kind: kind, total: d.total||0,
-            status: 'COMPLETED', createdAt: new Date().toISOString().slice(0,10), viewUrl: d.viewUrl||''
+            status: 'COMPLETED', createdAt: new Date().toISOString().slice(0,10),
+            viewUrl: d.viewUrl||'', pdfUrl: d.pdfUrl||'', wordUrl: d.wordUrl||''
           });
           var box = document.getElementById('rc_list');
           if(box) box.innerHTML = rcListHtml(_reports);
