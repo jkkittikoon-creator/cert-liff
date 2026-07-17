@@ -238,10 +238,10 @@
       var yearCard = yearKeys.length ? '<div class="chart-card"><h3>เอกสารแยกตามปีการศึกษา <span style="font-weight:normal;color:#999;font-size:12px;">(แตะแท่งเพื่อกรอง)</span></h3><canvas id="cYear"></canvas></div>' : '';
       var hoursCard = hoursYearKeys.length ? '<div class="chart-card"><h3>ชั่วโมงอบรมแยกตามปีการศึกษา</h3><canvas id="cHours"></canvas></div>' : '';
 
-      // ปุ่มดาวน์โหลดรายงานผลงาน (ข้อ 21) — สร้างไฟล์ PDF ผลงานของตัวเองไว้แนบประเมิน/ว.PA
+      // ศูนย์รายงานผลงาน (ข้อ 21) — เลือกประเภทรายงาน + ดูรายการที่เคยสร้าง + ลบ ในหน้าเดียว
       var reportCard = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:6px;">📄 รายงานผลงาน</div>'+
-        '<div class="note" style="margin-bottom:8px;">รวมเอกสารที่บันทึกแล้วเป็นไฟล์รายงานราชการ (PDF) พร้อมภาพเกียรติบัตร</div>'+
-        '<button class="b-second" id="dlReportBtn" style="width:100%;" onclick="downloadReport()">📄 ดาวน์โหลดรายงานผลงาน (PDF)</button></div>';
+        '<div class="note" style="margin-bottom:8px;">สร้างรายงานราชการ (PDF/Word) เลือกได้ว่าเอาทั้งหมด รายปี ตามประเภท หรือชุดยื่น ว.PA — พร้อมคลังรายงานที่เคยสร้าง</div>'+
+        '<button class="b-primary" style="width:100%;" onclick="showReportCenter()">📄 เปิดศูนย์รายงานผลงาน</button></div>';
 
       // ชิปกรองด่วน (ทั้งหมด / ตามประเภท / ตามปี) — แตะแล้วค้นหาให้ทันที
       _dashChips = [{ q:'', label:'ทั้งหมด' }];
@@ -391,24 +391,203 @@
       dashFilterQuery(c.q);
     }
 
-    /* ---------- รายงานผลงาน: สร้างแล้วเปิดหน้าพรีวิว+ดาวน์โหลดในเบราว์เซอร์ภายนอก ----------
-       เหตุผล: เบราว์เซอร์ในแอป LINE บล็อกการดาวน์โหลดไฟล์ตรง ๆ จึงให้เซิร์ฟเวอร์คืน "ลิงก์หน้ารายงาน"
-       (โทเคนลับ HMAC) แล้วเปิดภายนอก — ในหน้านั้นมีพรีวิว PDF + ปุ่มดาวน์โหลด PDF/Word ครบ */
-    var _reportUrl = '';   // เก็บลิงก์รายงานล่าสุดไว้ กดซ้ำได้โดยไม่ต้องสร้างใหม่
-    function downloadReport(){
-      var btn = document.getElementById('dlReportBtn');
-      if(_reportUrl){ liffOpen(_reportUrl); return; }
-      if(btn){ btn.disabled = true; btn.textContent = '⏳ กำลังสร้างรายงาน... (อาจใช้เวลาสักครู่)'; }
-      api('report', {})
+    /* ---------- ศูนย์รายงานผลงาน (Report Center) ----------
+       เลือกประเภทรายงานก่อนสร้าง + คลังรายงานที่เคยสร้าง (ดู/ดาวน์โหลด/ลบ) ในหน้าเดียว
+       การเปิดดูใช้ "ลิงก์หน้ารายงาน" โทเคนลับ HMAC เปิดในเบราว์เซอร์ภายนอก (พรีวิว PDF + ปุ่มดาวน์โหลด
+       PDF/Word อยู่ในหน้านั้น) — ไม่ใช้ลิงก์ Drive ตรง เพราะกติกา "Drive ห้าม Public" */
+    var _reports = [];        // คลังรายงานที่โหลดมาแล้ว (ใช้กรอง/ลบโดยไม่ต้องโหลดใหม่)
+    var _rcTimer = null;      // ตัวเดินขั้นตอน progress ระหว่างรอเซิร์ฟเวอร์สร้างรายงาน
+    var RC_KINDS = {
+      all:     { label: 'ทั้งหมด',   color: '#1a73e8' },
+      year:    { label: 'รายปี',     color: '#06c755' },
+      doctype: { label: 'ตามประเภท', color: '#8e24aa' },
+      pa:      { label: 'ว.PA',      color: '#c62828' }
+    };
+    var RC_DOCTYPES = ['เกียรติบัตร','วุฒิบัตร','ใบประกาศนียบัตร','อื่นๆ'];
+
+    function showReportCenter(){
+      app.innerHTML = '<div class="center">📄 กำลังเปิดศูนย์รายงานผลงาน...</div>';
+      api('reportlist')
+        .then(function(list){ _reports = list || []; renderReportCenter(); })
+        .catch(function(e){ showErr(e.message); });
+    }
+
+    function rcOptions(arr, ph){
+      var h = '<option value="">'+ph+'</option>';
+      arr.forEach(function(o){ h += '<option value="'+esc(o)+'">'+esc(o)+'</option>'; });
+      return h;
+    }
+
+    function renderReportCenter(){
+      var yearOpts = rcOptions(OPTIONS.academicYear, '-- เลือกปีการศึกษา --');
+      var typeOpts = rcOptions(RC_DOCTYPES, '-- เลือกประเภทเอกสาร --');
+      var paOpts = rcOptions(OPTIONS.academicYear, '-- เลือกปีที่ประเมิน --');
+
+      var createCard = '<div class="card">'+
+        '<div style="font-weight:bold;font-size:14px;margin-bottom:8px;">✨ สร้างรายงานใหม่</div>'+
+        '<div class="field"><label>ประเภทรายงาน</label>'+
+        '<select id="rc_kind" onchange="rcKindChange()">'+
+        '<option value="all">📚 รวมเกียรติบัตรทั้งหมด</option>'+
+        '<option value="year">📅 แยกตามปีการศึกษา</option>'+
+        '<option value="doctype">🏷️ แยกตามประเภทเอกสาร</option>'+
+        '<option value="pa">🎯 สำหรับยื่น ว.PA (รอบ 1 ต.ค. – 30 ก.ย.)</option>'+
+        '</select></div>'+
+        '<div class="field" id="rc_year_box" style="display:none;"><label>ปีการศึกษา</label><select id="rc_year">'+yearOpts+'</select></div>'+
+        '<div class="field" id="rc_doctype_box" style="display:none;"><label>ประเภทเอกสาร</label><select id="rc_doctype">'+typeOpts+'</select></div>'+
+        '<div class="field" id="rc_pa_box" style="display:none;"><label>ปีงบประมาณที่ประเมิน (พ.ศ.)</label><select id="rc_payear" onchange="rcPaNote()">'+paOpts+'</select>'+
+        '<div class="note" id="rc_pa_note"></div></div>'+
+        '<div id="rc_progress"></div>'+
+        '<button class="b-primary" id="rc_go" style="width:100%;" onclick="rcCreate()">🚀 สร้างรายงาน</button></div>';
+
+      var latest = _reports.length ? rcThaiDate(_reports[0].createdAt) : '-';
+      var summary = '<div class="msg">📄 <b>ศูนย์รายงานผลงาน</b> — มีรายงานทั้งหมด '+_reports.length+' ฉบับ'+
+        (_reports.length ? ' • สร้างล่าสุด '+esc(latest) : '')+'</div>';
+
+      var searchBox = _reports.length > 3
+        ? '<input type="text" id="rc_q" placeholder="ค้นหารายงาน เช่น 2568, ว.PA..." '+
+          'style="width:100%;padding:9px 10px;font-size:14px;border:1px solid #ccc;border-radius:6px;margin-bottom:10px;" oninput="rcFilter()">'
+        : '';
+
+      var listCard = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:8px;">🗂️ รายงานที่เคยสร้าง</div>'+
+        searchBox + '<div id="rc_list">'+rcListHtml(_reports)+'</div></div>';
+
+      var backBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="showDash()">📊 ไปหน้าสรุป</button>'+
+        '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+
+      app.innerHTML = summary + createCard + listCard + backBtn;
+    }
+
+    function rcKindChange(){
+      var k = document.getElementById('rc_kind').value;
+      document.getElementById('rc_year_box').style.display = (k==='year') ? '' : 'none';
+      document.getElementById('rc_doctype_box').style.display = (k==='doctype') ? '' : 'none';
+      document.getElementById('rc_pa_box').style.display = (k==='pa') ? '' : 'none';
+      if(k==='pa') rcPaNote();
+    }
+    // รอบ ว.PA ปี พ.ศ. X = 1 ต.ค. (X-1) ถึง 30 ก.ย. X — แสดงช่วงให้เห็นก่อนสร้าง
+    function rcPaRange(beYear){
+      var y = Number(beYear) - 543;
+      return { from: (y-1)+'-10-01', to: y+'-09-30', label: '1 ต.ค. '+(Number(beYear)-1)+' – 30 ก.ย. '+beYear };
+    }
+    function rcPaNote(){
+      var el = document.getElementById('rc_pa_note'), y = document.getElementById('rc_payear').value;
+      if(el) el.textContent = y ? ('ช่วงเอกสารที่จะรวม: '+rcPaRange(y).label) : '';
+    }
+
+    // แปลง yyyy-MM-dd → "17 ก.ค. 2569" (พ.ศ.) สำหรับแถวรายการ
+    function rcThaiDate(iso){
+      var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||''));
+      if(!m) return String(iso||'-');
+      var mo = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      return Number(m[3])+' '+mo[Number(m[2])-1]+' '+(Number(m[1])+543);
+    }
+
+    function rcBadge(kind){
+      var k = RC_KINDS[kind] || RC_KINDS.all;
+      return '<span class="badge" style="background:'+k.color+'22;color:'+k.color+';">'+k.label+'</span>';
+    }
+
+    function rcRowInner(r){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
+        '<div class="dash-name" style="flex:1;">'+esc(r.label)+'</div>'+rcBadge(r.kind)+'</div>'+
+        '<div class="note">สร้างเมื่อ '+esc(rcThaiDate(r.createdAt))+(r.total!=='' ? ' • '+esc(r.total)+' รายการ' : '')+' • ✅ พร้อมใช้งาน</div>'+
+        '<div class="dash-btns">'+
+        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="rcView(\''+r.reportId+'\')">👁️ ดู/โหลด PDF</button>'+
+        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="rcWord(\''+r.reportId+'\')">⬇️ Word</button>'+
+        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="rcDelete(\''+r.reportId+'\')" title="ลบรายงาน">🗑️</button>'+
+        '</div>';
+    }
+
+    function rcListHtml(list){
+      if(!list.length) return '<div class="note">ยังไม่มีรายงานในคลังครับ 🐶 สร้างฉบับแรกได้จากด้านบนเลย</div>';
+      var h = '';
+      list.forEach(function(r){
+        h += '<div class="doc-item dash-doc" id="rc_'+r.reportId+'">'+rcRowInner(r)+'</div>';
+      });
+      return h;
+    }
+
+    function rcFind(id){ for(var i=0;i<_reports.length;i++){ if(_reports[i].reportId===id) return _reports[i]; } return null; }
+
+    function rcFilter(){
+      var q = (document.getElementById('rc_q').value||'').trim().toLowerCase();
+      var list = !q ? _reports : _reports.filter(function(r){
+        var hay = (r.label+' '+rcThaiDate(r.createdAt)+' '+(RC_KINDS[r.kind]||{}).label).toLowerCase();
+        return hay.indexOf(q) !== -1;
+      });
+      document.getElementById('rc_list').innerHTML = rcListHtml(list);
+    }
+
+    function rcView(id){ var r = rcFind(id); if(r) liffOpen(r.viewUrl); }
+    function rcWord(id){ var r = rcFind(id); if(r) liffOpen(r.viewUrl + '&format=word'); }
+
+    function rcDelete(id){
+      var r = rcFind(id); if(!r) return;
+      if(!confirm('ลบรายงาน "'+r.label+'" ออกจากคลัง?\n\nไฟล์จะย้ายไปถังขยะ Google Drive (กู้คืนได้ภายใน 30 วัน) และลิงก์เดิมจะเปิดไม่ได้อีกครับ')) return;
+      var row = document.getElementById('rc_'+id);
+      if(row) row.innerHTML = '<div class="note">กำลังลบ... 🐾</div>';
+      api('reportdelete', { reportId: id })
+        .then(function(){
+          _reports = _reports.filter(function(x){ return x.reportId!==id; });
+          if(row) row.innerHTML = '<div class="note">🗑️ ลบรายงาน "'+esc(r.label)+'" แล้ว (ไฟล์อยู่ในถังขยะ Drive 30 วัน)</div>';
+        })
+        .catch(function(e){ if(row) row.innerHTML = rcRowInner(r); alert(e.message); });
+    }
+
+    // สร้างรายงานตามตัวเลือก — แสดง progress เป็นขั้น แล้วเพิ่มเข้าในคลังทันทีเมื่อเสร็จ (ไม่ต้องรีเฟรช)
+    function rcCreate(){
+      var kind = document.getElementById('rc_kind').value;
+      var filters = { reportKind: kind };
+      if(kind==='year'){
+        var y = document.getElementById('rc_year').value;
+        if(!y){ alert('กรุณาเลือกปีการศึกษาก่อนครับ 🐶'); return; }
+        filters.academicYear = y;
+        filters.reportLabel = 'รายงานปีการศึกษา '+y;
+      } else if(kind==='doctype'){
+        var t = document.getElementById('rc_doctype').value;
+        if(!t){ alert('กรุณาเลือกประเภทเอกสารก่อนครับ 🐶'); return; }
+        filters.documentType = t;
+        filters.reportLabel = 'รายงาน'+t;
+      } else if(kind==='pa'){
+        var py = document.getElementById('rc_payear').value;
+        if(!py){ alert('กรุณาเลือกปีที่ประเมินก่อนครับ 🐶'); return; }
+        var rng = rcPaRange(py);
+        filters.dateFrom = rng.from; filters.dateTo = rng.to;
+        filters.reportLabel = 'รายงาน ว.PA ปี '+py+' ('+rng.label+')';
+      } else {
+        filters.reportLabel = 'รายงานรวมเอกสารทั้งหมด';
+      }
+
+      var go = document.getElementById('rc_go'), prog = document.getElementById('rc_progress');
+      go.disabled = true;
+      var steps = ['🔍 กำลังดึงข้อมูลเอกสาร...', '📄 กำลังจัดหน้ารายงานราชการ...', '🖨️ กำลังแปลงเป็น PDF และ Word...'];
+      var si = 0;
+      function paint(){
+        prog.innerHTML = '<div class="msg" style="background:#e8f0fe;">'+
+          steps.map(function(s,i){
+            var mark = i<si ? '✅' : (i===si ? '⏳' : '▫️');
+            return '<div style="'+(i===si?'font-weight:bold;':'color:#888;')+'">'+mark+' '+s+'</div>';
+          }).join('')+
+          '<div class="note" style="margin-top:6px;">อาจใช้เวลา 1-2 นาที ห้ามปิดหน้านี้นะครับ 🐕</div></div>';
+      }
+      paint();
+      _rcTimer = setInterval(function(){ if(si < steps.length-1){ si++; paint(); } }, 15000);
+
+      api('report', { filters: filters })
         .then(function(d){
-          _reportUrl = d.viewUrl || '';
-          if(btn){ btn.disabled = false; btn.textContent = '📄 เปิดดูรายงานอีกครั้ง ('+(d.total||0)+' รายการ)'; }
-          if(_reportUrl) liffOpen(_reportUrl);
-          else alert('สร้างรายงานสำเร็จ แต่ไม่ได้รับลิงก์เปิดดู — กรุณาอัปเดตโค้ดฝั่ง Apps Script เป็นเวอร์ชันล่าสุดครับ');
+          clearInterval(_rcTimer); go.disabled = false;
+          prog.innerHTML = '<div class="msg ok">✅ สร้าง "'+esc(filters.reportLabel)+'" สำเร็จ ('+(d.total||0)+' รายการ) — กำลังเปิดพรีวิว...</div>';
+          _reports.unshift({
+            reportId: d.reportId, label: filters.reportLabel, kind: kind, total: d.total||0,
+            status: 'COMPLETED', createdAt: new Date().toISOString().slice(0,10), viewUrl: d.viewUrl||''
+          });
+          var box = document.getElementById('rc_list');
+          if(box) box.innerHTML = rcListHtml(_reports);
+          if(d.viewUrl) liffOpen(d.viewUrl);
         })
         .catch(function(e){
-          if(btn){ btn.disabled = false; btn.textContent = '📄 ดาวน์โหลดรายงานผลงาน (PDF)'; }
-          alert(e.message);
+          clearInterval(_rcTimer); go.disabled = false;
+          prog.innerHTML = '<div class="msg err">'+esc(e.message)+'</div>';
         });
     }
 
@@ -826,30 +1005,15 @@
       else start();
     }
 
-    /* ---------- เปิดจาก Rich Menu ปุ่ม "รายงานผลงาน" (?tab=report): สร้างรายงานทันที ---------- */
-    function autoReport(){
-      app.innerHTML = '<div class="center">📄 กำลังสร้างรายงานผลงานครับเจ้านาย...<br>'+
-        '<span class="note">อาจใช้เวลา 1-2 นาที ห้ามปิดหน้านี้นะครับ 🐕⏳</span></div>';
-      api('report', {})
-        .then(function(d){
-          _reportUrl = d.viewUrl || '';
-          var openBtn = _reportUrl
-            ? '<button class="b-primary" style="width:100%;" onclick="liffOpen(_reportUrl)">📄 เปิดดูรายงาน ('+(d.total||0)+' รายการ)</button>'
-            : '<div class="msg err">สร้างรายงานสำเร็จ แต่ไม่ได้รับลิงก์เปิดดู — กรุณาอัปเดตโค้ดฝั่ง Apps Script เป็นเวอร์ชันล่าสุดครับ</div>';
-          app.innerHTML = '<div class="msg">✅ รายงานพร้อมแล้วครับเจ้านาย! กำลังเปิดในเบราว์เซอร์ภายนอก...<br>'+
-            '<span class="note">ถ้าไม่เด้งอัตโนมัติ กดปุ่มด้านล่างได้เลยครับ</span></div>' + openBtn +
-            '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showDash()">📊 ไปหน้าสรุป</button>';
-          if(_reportUrl) liffOpen(_reportUrl);
-        })
-        .catch(function(e){ showErr(e.message); });
-    }
+    /* ---------- เปิดจาก Rich Menu ปุ่ม "รายงานผลงาน" (?tab=report): เข้าศูนย์รายงานผลงาน ---------- */
+    function autoReport(){ showReportCenter(); }
 
     /* ---------- เริ่มทำงาน ---------- */
     function start(){
       var cert = getCertParam();
       app.innerHTML = '<div class="center">กำลังโหลด...</div>';
       if(cert){ openDoc(cert); }
-      else if(getTabParam()==='report'){ autoReport(); }
+      else if(getTabParam()==='report'){ showReportCenter(); }
       else if(getTabParam()==='dash'){ showDash(); }
       else { showList('pending'); }
     }
