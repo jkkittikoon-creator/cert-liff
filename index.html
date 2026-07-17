@@ -487,14 +487,33 @@
       return '<span class="badge" style="background:'+k.color+'22;color:'+k.color+';">'+k.label+'</span>';
     }
 
+    // วันนี้ (พ.ศ. รูปแบบ yyyy-MM-dd ค.ศ.) สำหรับติด badge "ล่าสุด"
+    function rcTodayIso(){
+      var d = new Date(), p = function(n){ return (n<10?'0':'')+n; };
+      return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+    }
+
     function rcRowInner(r){
+      var isToday = String(r.createdAt||'').slice(0,10) === rcTodayIso();
+      var todayBadge = isToday ? '<span class="badge" style="background:#fff3cd;color:#856404;margin-left:6px;">🆕 ล่าสุด</span>' : '';
+      // ขนาดไฟล์ (รายงานเก่าไม่มี = ไม่แสดง)
+      var sizes = [];
+      if(r.pdfSize) sizes.push('PDF '+r.pdfSize);
+      if(r.docxSize) sizes.push('Word '+r.docxSize);
+      var sizeText = sizes.length ? ' • '+sizes.join(' · ') : '';
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
-        '<div class="dash-name" style="flex:1;">'+esc(r.label)+'</div>'+rcBadge(r.kind)+'</div>'+
-        '<div class="note">สร้างเมื่อ '+esc(rcThaiDate(r.createdAt))+(r.total!=='' ? ' • '+esc(r.total)+' รายการ' : '')+' • ✅ พร้อมใช้งาน</div>'+
+        '<div class="dash-name" style="flex:1;">'+esc(r.label)+todayBadge+'</div>'+rcBadge(r.kind)+'</div>'+
+        '<div class="note">สร้างเมื่อ '+esc(rcThaiDate(r.createdAt))+(r.total!=='' ? ' • '+esc(r.total)+' รายการ' : '')+sizeText+' • ✅ พร้อมใช้งาน</div>'+
+        // แถวปุ่มหลัก 3 ปุ่ม: 👁️ ดู (พรีวิว) · ⬇️ PDF (แดง) · ⬇️ Word (น้ำเงิน)
         '<div class="dash-btns">'+
-        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="rcView(\''+r.reportId+'\')">👁️ ดู/โหลด PDF</button>'+
-        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="rcWord(\''+r.reportId+'\')">⬇️ Word</button>'+
-        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="rcDelete(\''+r.reportId+'\')" title="ลบรายงาน">🗑️</button>'+
+        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#5f6368;" onclick="rcView(\''+r.reportId+'\')">👁️ ดู</button>'+
+        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;font-weight:bold;" onclick="rcPdf(\''+r.reportId+'\')">⬇️ PDF</button>'+
+        '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;font-weight:bold;" onclick="rcWord(\''+r.reportId+'\')">⬇️ Word</button>'+
+        '</div>'+
+        // แถวรอง: 🔗 คัดลอกลิงก์ (แชร์ให้ผู้บริหารดูโดยไม่ต้องโหลด) · 🗑️ ลบ
+        '<div class="dash-btns" style="margin-top:6px;">'+
+        '<button class="b-second" style="padding:7px 4px;font-size:12px;color:#188038;" onclick="rcCopy(\''+r.reportId+'\')">🔗 คัดลอกลิงก์</button>'+
+        '<button class="b-second" style="padding:7px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="rcDelete(\''+r.reportId+'\')" title="ลบรายงาน">🗑️</button>'+
         '</div>';
     }
 
@@ -519,7 +538,19 @@
     }
 
     function rcView(id){ var r = rcFind(id); if(r) liffOpen(r.viewUrl); }
-    function rcWord(id){ var r = rcFind(id); if(r) liffOpen(r.viewUrl + '&format=word'); }
+    function rcPdf(id){ var r = rcFind(id); if(r) liffOpen(r.pdfUrl || (r.viewUrl+'&dl=pdf')); }
+    function rcWord(id){ var r = rcFind(id); if(r) liffOpen(r.wordUrl || (r.viewUrl+'&format=word')); }
+
+    // คัดลอกลิงก์เปิดดูรายงาน (หน้าโทเคน ไม่ใช่ลิงก์ Drive) ไว้แชร์ให้ผู้บริหารเปิดดูได้โดยไม่ต้องโหลดไฟล์
+    function rcCopy(id){
+      var r = rcFind(id); if(!r || !r.viewUrl) return;
+      function done(){ alert('คัดลอกลิงก์รายงานแล้วครับ 🔗\nวางส่งให้ผู้บริหารเปิดดูได้เลย (เปิดได้โดยไม่ต้องล็อกอิน)'); }
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(r.viewUrl).then(done).catch(function(){ window.prompt('คัดลอกลิงก์นี้:', r.viewUrl); });
+      } else {
+        window.prompt('คัดลอกลิงก์นี้:', r.viewUrl);
+      }
+    }
 
     function rcDelete(id){
       var r = rcFind(id); if(!r) return;
