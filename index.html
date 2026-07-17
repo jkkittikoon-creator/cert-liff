@@ -826,11 +826,30 @@
       else start();
     }
 
+    /* ---------- เปิดจาก Rich Menu ปุ่ม "รายงานผลงาน" (?tab=report): สร้างรายงานทันที ---------- */
+    function autoReport(){
+      app.innerHTML = '<div class="center">📄 กำลังสร้างรายงานผลงานครับเจ้านาย...<br>'+
+        '<span class="note">อาจใช้เวลา 1-2 นาที ห้ามปิดหน้านี้นะครับ 🐕⏳</span></div>';
+      api('report', {})
+        .then(function(d){
+          _reportUrl = d.viewUrl || '';
+          var openBtn = _reportUrl
+            ? '<button class="b-primary" style="width:100%;" onclick="liffOpen(_reportUrl)">📄 เปิดดูรายงาน ('+(d.total||0)+' รายการ)</button>'
+            : '<div class="msg err">สร้างรายงานสำเร็จ แต่ไม่ได้รับลิงก์เปิดดู — กรุณาอัปเดตโค้ดฝั่ง Apps Script เป็นเวอร์ชันล่าสุดครับ</div>';
+          app.innerHTML = '<div class="msg">✅ รายงานพร้อมแล้วครับเจ้านาย! กำลังเปิดในเบราว์เซอร์ภายนอก...<br>'+
+            '<span class="note">ถ้าไม่เด้งอัตโนมัติ กดปุ่มด้านล่างได้เลยครับ</span></div>' + openBtn +
+            '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showDash()">📊 ไปหน้าสรุป</button>';
+          if(_reportUrl) liffOpen(_reportUrl);
+        })
+        .catch(function(e){ showErr(e.message); });
+    }
+
     /* ---------- เริ่มทำงาน ---------- */
     function start(){
       var cert = getCertParam();
       app.innerHTML = '<div class="center">กำลังโหลด...</div>';
       if(cert){ openDoc(cert); }
+      else if(getTabParam()==='report'){ autoReport(); }
       else if(getTabParam()==='dash'){ showDash(); }
       else { showList('pending'); }
     }
