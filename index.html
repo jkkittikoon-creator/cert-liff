@@ -9,8 +9,11 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    /* ============ DESIGN TOKENS (ชุดเดียวกับเว็บหลัก — LIFF ตามธีมเครื่องอัตโนมัติ) ============ */
-    :root {
+    /* ============ DESIGN TOKENS — ชุดเดียวกับเว็บหลัก (Index.html) ============
+       ธีม 3 สถานะ: ไม่มี data-theme = ตามเครื่อง · data-theme="light"/"dark" = ผู้ใช้บังคับเอง
+       ตัวแปร --nx-* คือชุด Modern AI Neon ชุดเดียวกับแดชบอร์ดเว็บ ค่าตรงกันทุกตัวเพื่อให้สองระบบ
+       ดูเป็นผลิตภัณฑ์เดียวกัน (ห้ามแก้ค่าที่นี่ฝั่งเดียวโดยไม่แก้ Index.html ตาม) */
+    :root, :root[data-theme="light"] {
       --font-display: 'Prompt', 'Segoe UI', sans-serif;
       --font-body: 'Sarabun', -apple-system, 'Segoe UI', sans-serif;
       --bg-page: #f4f6fa; --bg-card: #ffffff; --bg-hover: #f1f4f9; --bg-inset: #f6f8fb;
@@ -26,10 +29,22 @@
       --shadow-card: 0 1px 2px rgba(22, 34, 59, 0.05), 0 4px 14px rgba(22, 34, 59, 0.06);
       --shadow-modal: 0 12px 48px rgba(22, 34, 59, 0.22);
       --backdrop: rgba(15, 27, 51, 0.5);
+      --nx-surface: rgba(255, 255, 255, 0.92);
+      --nx-surface-2: rgba(248, 250, 253, 0.88);
+      --nx-line: rgba(42, 120, 214, 0.16);
+      --nx-line-hot: rgba(42, 120, 214, 0.42);
+      --nx-glow: 0 10px 34px rgba(42, 120, 214, 0.13);
+      --nx-cyan: #0d9fc4; --nx-blue: #2a78d6; --nx-purple: #7c56e8;
+      --nx-pink: #d94a86; --nx-green: #12a06d; --nx-gold: #c98a06; --nx-danger: #d8455f;
+      --nx-hero-a: rgba(42, 120, 214, 0.14); --nx-hero-b: rgba(124, 86, 232, 0.16);
+      --nx-hero-text: var(--text-1);
       color-scheme: light;
     }
+    /* ค่าโหมดมืดซ้ำ 2 ชุดโดยตั้งใจ: ชุดใน @media = ตามเครื่อง (เมื่อผู้ใช้ไม่ได้บังคับ light)
+       ชุด [data-theme="dark"] = ผู้ใช้กดเลือกเอง ต้องชนะแม้เครื่องตั้ง light อยู่
+       รวมเป็นชุดเดียวไม่ได้เพราะ @media ครอบ selector ที่อยู่นอกเงื่อนไข prefers-color-scheme ไม่ได้ */
     @media (prefers-color-scheme: dark) {
-      :root {
+      :root:not([data-theme="light"]) {
         --bg-page: #0d1220; --bg-card: #171e30; --bg-hover: #1e2740; --bg-inset: #121828;
         --text-1: #f2f5fa; --text-2: #aab3c5; --text-3: #6f7a90;
         --border: #262f47; --border-strong: #38425e;
@@ -42,18 +57,56 @@
         --shadow-card: 0 0 0 1px var(--border);
         --shadow-modal: 0 0 0 1px var(--border-strong), 0 16px 56px rgba(0, 0, 0, 0.6);
         --backdrop: rgba(4, 7, 14, 0.65);
+        --nx-surface: rgba(20, 30, 55, 0.72);
+        --nx-surface-2: rgba(15, 23, 43, 0.6);
+        --nx-line: rgba(124, 156, 255, 0.18);
+        --nx-line-hot: rgba(82, 203, 255, 0.6);
+        --nx-glow: 0 18px 50px rgba(0, 0, 0, 0.34);
+        --nx-cyan: #4fdcff; --nx-blue: #5985ff; --nx-purple: #a875ff;
+        --nx-pink: #ff74ba; --nx-green: #42e8ad; --nx-gold: #ffd65a; --nx-danger: #ff6b8a;
+        --nx-hero-a: rgba(89, 133, 255, 0.22); --nx-hero-b: rgba(168, 117, 255, 0.2);
+        --nx-hero-text: #f5f7ff;
         color-scheme: dark;
       }
+    }
+    :root[data-theme="dark"] {
+      --bg-page: #0d1220; --bg-card: #171e30; --bg-hover: #1e2740; --bg-inset: #121828;
+      --text-1: #f2f5fa; --text-2: #aab3c5; --text-3: #6f7a90;
+      --border: #262f47; --border-strong: #38425e;
+      --brand: #3987e5; --brand-strong: #6da7ec; --brand-soft: #16233d;
+      --brand-ring: rgba(57, 135, 229, 0.45);
+      --ok: #0ca30c; --ok-soft: #10240f; --ok-text: #4ec44e;
+      --warn: #fab219; --warn-soft: #2a2210; --warn-text: #fac553;
+      --err: #e66767; --err-soft: #2c1516; --err-text: #f09090;
+      --info: #3987e5; --info-soft: #16233d; --info-text: #6da7ec;
+      --shadow-card: 0 0 0 1px var(--border);
+      --shadow-modal: 0 0 0 1px var(--border-strong), 0 16px 56px rgba(0, 0, 0, 0.6);
+      --backdrop: rgba(4, 7, 14, 0.65);
+      --nx-surface: rgba(20, 30, 55, 0.72);
+      --nx-surface-2: rgba(15, 23, 43, 0.6);
+      --nx-line: rgba(124, 156, 255, 0.18);
+      --nx-line-hot: rgba(82, 203, 255, 0.6);
+      --nx-glow: 0 18px 50px rgba(0, 0, 0, 0.34);
+      --nx-cyan: #4fdcff; --nx-blue: #5985ff; --nx-purple: #a875ff;
+      --nx-pink: #ff74ba; --nx-green: #42e8ad; --nx-gold: #ffd65a; --nx-danger: #ff6b8a;
+      --nx-hero-a: rgba(89, 133, 255, 0.22); --nx-hero-b: rgba(168, 117, 255, 0.2);
+      --nx-hero-text: #f5f7ff;
+      color-scheme: dark;
     }
 
     * { box-sizing: border-box; }
     body { font-family: var(--font-body); margin: 0; color: var(--text-1); background: var(--bg-page); }
-    .wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+    /* เว้นล่างให้พ้นแถบเมนู + Safe Area ของ iPhone — ปุ่มท้ายหน้าจึงไม่ถูกแถบ LINE บัง */
+    .wrap { max-width: 640px; margin: 0 auto; padding: 16px; padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
     h2 { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 8px 0 12px; }
     .msg { padding: 12px; border-radius: 10px; background: var(--info-soft); font-size: 14px; margin-bottom: 12px; }
     .msg.err { background: var(--err-soft); color: var(--err-text); }
     .msg.ok { background: var(--ok-soft); color: var(--ok-text); }
-    .card { background: var(--bg-card); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-card); margin-bottom: 12px; }
+    /* การ์ดกลาง: มุมโค้ง 18px + เส้นขอบ neon + เงานุ่ม — ชุดเดียวกับ .nx-card ของเว็บหลัก
+       เขียน border-color แยกจาก shorthand เพราะ Chrome ไม่ recompute ค่าจาก custom property
+       ที่อยู่ใน shorthand เมื่อ data-theme เปลี่ยน (บั๊กเดียวกับที่เจอในแดชบอร์ดเว็บ) */
+    .card { background: var(--nx-surface); border: 1px solid; border-color: var(--nx-line);
+      border-radius: 18px; padding: 14px; box-shadow: var(--nx-glow); margin-bottom: 12px; }
     .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
     .doc-item:last-child { border-bottom: none; }
     .doc-item:active { background: var(--bg-hover); }
@@ -121,7 +174,8 @@
     .rc-step { color: var(--text-3); }
     .rc-step.on { color: inherit; font-weight: bold; }
     /* verify-form F3+F8: ตัวดูเกียรติบัตรแบบซูม/แพน + ปุ่มลอย (overlay มืดเหมือนกันทั้ง 2 ธีม) */
-    .cert-float { position: fixed; bottom: 92px; right: 16px; z-index: 150; flex: none; width: auto; padding: 10px 16px;
+    /* ลอยเหนือทั้งแถบปุ่มยืนยันและแถบเมนูล่าง — ไม่ทับกันบนจอเล็ก */
+    .cert-float { position: fixed; bottom: calc(146px + env(safe-area-inset-bottom)); right: 16px; z-index: 150; flex: none; width: auto; padding: 10px 16px;
       background: var(--brand); color: #fff; border-radius: 50px; box-shadow: 0 4px 14px rgba(0,0,0,0.35); font-size: 14px; }
     .cv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 300; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .cv-stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; touch-action: none; overflow: hidden; }
@@ -130,11 +184,107 @@
     .cv-reset { position: fixed; bottom: 18px; right: 18px; z-index: 301; flex: none; width: auto; padding: 10px 16px; background: var(--brand); color: #fff; border-radius: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
     /* แดชบอร์ด (แบบ B) */
     .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    .stat { background: var(--bg-card); border-radius: 12px; padding: 14px; box-shadow: var(--shadow-card); text-align: center; border-top: 3px solid var(--border-strong); }
+    .stat { background: var(--nx-surface); border-radius: 16px; padding: 14px; box-shadow: var(--nx-glow);
+      text-align: center; border: 1px solid; border-color: var(--nx-line); border-top: 3px solid var(--nx-line-hot); }
     .stat .n { font-family: var(--font-display); font-size: 26px; font-weight: bold; line-height: 1.1; }
     .stat .l { font-size: 12px; color: var(--text-2); margin-top: 3px; }
-    .chart-card { background: var(--bg-card); border-radius: 12px; padding: 14px; box-shadow: var(--shadow-card); margin-bottom: 12px; }
+    .chart-card { background: var(--nx-surface); border-radius: 18px; padding: 14px; box-shadow: var(--nx-glow);
+      border: 1px solid; border-color: var(--nx-line); margin-bottom: 12px; }
     .chart-card h3 { font-family: var(--font-display); font-size: 14px; font-weight: 600; margin: 0 0 10px; color: var(--text-1); }
+
+    /* ============ แถบเมนูล่าง (Bottom Navigation) ============
+       LIFF ใช้เมนูล่างแทน Sidebar ของเว็บ — นิ้วโป้งเอื้อมถึง และไม่กินพื้นที่แนวตั้งของมือถือ */
+    .bnav {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 120;
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      background: var(--nx-surface); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-top: 1px solid; border-top-color: var(--nx-line);
+      padding-bottom: env(safe-area-inset-bottom);
+      box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.12);
+    }
+    .bnav button {
+      flex: none; background: none; border: none; padding: 8px 2px 7px; border-radius: 0;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      font-size: 11px; font-weight: 500; color: var(--text-3); font-family: var(--font-body);
+      min-height: 56px; justify-content: center;
+    }
+    .bnav button:active { transform: none; background: var(--nx-surface-2); }
+    .bnav .bn-ico { font-size: 19px; line-height: 1; }
+    /* หน้าปัจจุบัน: สี + ตัวหนา + ขีดบน — ไม่ใช้สีอย่างเดียวสื่อความหมาย */
+    .bnav button.on { color: var(--nx-blue); font-weight: 700; box-shadow: inset 0 2px 0 var(--nx-blue); }
+    .bnav button.on .bn-ico { transform: translateY(-1px); }
+    .bnav .bn-dot { position: absolute; margin: -14px 0 0 16px; min-width: 16px; height: 16px; border-radius: 999px;
+      background: var(--nx-danger); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; padding: 0 4px; }
+
+    /* ============ หัวหน้าจอแต่ละหน้า ============ */
+    .pg-head { display: flex; align-items: center; gap: 10px; margin: 2px 0 12px; }
+    .pg-head h2 { margin: 0; flex: 1; }
+    .icon-btn { flex: none; width: auto; padding: 8px 11px; font-size: 15px; border-radius: 11px;
+      background: var(--nx-surface-2); border: 1px solid; border-color: var(--nx-line); color: var(--text-1); }
+
+    /* ============ หน้าหลัก (Home) ============ */
+    .hero { position: relative; overflow: hidden; border-radius: 22px; padding: 18px;
+      border: 1px solid; border-color: var(--nx-line); margin-bottom: 12px;
+      background: linear-gradient(120deg, var(--nx-hero-a), var(--nx-hero-b)); box-shadow: var(--nx-glow); }
+    .hero-top { display: flex; align-items: center; gap: 12px; }
+    .hero-av { width: 48px; height: 48px; border-radius: 50%; flex: none; object-fit: cover;
+      border: 2px solid; border-color: var(--nx-line-hot); background: var(--nx-surface-2); }
+    .hero-av-fb { display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--nx-blue); }
+    .hero-greet { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--nx-hero-text); line-height: 1.35; }
+    .hero-sub { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
+    .hero-clock { margin-top: 10px; font-size: 12.5px; color: var(--nx-hero-text); font-variant-numeric: tabular-nums; opacity: .9; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
+      font-size: 12px; font-weight: 600; border: 1px solid; border-color: var(--nx-line); background: var(--nx-surface-2); color: var(--text-2); }
+    .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--nx-green); }
+    .chip .dot.warn { background: var(--nx-gold); }
+    .chip .dot.err { background: var(--nx-danger); }
+
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .kpi { background: var(--nx-surface); border: 1px solid; border-color: var(--nx-line); border-radius: 16px;
+      padding: 13px; box-shadow: var(--nx-glow); text-align: left; color: var(--text-1); font-family: var(--font-body); }
+    .kpi:active { transform: scale(0.985); }
+    .kpi .ico { font-size: 17px; }
+    .kpi .n { font-family: var(--font-display); font-size: 24px; font-weight: 700; line-height: 1.15; margin-top: 4px; }
+    .kpi .l { font-size: 11.5px; color: var(--text-2); margin-top: 2px; font-weight: 400; }
+
+    .act-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .act { display: flex; align-items: center; gap: 9px; text-align: left; padding: 12px;
+      border-radius: 15px; border: 1px solid; border-color: var(--nx-line); background: var(--nx-surface-2);
+      color: var(--text-1); font-size: 13px; font-weight: 600; font-family: var(--font-body); min-height: 52px; }
+    .act:active { transform: scale(0.985); }
+    .act .ico { font-size: 18px; flex: none; }
+    .act.primary { grid-column: 1 / -1; background: linear-gradient(120deg, var(--nx-blue), var(--nx-purple));
+      border-color: transparent; color: #fff; font-size: 15px; min-height: 58px; box-shadow: 0 6px 20px rgba(42, 120, 214, 0.28); }
+    .act.primary .sub { display: block; font-size: 11.5px; font-weight: 400; opacity: .88; margin-top: 2px; }
+
+    /* ============ ค้นหา ============ */
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips button { flex: none; width: auto; padding: 6px 12px; font-size: 12px; font-weight: 500; border-radius: 999px;
+      border: 1px solid; border-color: var(--nx-line); background: var(--nx-surface-2); color: var(--text-2); }
+    .chips button.on { background: var(--nx-blue); border-color: var(--nx-blue); color: #fff; font-weight: 600; }
+
+    /* ============ สถานะระบบ: โครงร่างรอโหลด / ว่าง / ผิดพลาด ============ */
+    .sk { border-radius: 12px; background: var(--nx-line); opacity: .55; animation: sk-pulse 1.2s ease-in-out infinite; }
+    .sk + .sk { margin-top: 8px; }
+    @keyframes sk-pulse { 50% { opacity: .25; } }
+    .state { text-align: center; padding: 26px 16px; }
+    .state .em { font-size: 34px; line-height: 1; }
+    .state .ttl { font-family: var(--font-display); font-weight: 600; margin-top: 8px; }
+    .state .txt { font-size: 13px; color: var(--text-2); margin-top: 4px; line-height: 1.6; }
+    .state button { width: auto; flex: none; margin-top: 12px; padding: 9px 18px; font-size: 13px; }
+
+    /* ปุ่มยืนยันติดล่างจอ (หน้าฟอร์ม) — ลอยเหนือแถบเมนูและ Safe Area เสมอ */
+    .sticky-act { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 90;
+      background: var(--nx-surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid; border-color: var(--nx-line); border-radius: 16px; padding: 8px; margin-top: 10px;
+      box-shadow: 0 8px 26px rgba(0, 0, 0, 0.16); }
+    .sticky-act .btns { margin-top: 0; }
+
+    /* ผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ในเครื่อง — ปิดอนิเมชันทั้งหมด */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -142,6 +292,14 @@
     <div id="app"><div class="center">กำลังเชื่อมต่อ LINE...</div></div>
   </div>
   <div id="viewerRoot"></div>
+
+  <nav class="bnav" id="bnav" aria-label="เมนูหลัก">
+    <button type="button" id="bnHome"    onclick="goTab('home')"   aria-label="หน้าหลัก"><span class="bn-ico">🏠</span>หน้าหลัก</button>
+    <button type="button" id="bnPending" onclick="goTab('pending')" aria-label="เอกสารรอตรวจ"><span class="bn-ico">🕒</span>รอตรวจ<span id="bnPendingDot" class="bn-dot" style="display:none;"></span></button>
+    <button type="button" id="bnSaved"   onclick="goTab('saved')"  aria-label="เอกสารของฉัน"><span class="bn-ico">📂</span>เอกสาร</button>
+    <button type="button" id="bnSearch"  onclick="goTab('search')" aria-label="ค้นหาเอกสาร"><span class="bn-ico">🔍</span>ค้นหา</button>
+    <button type="button" id="bnAccount" onclick="goTab('account')" aria-label="บัญชีของฉัน"><span class="bn-ico">👤</span>บัญชี</button>
+  </nav>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -173,7 +331,31 @@
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
-    function showErr(m){ app.innerHTML = '<div class="msg err">'+esc(m)+'</div>'; }
+    /* แสดงข้อผิดพลาดแบบเต็มหน้า — รับได้ทั้ง Error และข้อความ
+       แยก 2 กรณี: "ยังไม่เชื่อมบัญชี" คือขั้นตอนปกติของผู้ใช้ใหม่ ต้องบอกวิธีทำต่อ ไม่ใช่หน้าจอแดง
+       ส่วนที่เหลือคือระบบมีปัญหา ต้องมีปุ่มลองใหม่เสมอ ห้ามปล่อยให้ผู้ใช้ตัน */
+    var _lastRetry = null;
+    function showErr(e, retry){
+      var msg = (e && e.message) ? e.message : String(e || 'เกิดข้อผิดพลาด');
+      _lastRetry = retry || null;
+      if (e && e.notLinked) {
+        app.innerHTML = pageHead('เชื่อมบัญชี') +
+          '<div class="card"><div class="state">' +
+          '<div class="em">🔗</div><div class="ttl">ยังไม่ได้เชื่อมบัญชี LINE กับระบบ</div>' +
+          '<div class="txt">ทักแชตน้องชาโปรแล้วพิมพ์ว่า <b>เชื่อมบัญชี</b><br>ระบบจะส่งวิธีเชื่อมให้ในแชตครับ 🐶</div>' +
+          '<button class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button>' +
+          '</div></div>';
+        return;
+      }
+      app.innerHTML = pageHead('เกิดข้อผิดพลาด') +
+        '<div class="card"><div class="state">' +
+        '<div class="em">⚠️</div><div class="ttl">ทำรายการไม่สำเร็จ</div>' +
+        '<div class="txt">' + esc(msg) + '</div>' +
+        (retry ? '<button class="b-primary" onclick="retryLast()">ลองใหม่อีกครั้ง</button> ' : '') +
+        '<button class="b-second" onclick="goTab(\'home\')">กลับหน้าหลัก</button>' +
+        '</div></div>';
+    }
+    function retryLast(){ if(_lastRetry) _lastRetry(); }
 
     function api(action, payload){
       var body = Object.assign({ action: action, idToken: liff.getIDToken() }, payload||{});
@@ -182,8 +364,20 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(body)
       }).then(function(r){ return r.json(); }).then(function(j){
-        if (!j.ok) throw new Error(j.error || 'เกิดข้อผิดพลาด');
+        if (!j.ok) {
+          var err = new Error(j.error || 'เกิดข้อผิดพลาด');
+          // ต่อธง notLinked จากเซิร์ฟเวอร์ไว้ ให้หน้าจอแยกได้ว่า "ยังไม่เชื่อมบัญชี" (flow ปกติของผู้ใช้ใหม่)
+          // ออกจาก "ระบบพัง" ซึ่งต้องแสดงคนละแบบกัน
+          err.notLinked = !!j.notLinked;
+          err.fromServer = true;
+          throw err;
+        }
         return j.data;
+      }).catch(function(e){
+        // ทุกอย่างที่ไม่ได้มาจากเซิร์ฟเวอร์ = ต่อไม่ติด/ตอบไม่เป็น JSON — แปลงเป็นข้อความที่ผู้ใช้เข้าใจ
+        // ไม่เช็ก instanceof TypeError เพราะ error ที่ข้ามเฟรม/ข้าม realm มาจะไม่ผ่านการเช็กนั้น
+        if (e && e.fromServer) throw e;
+        throw new Error('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
       });
     }
 
@@ -228,19 +422,119 @@
       app.innerHTML = '<div class="center">กำลังโหลด...</div>';
       api(lastList==='saved' ? 'listsaved' : 'list')
         .then(function(docs){ renderDocs(docs, lastList); })
-        .catch(function(e){ showErr(e.message); });
+        .catch(function(e){ showErr(e, function(){ showList(lastList); }); });
     }
-    // แถบแท็บใช้ร่วมกัน 4 หน้า (รอตรวจ / บันทึกแล้ว / แดชบอร์ด / ถังขยะ)
+    /* เดิมฟังก์ชันนี้วาดแถบปุ่ม 4 อันไว้บนสุด — ย้ายการนำทางไปที่ Bottom Navigation แล้ว
+       จึงเหลือหน้าที่ "วาดหัวข้อหน้า + ไฮไลต์เมนูล่างให้ตรงหน้า" แทน (ชื่อฟังก์ชันคงเดิม
+       เพราะยังถูกเรียกจาก renderDocs / renderDash / renderTrash) */
     function tabsBar(which){
-      function b(id, onclk, label){ return '<button class="'+(which===id?'b-primary':'b-second')+'" style="font-size:12px;padding:9px 3px;" onclick="'+onclk+'">'+label+'</button>'; }
-      return '<div class="btns" style="margin-bottom:12px;gap:6px;">'+
-        b('pending', "showList('pending')", '🕒 รอตรวจ')+
-        b('saved', "showList('saved')", '✅ บันทึก')+
-        b('dash', 'showDash()', '📊 สรุป')+
-        b('trash', 'showTrash()', '🗑️ ถังขยะ')+
+      var titles = { pending:'เอกสารรอตรวจ', saved:'เอกสารของฉัน', dash:'สรุปผลงาน', trash:'ถังขยะ' };
+      setNav({ pending:'pending', saved:'saved', dash:'home', trash:'account' }[which] || '');
+      return pageHead(titles[which] || 'ระบบเกียรติบัตร');
+    }
+
+    // หัวหน้าจอ: ชื่อหน้า + ปุ่มสลับธีม (ปุ่มเดียวกันทุกหน้า ตำแหน่งเดิมเสมอ)
+    function pageHead(title, backFn){
+      return '<div class="pg-head">' +
+        (backFn ? '<button type="button" class="icon-btn" onclick="'+backFn+'" aria-label="ย้อนกลับ">←</button>' : '') +
+        '<h2>' + esc(title) + '</h2>' +
+        '<button type="button" class="icon-btn" id="thBtn" onclick="toggleTheme()" aria-label="สลับธีมสว่าง/มืด">' + themeIcon() + '</button>' +
         '</div>';
     }
+
+    /* ---------- ธีม: ตามเครื่อง → สว่าง → มืด (จำค่าไว้ในเครื่องผู้ใช้) ---------- */
+    var THEME_KEY = 'cert-liff-theme';
+    function currentTheme(){ return document.documentElement.getAttribute('data-theme') || ''; }
+    function isDarkNow(){
+      var t = currentTheme();
+      if (t) return t === 'dark';
+      return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    function themeIcon(){ return isDarkNow() ? '☀️' : '🌙'; }
+    function applyTheme(t){
+      if (t) document.documentElement.setAttribute('data-theme', t);
+      else document.documentElement.removeAttribute('data-theme');
+      var b = document.getElementById('thBtn');
+      if (b) b.innerHTML = themeIcon();
+    }
+    function toggleTheme(){
+      var next = isDarkNow() ? 'light' : 'dark';
+      try { localStorage.setItem(THEME_KEY, next); } catch(e) { /* โหมดส่วนตัวเขียนไม่ได้ — ใช้ได้แค่รอบนี้ */ }
+      applyTheme(next);
+      forceRestyle();
+    }
+    /* Chrome ไม่คำนวณ border-color ที่มาจาก custom property ใหม่ เมื่อ data-theme บนบรรพบุรุษเปลี่ยน
+       (บั๊กเดียวกับที่เจอในแดชบอร์ดเว็บ) — บังคับคำนวณใหม่ทั้งหน้าในทีเดียว ผู้ใช้ไม่เห็นจอกะพริบ
+       เพราะเกิดใน task เดียว แต่ต้องคืนตำแหน่งเลื่อนหน้าเพราะการซ่อน body ทำให้ scroll หาย */
+    function forceRestyle(){
+      var b = document.body; if(!b) return;
+      var y = window.scrollY || window.pageYOffset || 0;
+      var keep = b.style.display;
+      b.style.display = 'none';
+      void b.offsetHeight;
+      b.style.display = keep;
+      if (y) window.scrollTo(0, y);
+    }
+
+    /* ---------- เวลาไทย: ยึด Asia/Bangkok เสมอ แม้เครื่องผู้ใช้ตั้งโซนเวลาอื่น ---------- */
+    var THDAYS = ['วันอาทิตย์','วันจันทร์','วันอังคาร','วันพุธ','วันพฤหัสบดี','วันศุกร์','วันเสาร์'];
+    function bkkParts(){
+      var ps = new Intl.DateTimeFormat('en-GB', {
+        timeZone:'Asia/Bangkok', weekday:'short', year:'numeric', month:'numeric',
+        day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+      }).formatToParts(new Date());
+      var o = {}; ps.forEach(function(p){ o[p.type] = p.value; });
+      var wd = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+      return { weekday: wd[o.weekday], day: Number(o.day), month: Number(o.month), year: Number(o.year),
+        hour: Number(o.hour) % 24,  // บางเบราว์เซอร์คืน "24" ตอนเที่ยงคืน
+        minute: o.minute, second: o.second };
+    }
+    function greetOf(hour, minute){
+      var m = hour * 60 + Number(minute);
+      if (m >= 300 && m < 720) return 'อรุณสวัสดิ์';
+      if (m >= 720 && m < 960) return 'สวัสดีตอนบ่าย';
+      if (m >= 960 && m < 1110) return 'สวัสดีตอนเย็น';
+      return 'สวัสดีตอนค่ำ';
+    }
+    var _clockTimer = null;
+    function tickClock(){
+      var el = document.getElementById('hClock');
+      if (!el) { clearInterval(_clockTimer); _clockTimer = null; return; }  // ออกจากหน้าหลักแล้ว หยุดเอง
+      var p = bkkParts();
+      el.textContent = THDAYS[p.weekday] + ' ที่ ' + p.day + ' ' + THMONTHS[p.month - 1] + ' พ.ศ. ' +
+        (p.year + 543) + ' • ' + String(p.hour).padStart(2, '0') + ':' + p.minute + ':' + p.second + ' น.';
+    }
+    function startClock(){
+      if (_clockTimer) clearInterval(_clockTimer);
+      tickClock();
+      _clockTimer = setInterval(tickClock, 1000);
+    }
+
+    /* ---------- Bottom Navigation ---------- */
+    var TABS = ['home','pending','saved','search','account'];
+    function setNav(tab){
+      TABS.forEach(function(t){
+        var b = document.getElementById('bn' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (b) { if (t === tab) b.classList.add('on'); else b.classList.remove('on'); }
+      });
+    }
+    function goTab(tab){
+      window.scrollTo(0, 0);
+      if (tab === 'home') showHome();
+      else if (tab === 'pending') showList('pending');
+      else if (tab === 'saved') showList('saved');
+      else if (tab === 'search') showSearch();
+      else if (tab === 'account') showAccount();
+    }
+    // ตัวเลขงานค้างบนเมนู "รอตรวจ" — อัปเดตทุกครั้งที่โหลดข้อมูลใหม่
+    function setPendingBadge(n){
+      var d = document.getElementById('bnPendingDot');
+      if (!d) return;
+      if (n > 0) { d.textContent = n > 99 ? '99+' : String(n); d.style.display = ''; }
+      else d.style.display = 'none';
+    }
     function renderDocs(docs, which){
+      if (which === 'pending') setPendingBadge(docs.length);   // ตัวเลขบนเมนูล่างตรงกับที่เห็นจริงเสมอ
       var tabs = tabsBar(which);
       var closeBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
       if(!docs.length){
@@ -264,6 +558,230 @@
       app.innerHTML = html;
     }
 
+    /* ================= หน้าหลัก (Home) =================
+       โหลดข้อมูลชุดเดียวกับหน้าสรุป (action 'dashboard') แล้วหยิบมาแสดงเฉพาะที่จำเป็นบนมือถือ
+       — ไม่เรียก API เพิ่ม และไม่วาดกราฟที่นี่ เพื่อให้หน้าแรกขึ้นเร็วใน In-App Browser */
+    var LIFF_PROFILE = null;   // โปรไฟล์ LINE (ใช้แสดงผลเท่านั้น — ฝั่งเซิร์ฟเวอร์ยืนยันตัวตนจาก idToken)
+    var _homeCache = null;     // ข้อมูลหน้าหลักที่โหลดมาแล้ว กลับมาหน้าเดิมไม่ต้องรอโหลดซ้ำ
+
+    function homeSkeleton(){
+      return pageHead('หน้าหลัก') +
+        '<div class="hero"><div class="sk" style="height:52px;"></div><div class="sk" style="height:16px;width:70%;"></div></div>' +
+        '<div class="kpi-grid">' +
+        '<div class="sk" style="height:88px;"></div><div class="sk" style="height:88px;"></div>' +
+        '<div class="sk" style="height:88px;"></div><div class="sk" style="height:88px;"></div></div>' +
+        '<div class="sk" style="height:58px;"></div>';
+    }
+
+    function showHome(force){
+      setNav('home');
+      if (_homeCache && !force) { renderHome(_homeCache); return; }
+      app.innerHTML = homeSkeleton();
+      api('dashboard')
+        .then(function(s){ _homeCache = s; renderHome(s); })
+        .catch(function(e){ showErr(e, function(){ showHome(true); }); });
+    }
+
+    function heroHtml(){
+      var p = bkkParts();
+      var name = (LIFF_PROFILE && LIFF_PROFILE.displayName) ? LIFF_PROFILE.displayName : '';
+      var av = (LIFF_PROFILE && LIFF_PROFILE.pictureUrl)
+        ? '<img class="hero-av" src="' + esc(LIFF_PROFILE.pictureUrl) + '" alt="รูปโปรไฟล์ LINE">'
+        : '<div class="hero-av hero-av-fb">' + esc((name || '?').charAt(0)) + '</div>';
+      return '<div class="hero">' +
+        '<div class="hero-top">' + av +
+        '<div style="flex:1;min-width:0;">' +
+        '<div class="hero-greet">' + greetOf(p.hour, p.minute) + (name ? ' คุณ' + esc(name) : '') + '</div>' +
+        '<div class="hero-sub">จัดการเกียรติบัตรของคุณได้ง่าย ๆ ผ่าน LINE</div>' +
+        '</div></div>' +
+        '<div class="hero-clock" id="hClock"></div>' +
+        '<div style="margin-top:10px;"><span class="chip"><span class="dot"></span>เชื่อมบัญชีแล้ว</span></div>' +
+        '</div>';
+    }
+
+    function kpiTile(ico, n, label, color, onclk){
+      return '<button type="button" class="kpi" style="border-top:3px solid ' + color + ';" onclick="' + onclk + '">' +
+        '<div class="ico">' + ico + '</div>' +
+        '<div class="n" style="color:' + color + ';">' + esc(n) + '</div>' +
+        '<div class="l">' + esc(label) + '</div></button>';
+    }
+
+    function renderHome(s){
+      setNav('home');
+      _dashLatest = s.latest || [];
+      setPendingBadge(s.pending || 0);
+
+      var kpis = '<div class="kpi-grid">' +
+        kpiTile('📄', s.total, 'เอกสารทั้งหมด', 'var(--nx-blue)', "goTab('saved')") +
+        kpiTile('✅', s.saved, 'บันทึกแล้ว', 'var(--nx-green)', "goTab('saved')") +
+        kpiTile('🕒', s.pending, 'รอตรวจ/แก้ไข', 'var(--nx-gold)', "goTab('pending')") +
+        kpiTile('⏱️', s.hours, 'ชั่วโมงอบรมรวม', 'var(--nx-purple)', 'showDash()') +
+        '</div>';
+
+      var actions = '<div class="act-grid">' +
+        '<button type="button" class="act primary" onclick="showSendHelp()">' +
+        '<span class="ico">📤</span><span>ส่งเกียรติบัตรใหม่<span class="sub">ถ่ายรูปหรือส่งไฟล์เข้าแชต แล้ว AI อ่านให้</span></span></button>' +
+        '<button type="button" class="act" onclick="goTab(\'search\')"><span class="ico">🔍</span>ค้นหาเอกสาร</button>' +
+        '<button type="button" class="act" onclick="showDash()"><span class="ico">📊</span>สรุปผลงาน</button>' +
+        '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>รายงานผลงาน</button>' +
+        '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
+        '</div>';
+
+      // งานค้าง: แสดงเฉพาะตอนมีจริง — ไม่มีงานค้างก็ไม่ต้องรบกวนสายตา
+      var todo = (s.pending > 0)
+        ? '<div class="card" style="border-color:var(--nx-gold);"><div style="display:flex;align-items:center;gap:10px;">' +
+          '<span style="font-size:22px;">🕒</span><div style="flex:1;">' +
+          '<div style="font-weight:600;">มีเอกสารรอตรวจ ' + esc(s.pending) + ' รายการ</div>' +
+          '<div class="note">ตรวจข้อมูลที่ AI อ่านมาแล้วกดยืนยันเพื่อเก็บเข้าระบบ</div></div></div>' +
+          '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="goTab(\'pending\')">ไปตรวจเลย</button></div>'
+        : '';
+
+      var recent = '<div class="card"><div style="font-weight:600;margin-bottom:8px;">🕘 เอกสารล่าสุด</div>' +
+        (( s.latest && s.latest.length)
+          ? dashDocsHtml(s.latest, '')
+          : '<div class="note">ยังไม่มีเอกสารครับ 🐶 ส่งรูปเกียรติบัตรเข้าแชตได้เลย</div>') +
+        '</div>';
+
+      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + todo + kpis +
+        '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚡ เมนูด่วน</div>' + actions + '</div>' +
+        recent;
+      startClock();
+    }
+
+    /* วิธีส่งเอกสารเข้าระบบ — ระบบรับไฟล์ทางแชต LINE (webhook → คิว AI) ไม่ได้อัปโหลดในหน้านี้
+       จึงอธิบายขั้นตอนจริงแล้วพากลับไปที่แชต แทนที่จะใส่ปุ่มอัปโหลดที่ไม่มีเบื้องหลังรองรับ */
+    function showSendHelp(){
+      document.getElementById('viewerRoot').innerHTML =
+        '<div class="cv-overlay" style="align-items:flex-end;background:var(--backdrop);" onclick="closeViewer()">' +
+        '<div style="background:var(--bg-card);color:var(--text-1);width:100%;max-width:640px;border-radius:22px 22px 0 0;' +
+        'padding:20px 18px calc(24px + env(safe-area-inset-bottom));box-shadow:var(--shadow-modal);" onclick="event.stopPropagation()">' +
+        '<div style="width:40px;height:4px;border-radius:9px;background:var(--border-strong);margin:0 auto 14px;"></div>' +
+        '<div style="font-family:var(--font-display);font-weight:700;font-size:17px;margin-bottom:10px;">📤 ส่งเกียรติบัตรเข้าระบบ</div>' +
+        '<div style="font-size:14px;line-height:1.9;color:var(--text-2);">' +
+        '<div><b style="color:var(--nx-blue);">1.</b> เปิดแชตน้องชาโปร</div>' +
+        '<div><b style="color:var(--nx-blue);">2.</b> ถ่ายรูปเกียรติบัตร หรือส่งไฟล์ PDF เข้าไปในแชต</div>' +
+        '<div><b style="color:var(--nx-blue);">3.</b> AI อ่านข้อมูลให้อัตโนมัติ (ประมาณ 1–2 นาที)</div>' +
+        '<div><b style="color:var(--nx-blue);">4.</b> กลับมาที่เมนู <b>รอตรวจ</b> เพื่อตรวจและกดยืนยัน</div>' +
+        '</div>' +
+        '<div class="note" style="margin-top:10px;">รองรับรูป JPG/PNG สูงสุด 10MB และ PDF สูงสุด 20MB</div>' +
+        '<div class="btns" style="margin-top:14px;">' +
+        '<button class="b-second" onclick="closeViewer()">ปิด</button>' +
+        '<button class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button></div>' +
+        '</div></div>';
+    }
+
+    /* ================= ค้นหา ================= */
+    var SEARCH_HIST_KEY = 'cert-liff-recent-q';
+    function searchHist(){
+      try { return JSON.parse(localStorage.getItem(SEARCH_HIST_KEY) || '[]'); } catch(e) { return []; }
+    }
+    function pushHist(q){
+      if (!q) return;
+      var h = searchHist().filter(function(x){ return x !== q; });
+      h.unshift(q);
+      try { localStorage.setItem(SEARCH_HIST_KEY, JSON.stringify(h.slice(0, 8))); } catch(e) { /* เขียนไม่ได้ก็ข้ามไป */ }
+    }
+    function clearHist(){
+      try { localStorage.removeItem(SEARCH_HIST_KEY); } catch(e) {}
+      showSearch();
+    }
+
+    function showSearch(){
+      setNav('search');
+      // ชิปกรอง: ปีการศึกษาย้อนหลัง 4 ปี + ประเภทเอกสารมาตรฐาน — ค่าจริงมาจากตัวเลือกที่ระบบใช้อยู่
+      var chips = OPTIONS.academicYear.slice(0, 4).map(function(y){ return { q:y, label:'ปี ' + y }; })
+        .concat(RC_DOCTYPES.slice(0, 3).map(function(t){ return { q:t, label:t }; }));
+      var chipHtml = chips.map(function(c){
+        return '<button type="button" onclick="runSearch(' + JSON.stringify(c.q) + ')">' + esc(c.label) + '</button>';
+      }).join('');
+
+      var hist = searchHist();
+      var histHtml = hist.length
+        ? '<div class="card"><div style="display:flex;align-items:center;margin-bottom:8px;">' +
+          '<div style="font-weight:600;flex:1;">🕘 ค้นหาล่าสุด</div>' +
+          '<button class="b-second" style="flex:none;width:auto;padding:5px 11px;font-size:12px;" onclick="clearHist()">ล้าง</button></div>' +
+          '<div class="chips">' + hist.map(function(q){
+            return '<button type="button" onclick="runSearch(' + JSON.stringify(q) + ')">' + esc(q) + '</button>';
+          }).join('') + '</div></div>'
+        : '';
+
+      app.innerHTML = pageHead('ค้นหาเอกสาร') +
+        '<div class="card">' +
+        '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
+        '<input type="search" id="sq" class="in-txt" style="flex:1;" placeholder="ชื่อกิจกรรม หน่วยงาน ปี..." ' +
+        'onkeydown="if(event.key===\'Enter\')runSearch()">' +
+        '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runSearch()">ค้นหา</button>' +
+        '</div><div class="chips">' + chipHtml + '</div></div>' +
+        histHtml +
+        '<div id="sres"></div>';
+      var el = document.getElementById('sq');
+      if (el) el.focus();
+    }
+
+    function runSearch(preset){
+      var el = document.getElementById('sq');
+      var q = preset != null ? String(preset) : ((el && el.value) || '').trim();
+      if (el) el.value = q;
+      var box = document.getElementById('sres');
+      if (!q) {
+        box.innerHTML = '<div class="card"><div class="state"><div class="em">🔍</div>' +
+          '<div class="ttl">พิมพ์คำค้นเพื่อเริ่มต้น</div>' +
+          '<div class="txt">ค้นได้จากชื่อกิจกรรม หน่วยงาน ปีการศึกษา ประเภทเอกสาร หรือเลขที่เอกสาร</div></div></div>';
+        return;
+      }
+      box.innerHTML = '<div class="card"><div class="sk" style="height:64px;"></div><div class="sk" style="height:64px;"></div></div>';
+      api('search', { query: q })
+        .then(function(docs){
+          pushHist(q);
+          if (!docs.length) {
+            box.innerHTML = '<div class="card"><div class="state"><div class="em">🐶</div>' +
+              '<div class="ttl">ไม่พบเอกสารที่ตรงกับ "' + esc(q) + '"</div>' +
+              '<div class="txt">ลองใช้คำสั้นลง หรือค้นด้วยปีการศึกษา เช่น 2568</div></div></div>';
+            return;
+          }
+          box.innerHTML = '<div class="card"><div class="note" style="margin-bottom:6px;">พบ ' + docs.length + ' รายการ' +
+            (docs.length >= 20 ? ' (แสดงสูงสุด 20)' : '') + '</div>' + dashDocsHtml(docs, '') + '</div>';
+        })
+        .catch(function(e){
+          box.innerHTML = '<div class="card"><div class="state"><div class="em">⚠️</div>' +
+            '<div class="ttl">ค้นหาไม่สำเร็จ</div><div class="txt">' + esc(e.message) + '</div>' +
+            '<button class="b-primary" onclick="runSearch()">ลองใหม่</button></div></div>';
+        });
+    }
+
+    /* ================= บัญชีของฉัน ================= */
+    function showAccount(){
+      setNav('account');
+      var name = (LIFF_PROFILE && LIFF_PROFILE.displayName) || '(ไม่ทราบชื่อ)';
+      var av = (LIFF_PROFILE && LIFF_PROFILE.pictureUrl)
+        ? '<img class="hero-av" src="' + esc(LIFF_PROFILE.pictureUrl) + '" alt="รูปโปรไฟล์ LINE">'
+        : '<div class="hero-av hero-av-fb">' + esc(name.charAt(0)) + '</div>';
+      var inClient = (typeof liff !== 'undefined' && liff.isInClient && liff.isInClient());
+      var themeLabel = currentTheme() ? (isDarkNow() ? 'มืด (เลือกเอง)' : 'สว่าง (เลือกเอง)') : 'ตามเครื่อง';
+
+      app.innerHTML = pageHead('บัญชีของฉัน') +
+        '<div class="card"><div class="hero-top">' + av +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:16px;">' + esc(name) + '</div>' +
+        '<div class="note">บัญชี LINE ที่เชื่อมกับระบบแล้ว</div></div></div>' +
+        '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">' +
+        '<span class="chip"><span class="dot"></span>เชื่อมบัญชีแล้ว</span>' +
+        '<span class="chip"><span class="dot' + (inClient ? '' : ' warn') + '"></span>' +
+        (inClient ? 'เปิดใน LINE' : 'เปิดในเบราว์เซอร์') + '</span></div></div>' +
+
+        '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚙️ การแสดงผล</div>' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+        '<div style="flex:1;"><div style="font-weight:500;">ธีมสี</div><div class="note" id="thNow">ตอนนี้: ' + esc(themeLabel) + '</div></div>' +
+        '<button class="b-second" style="flex:none;width:auto;padding:9px 16px;font-size:13px;" onclick="toggleTheme();showAccount();">สลับธีม</button>' +
+        '</div></div>' +
+
+        '<div class="card"><div style="font-weight:600;margin-bottom:10px;">📂 จัดการเอกสาร</div>' +
+        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showTrash()">🗑️ ถังขยะ</button>' +
+        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showReportCenter()">📄 ศูนย์รายงานผลงาน</button>' +
+        '<button class="b-second" style="width:100%;" onclick="showDash()">📊 สรุปผลงาน</button></div>' +
+
+        '<button class="b-second" style="width:100%;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+    }
+
     /* ---------- แดชบอร์ด (แบบ B): สถิติ + กราฟ Chart.js ---------- */
     var _charts = [];
     function destroyCharts(){ _charts.forEach(function(c){ try{ c.destroy(); }catch(e){} }); _charts = []; }
@@ -271,7 +789,7 @@
 
     function showDash(){
       app.innerHTML = tabsBar('dash') + '<div class="center">กำลังโหลดแดชบอร์ด...</div>';
-      api('dashboard').then(renderDash).catch(function(e){ showErr(e.message); });
+      api('dashboard').then(renderDash).catch(function(e){ showErr(e, showDash); });
     }
 
     function statTile(n, label, color){
@@ -280,6 +798,7 @@
 
     function renderDash(s){
       destroyCharts();
+      setPendingBadge(s.pending || 0);
       _dashLatest = s.latest || [];
       var typeKeys = Object.keys(s.byType);
       var yearKeys = Object.keys(s.byYear).sort();
@@ -471,7 +990,7 @@
       app.innerHTML = '<div class="center">📄 กำลังเปิดศูนย์รายงานผลงาน...</div>';
       api('reportlist')
         .then(function(list){ _reports = list || []; renderReportCenter(); })
-        .catch(function(e){ showErr(e.message); });
+        .catch(function(e){ showErr(e, showReportCenter); });
     }
 
     function rcOptions(arr, ph){
@@ -516,7 +1035,8 @@
       var backBtn = '<button class="b-second" style="width:100%;margin-top:6px;" onclick="showDash()">📊 ไปหน้าสรุป</button>'+
         '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
 
-      app.innerHTML = summary + createCard + listCard + backBtn;
+      setNav('account');   // ศูนย์รายงานเข้าได้จากเมนู "บัญชี" และหน้าหลัก — ชี้ที่บัญชีให้ผู้ใช้รู้ว่าอยู่ตรงไหน
+      app.innerHTML = pageHead('ศูนย์รายงานผลงาน') + summary + createCard + listCard + backBtn;
     }
 
     function rcKindChange(){
@@ -738,7 +1258,7 @@
     /* ---------- แท็บถังขยะ: ดูรายการที่ลบ + กู้คืน ---------- */
     function showTrash(){
       app.innerHTML = tabsBar('trash') + '<div class="center">กำลังโหลดถังขยะ...</div>';
-      api('trash').then(renderTrash).catch(function(e){ showErr(e.message); });
+      api('trash').then(renderTrash).catch(function(e){ showErr(e, showTrash); });
     }
     function trashRowInner(d){
       return '<div class="dash-name">'+esc(d.name)+'</div>'+
@@ -832,7 +1352,7 @@
     var curCert = null;
     function openDoc(certId){
       app.innerHTML = '<div class="center">กำลังโหลดเอกสาร...</div>';
-      api('get', { certificateId: certId }).then(renderForm).catch(function(e){ showErr(e.message); });
+      api('get', { certificateId: certId }).then(renderForm).catch(function(e){ showErr(e, function(){ openDoc(certId); }); });
     }
 
     // F1: สร้าง select + "อื่นๆ (พิมพ์เอง)" — ถ้าค่าเดิมไม่อยู่ในลิสต์ เลือก "อื่นๆ" แล้วโชว์ช่องพิมพ์พร้อมค่าเดิม
@@ -874,6 +1394,7 @@
     }
 
     function renderForm(data){
+      setNav(lastList === 'saved' ? 'saved' : 'pending');   // เมนูล่างชี้กลับรายการที่เข้ามา
       curCert = data.certificate;
       var c = data.certificate, ai = data.aiResult || {}, dd = data.dropdowns || {};
       var isPdf = c.mimeType === 'application/pdf';
@@ -913,8 +1434,9 @@
         '<div class="card preview">'+prev+'</div>'+
         dupHtml+
         summary+
-        '<div class="card">'+fieldsHtml+
-        '<div class="btns">'+btns+'</div>'+qrBtn+'</div>'+
+        '<div class="card">'+fieldsHtml+qrBtn+'</div>'+
+        // ปุ่มหลักติดล่างจอ: เลื่อนดูฟิลด์ยาว ๆ อยู่ก็ยังกดยืนยันได้ทันที ไม่ต้องเลื่อนกลับลงมาสุด
+        '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
         floatBtn;
       updateBanner();
     }
@@ -1125,20 +1647,36 @@
 
     /* ---------- เริ่มทำงาน ---------- */
     function start(){
-      var cert = getCertParam();
-      app.innerHTML = '<div class="center">กำลังโหลด...</div>';
-      if(cert){ openDoc(cert); }
-      else if(getTabParam()==='report'){ showReportCenter(); }
-      else if(getTabParam()==='dash'){ showDash(); }
-      else { showList('pending'); }
+      var cert = getCertParam(), tab = getTabParam();
+      app.innerHTML = homeSkeleton();
+      if(cert){ openDoc(cert); }                        // เปิดจากลิงก์เอกสารใบใดใบหนึ่ง
+      else if(tab==='report'){ showReportCenter(); }    // Rich Menu ปุ่ม "รายงานผลงาน"
+      else if(tab==='dash'){ showDash(); }              // Rich Menu ปุ่ม "สรุป"
+      else if(tab==='pending'){ showList('pending'); }
+      else { showHome(); }
     }
+
+    // อ่านธีมที่ผู้ใช้เคยเลือกก่อนวาดหน้าแรก จะได้ไม่เห็นจอกะพริบจากสว่างไปมืด
+    (function(){
+      try {
+        var t = localStorage.getItem(THEME_KEY);
+        if (t === 'dark' || t === 'light') applyTheme(t);
+      } catch(e) { /* โหมดส่วนตัวอ่านไม่ได้ — ใช้ธีมตามเครื่อง */ }
+    })();
 
     liff.init({ liffId: LIFF_ID })
       .then(function(){
         if(!liff.isLoggedIn()){ liff.login(); return; }
-        start();
+        // ดึงโปรไฟล์ไว้ "แสดงผล" อย่างเดียว — สิทธิ์เข้าถึงข้อมูลยังตัดสินจาก idToken ฝั่งเซิร์ฟเวอร์เสมอ
+        // ถ้าดึงไม่ได้ก็ยังใช้งานต่อได้ แค่ไม่มีชื่อ/รูป จึงไม่ปล่อยให้ error หยุดการทำงาน
+        return liff.getProfile()
+          .then(function(p){ LIFF_PROFILE = p; })
+          .catch(function(){ LIFF_PROFILE = null; })
+          .then(start);
       })
-      .catch(function(err){ showErr('LIFF error: '+(err&&err.message?err.message:err)); });
+      .catch(function(err){
+        showErr('เปิดระบบไม่สำเร็จ: ' + ((err && err.message) ? err.message : err), function(){ location.reload(); });
+      });
   </script>
 </body>
 </html>
