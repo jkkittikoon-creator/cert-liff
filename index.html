@@ -302,6 +302,61 @@
     .chip .dot.warn { background: var(--nx-gold); }
     .chip .dot.err { background: var(--nx-danger); }
 
+    /* ============ วิดเจ็ตสภาพอากาศ ============ */
+    /* ใช้โทน Neon ชุดเดียวกับ hero — ไล่สีฟ้า→ม่วง มีวงแสงจางๆ มุมขวาบนให้ดูมีมิติ ไม่ใช่กล่องแบนๆ */
+    .wx { position: relative; overflow: hidden; border-radius: 18px; padding: 14px; margin-bottom: 12px;
+      border: 1px solid; border-color: var(--nx-line); box-shadow: var(--nx-glow);
+      background: linear-gradient(135deg, var(--nx-hero-a), var(--nx-hero-b)); }
+    .wx::before { content: ''; position: absolute; top: -60px; right: -40px; width: 150px; height: 150px;
+      border-radius: 50%; background: radial-gradient(circle, var(--nx-line-hot), transparent 68%);
+      opacity: .32; pointer-events: none; }
+    .wx > * { position: relative; }
+    .wx-top { display: flex; align-items: center; gap: 12px; }
+    .wx-ico { font-size: 38px; line-height: 1; flex: none; }
+    .wx-temp { font-family: var(--font-display); font-size: 32px; font-weight: 700; line-height: 1;
+      color: var(--nx-hero-text); font-variant-numeric: tabular-nums; }
+    .wx-cond { font-size: 13px; font-weight: 600; color: var(--nx-hero-text); margin-top: 3px; }
+    .wx-meta { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
+    /* min-width:0 กันชื่อสถานที่ยาวๆ ดันการ์ดจนล้นจอ (บทเรียนเดียวกับตอนทำปฏิทิน) */
+    .wx-mid { flex: 1; min-width: 0; }
+    .wx-place { font-size: 11.5px; color: var(--text-2); display: flex; align-items: center; gap: 4px;
+      margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wx-rain { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px;
+      font-size: 11.5px; font-weight: 700; flex: none;
+      background: var(--nx-surface-2); color: var(--nx-cyan); border: 1px solid; border-color: var(--nx-line); }
+    /* ฝนเกินครึ่ง = ควรเตรียมร่ม เปลี่ยนเป็นสีทองให้สะดุดตากว่าเดิม */
+    .wx-rain.hi { color: var(--nx-gold); border-color: var(--nx-line-hot); }
+
+    /* แถบ 7 วัน — ต้องเห็นครบทั้ง 7 วันในจอเดียว ไม่ใช้การเลื่อนแนวนอน
+       เพราะผู้ใช้ไม่มีทางรู้ว่าปัดได้ วันท้ายๆ จะถูกซ่อนไปเฉยๆ
+       minmax(0,1fr) ไม่ใช่ 1fr — 1fr มีพื้นเป็น min-content จะดันจนล้นจอ (บทเรียนเดิมจากปฏิทิน) */
+    .wx-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px;
+      margin-top: 12px; padding-top: 11px; border-top: 1px solid; border-top-color: var(--nx-line); }
+    .wx-day { min-width: 0; overflow: hidden; text-align: center; padding: 7px 1px; border-radius: 10px;
+      background: var(--nx-surface-2); border: 1px solid transparent; }
+    .wx-day.today { border-color: var(--nx-line-hot); }
+    .wx-day .d { font-size: 10px; font-weight: 700; color: var(--text-2); }
+    .wx-day .i { font-size: 16px; line-height: 1.35; }
+    .wx-day .t { font-size: 11px; font-weight: 700; color: var(--nx-hero-text); font-variant-numeric: tabular-nums; }
+    .wx-day .lo { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    /* จอกว้างขึ้น (แท็บเล็ต / LIFF แบบ Full) ช่องเหลือที่ ขยายให้อ่านสบายขึ้น */
+    @media (min-width: 480px) {
+      .wx-days { gap: 6px; }
+      .wx-day { padding: 8px 3px; border-radius: 12px; }
+      .wx-day .d { font-size: 11px; }
+      .wx-day .i { font-size: 19px; }
+      .wx-day .t { font-size: 12.5px; }
+      .wx-day .lo { font-size: 11px; }
+    }
+
+    /* บรรทัดพยากรณ์ในแผงรายละเอียดวันของปฏิทิน — เล็กกว่าการ์ดหลัก ไม่ให้แย่งความสนใจจากตัวกิจกรรม */
+    .wx-line { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 2px 0 10px;
+      padding: 7px 10px; border-radius: 11px; font-size: 12px;
+      background: var(--nx-surface-2); border: 1px solid; border-color: var(--nx-line); }
+    .wx-line .i { font-size: 16px; flex: none; }
+    .wx-line .tx { color: var(--text-2); min-width: 0; }
+    .wx-line b { color: var(--text-1); font-variant-numeric: tabular-nums; }
+
     .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
     .kpi { background: var(--nx-surface); border: 1px solid; border-color: var(--nx-line); border-radius: 16px;
       padding: 13px; box-shadow: var(--nx-glow); text-align: left; color: var(--text-1); font-family: var(--font-body); }
@@ -700,8 +755,21 @@
         '<div class="card"><div class="sk" style="height:22px;width:55%;"></div>' +
         '<div class="sk" style="height:220px;margin-top:10px;"></div></div>';
       api('trainings')
-        .then(function(d){ _calCache = d; setCalendarBadge(d.counts); renderCalendar(); })
+        .then(function(d){ _calCache = d; setCalendarBadge(d.counts); renderCalendar(); warmWeather(); })
         .catch(function(e){ showErr(e, function(){ showCalendar(true); }); });
+    }
+
+    /**
+     * ดึงอากาศไว้เงียบๆ ให้แผงรายละเอียดวันมีข้อมูลพร้อมใช้
+     * วาดปฏิทินซ้ำหลังได้ข้อมูล เพราะผู้ใช้อาจกดเลือกวันไปแล้วระหว่างรอ
+     * ถ้าดึงไม่ได้ก็ปล่อยผ่าน — ปฏิทินต้องใช้งานได้ต่อแม้ไม่มีพยากรณ์
+     */
+    function warmWeather(){
+      if (_wxCache) return;
+      api('weather').then(function(w){
+        _wxCache = w;
+        if (document.querySelector('.lcal-grid')) renderCalendar();
+      }).catch(function(){});
     }
 
     /** ตัวเลขบนเมนู "ปฏิทิน" — นับเฉพาะที่ยังไม่ได้เก็บเกียรติบัตร คือของที่ต้องลงมือทำจริง */
@@ -797,6 +865,7 @@
 
       if (_calSel && map[_calSel]){
         h += '<div class="lcal-day"><h4>' + toBE(_calSel) + '</h4>' +
+          wxLineHtml(_calSel) +
           map[_calSel].map(function(e){ return calItemHtml(e.t, e.mode); }).join('') + '</div>';
       } else if (!Object.keys(map).length){
         h += '<div class="note" style="margin-top:10px;">ยังไม่มีกิจกรรมในระบบ — เพิ่มได้ที่หน้าเว็บของระบบ</div>';
@@ -821,6 +890,91 @@
         '<div class="sk" style="height:88px;"></div><div class="sk" style="height:88px;"></div>' +
         '<div class="sk" style="height:88px;"></div><div class="sk" style="height:88px;"></div></div>' +
         '<div class="sk" style="height:58px;"></div>';
+    }
+
+    /* ================= วิดเจ็ตสภาพอากาศ ================= */
+    /* โหลดแยกจากข้อมูลหลัก — อากาศช้าหรือล่มก็ไม่ควรทำให้หน้าหลักค้างรอ */
+    var _wxCache = null;
+    var WX_DOW = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+    /** วันในสัปดาห์แบบไทย — อ่านเป็น UTC เพราะข้อมูลที่ได้เป็นวันที่ล้วน ไม่มีเวลา */
+    function wxDow(iso){
+      var d = new Date(iso + 'T00:00:00Z');
+      return isNaN(d.getTime()) ? '' : WX_DOW[d.getUTCDay()];
+    }
+    function wxDayNum(iso){
+      var m = /^\d{4}-(\d{2})-(\d{2})/.exec(String(iso||''));
+      return m ? (Number(m[2]) + '/' + Number(m[1])) : '';
+    }
+
+    /** ตัวเลขที่ไม่มีข้อมูลต้องขึ้นขีด ไม่ใช่ 0 — 0 องศาในไทยคือข้อมูลผิด ไม่ใช่อากาศหนาว */
+    function wxNum(v, unit){
+      return (v === null || v === undefined) ? '—' : (v + (unit || ''));
+    }
+
+    function wxCardHtml(w){
+      var n = w.now || {};
+      var rainCls = (n.rainChance !== null && n.rainChance >= 50) ? ' hi' : '';
+      var days = (w.days || []).map(function(d){
+        return '<div class="wx-day' + (d.isToday ? ' today' : '') + '">' +
+          '<div class="d">' + (d.isToday ? 'วันนี้' : esc(wxDow(d.date))) + '</div>' +
+          '<div class="i" title="' + esc(d.text) + '">' + d.icon + '</div>' +
+          '<div class="t">' + wxNum(d.tempMax, '°') + '</div>' +
+          '<div class="lo">' + wxNum(d.tempMin, '°') + '</div></div>';
+      }).join('');
+
+      return '<div class="wx">' +
+        '<div class="wx-top">' +
+        '<div class="wx-ico">' + n.icon + '</div>' +
+        '<div class="wx-mid">' +
+        '<div class="wx-temp">' + wxNum(n.temp, '°C') + '</div>' +
+        '<div class="wx-cond">' + esc(n.text) + '</div>' +
+        '<div class="wx-meta">รู้สึกเหมือน ' + wxNum(n.feelsLike, '°') +
+        ' · ความชื้น ' + wxNum(n.humidity, '%') + ' · ลม ' + wxNum(n.wind, ' กม./ชม.') + '</div>' +
+        '</div>' +
+        (n.rainChance === null ? '' :
+          '<span class="wx-rain' + rainCls + '">💧 ' + n.rainChance + '%</span>') +
+        '</div>' +
+        '<div class="wx-place">📍 ' + esc(w.place) + '</div>' +
+        '<div class="wx-days">' + days + '</div>' +
+        '</div>';
+    }
+
+    /** เติมการ์ดลงช่องที่ renderHome เว้นไว้ — หาไม่เจอแปลว่าผู้ใช้เปลี่ยนหน้าไปแล้ว ก็ไม่ต้องทำอะไร */
+    function loadWeather(){
+      var box = document.getElementById('wxBox');
+      if (!box) return;
+      if (_wxCache) { box.innerHTML = wxCardHtml(_wxCache); return; }
+      box.innerHTML = '<div class="sk" style="height:118px;border-radius:18px;margin-bottom:12px;"></div>';
+      api('weather').then(function(w){
+        _wxCache = w;
+        var b = document.getElementById('wxBox');
+        if (b) b.innerHTML = wxCardHtml(w);
+      }).catch(function(){
+        // อากาศเป็นของแถม ดึงไม่ได้ก็เก็บช่องทิ้งไปเงียบๆ ไม่ต้องขึ้น error รบกวนผู้ใช้
+        var b = document.getElementById('wxBox');
+        if (b) b.innerHTML = '';
+      });
+    }
+
+    /** หาพยากรณ์ของวันที่ระบุ — นอกช่วง 7 วันจะคืน null แล้วผู้เรียกต้องไม่แสดงอะไรเลย */
+    function wxForDate(iso){
+      if (!_wxCache || !_wxCache.days) return null;
+      for (var i = 0; i < _wxCache.days.length; i++){
+        if (_wxCache.days[i].date === iso) return _wxCache.days[i];
+      }
+      return null;
+    }
+
+    /** บรรทัดพยากรณ์ใต้หัวข้อวันในปฏิทิน — จุดที่ข้อมูลนี้มีประโยชน์จริง คือรู้ว่าวันอบรมฝนจะตกไหม */
+    function wxLineHtml(iso){
+      var d = wxForDate(iso);
+      if (!d) return '';
+      var rain = (d.rainChance !== null && d.rainChance !== undefined)
+        ? ' · โอกาสฝน <b>' + d.rainChance + '%</b>' : '';
+      return '<div class="wx-line"><span class="i">' + d.icon + '</span>' +
+        '<span class="tx">' + esc(d.text) + ' <b>' + wxNum(d.tempMin, '°') + '–' + wxNum(d.tempMax, '°') + '</b>' +
+        rain + '</span></div>';
     }
 
     function showHome(force){
@@ -892,10 +1046,12 @@
           : '<div class="note">ยังไม่มีเอกสารครับ 🐶 ส่งรูปเกียรติบัตรเข้าแชตได้เลย</div>') +
         '</div>';
 
-      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + todo + kpis +
+      // อากาศวางไว้หลังงานค้าง — งานที่ต้องลงมือทำสำคัญกว่า อากาศเป็นข้อมูลประกอบ
+      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + todo + '<div id="wxBox"></div>' + kpis +
         '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚡ เมนูด่วน</div>' + actions + '</div>' +
         recent;
       startClock();
+      loadWeather();
     }
 
     /* วิธีส่งเอกสารเข้าระบบ — ระบบรับไฟล์ทางแชต LINE (webhook → คิว AI) ไม่ได้อัปโหลดในหน้านี้
