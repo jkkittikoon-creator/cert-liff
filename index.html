@@ -196,7 +196,7 @@
        LIFF ใช้เมนูล่างแทน Sidebar ของเว็บ — นิ้วโป้งเอื้อมถึง และไม่กินพื้นที่แนวตั้งของมือถือ */
     .bnav {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 120;
-      display: grid; grid-template-columns: repeat(5, 1fr);
+      display: grid; grid-template-columns: repeat(6, 1fr);
       background: var(--nx-surface); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
       border-top: 1px solid; border-top-color: var(--nx-line);
       padding-bottom: env(safe-area-inset-bottom);
@@ -207,6 +207,12 @@
       display: flex; flex-direction: column; align-items: center; gap: 3px;
       font-size: 11px; font-weight: 500; color: var(--text-3); font-family: var(--font-body);
       min-height: 56px; justify-content: center;
+      min-width: 0; overflow: hidden; white-space: nowrap;
+    }
+    /* 6 เมนูบนจอแคบมาก (360px = ช่องละ 60px) — ย่อตัวอักษรแทนที่จะปล่อยให้ตัดคำ */
+    @media (max-width: 380px) {
+      .bnav button { font-size: 10px; padding: 8px 1px 7px; }
+      .bnav .bn-ico { font-size: 18px; }
     }
     .bnav button:active { transform: none; background: var(--nx-surface-2); }
     .bnav .bn-ico { font-size: 19px; line-height: 1; }
@@ -215,6 +221,62 @@
     .bnav button.on .bn-ico { transform: translateY(-1px); }
     .bnav .bn-dot { position: absolute; margin: -14px 0 0 16px; min-width: 16px; height: 16px; border-radius: 999px;
       background: var(--nx-danger); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; padding: 0 4px; }
+
+    /* ============ ปฏิทินอบรม ============
+       วาดเองจากข้อมูลที่โหลดมาแล้ว ไม่ฝัง iframe ของ Google Calendar เพราะ iframe
+       ดูสิทธิ์จากบัญชี Google ในเบราว์เซอร์ ซึ่งใน In-App Browser ของ LINE แทบไม่มีทางตรงกับ
+       บัญชีที่เชื่อมไว้ในระบบ และการทำให้เห็นได้ต้องแชร์ปฏิทินเป็นสาธารณะ = เปิดกิจกรรมครูทุกคน */
+    .lcal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .lcal-title { font-weight: 700; font-size: 16px; color: var(--text-1); }
+    .lcal-nav { display: flex; gap: 6px; }
+    .lcal-nav button { background: var(--nx-surface-2); border: 1px solid; border-color: var(--nx-line);
+      color: var(--text-2); border-radius: 9px; padding: 7px 10px; font-size: 12px; font-family: var(--font-body);
+      min-height: 36px; }
+    .lcal-nav button:active { background: var(--bg-hover); }
+    /* minmax(0,1fr) ไม่ใช่ 1fr — 1fr มีพื้นความกว้างเป็น min-content ชื่อกิจกรรมยาวๆ จะดันจนล้นจอ */
+    .lcal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 10px; }
+    .lcal-dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-3);
+      padding: 3px 0; min-width: 0; overflow: hidden; }
+    .lcal-cell { position: relative; min-height: clamp(42px, 12vw, 64px); padding: 3px 2px;
+      border: 1px solid; border-color: var(--nx-line); border-radius: 9px; min-width: 0; overflow: hidden;
+      background: var(--bg-inset); text-align: center; font: inherit; color: inherit; }
+    .lcal-cell.blank { border-color: transparent; background: transparent; }
+    .lcal-cell.has:active { background: var(--bg-hover); }
+    .lcal-cell.today { border-color: var(--nx-blue); box-shadow: 0 0 0 1px var(--nx-blue) inset; }
+    .lcal-cell.sel { background: var(--nx-surface-2); border-color: var(--nx-line-hot); }
+    .lcal-num { font-size: 12px; font-weight: 700; color: var(--text-2); }
+    .lcal-cell.today .lcal-num { color: var(--nx-blue); }
+    /* จุดบอกว่าวันนั้นมีของ — ช่องบนมือถือแคบเกินกว่าจะใส่ชื่อกิจกรรมให้อ่านรู้เรื่อง */
+    .lcal-dots { display: flex; justify-content: center; gap: 3px; margin-top: 4px; flex-wrap: wrap; }
+    /* font-size: 0 ซ่อนชื่อกิจกรรมที่ใส่ไว้ในตัวจุด — จอกว้างค่อยเปิดกลับมาเป็นตัวอักษร
+       เก็บชื่อไว้ใน DOM เสมอ เครื่องอ่านหน้าจอจะได้ยังอ่านออกว่าวันนั้นมีอะไร */
+    .lcal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--nx-blue);
+      font-size: 0; overflow: hidden; flex: none; }
+    .lcal-dot.need { background: var(--nx-gold); }
+    .lcal-dot.past { background: var(--text-3); }
+    .lcal-legend { display: flex; flex-wrap: wrap; gap: 5px 14px; margin-top: 10px; font-size: 12px; color: var(--text-2); }
+    .lcal-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+    .lcal-day { margin-top: 12px; padding-top: 10px; border-top: 1px solid; border-top-color: var(--nx-line); }
+    .lcal-day h4 { margin: 0 0 8px; font-size: 14px; }
+    .lcal-item { padding: 9px 0; border-bottom: 1px solid; border-bottom-color: var(--nx-line); }
+    .lcal-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .lcal-item .t { font-weight: 600; font-size: 14px; line-height: 1.35; }
+    .lcal-item .m { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+    .lcal-item a { color: var(--nx-blue); }
+    /* จอกว้างขึ้น (แท็บเล็ต / LIFF แบบ Full) ช่องพอใส่ชื่อจริงได้ เลยโชว์ชื่อแทนจุด */
+    @media (min-width: 560px) {
+      .lcal-grid { gap: 4px; }
+      .lcal-cell { text-align: left; padding: 4px; min-height: 62px; }
+      .lcal-num { font-size: 12.5px; }
+      .lcal-dots { display: block; margin-top: 2px; }
+      .lcal-dot { width: auto; height: auto; border-radius: 4px; display: block; margin-top: 2px;
+        padding: 1px 4px; font-size: 10.5px; line-height: 1.25; max-width: 100%;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        background: var(--nx-surface-2); color: var(--nx-blue); }
+      .lcal-dot.need { background: var(--nx-surface-2); color: var(--nx-gold); }
+      .lcal-dot.past { background: var(--nx-surface-2); color: var(--text-3); }
+      .lcal-legend i { border-radius: 3px; }
+    }
 
     /* ============ หัวหน้าจอแต่ละหน้า ============ */
     .pg-head { display: flex; align-items: center; gap: 10px; margin: 2px 0 12px; }
@@ -297,6 +359,7 @@
     <button type="button" id="bnHome"    onclick="goTab('home')"   aria-label="หน้าหลัก"><span class="bn-ico">🏠</span>หน้าหลัก</button>
     <button type="button" id="bnPending" onclick="goTab('pending')" aria-label="เอกสารรอตรวจ"><span class="bn-ico">🕒</span>รอตรวจ<span id="bnPendingDot" class="bn-dot" style="display:none;"></span></button>
     <button type="button" id="bnSaved"   onclick="goTab('saved')"  aria-label="เอกสารของฉัน"><span class="bn-ico">📂</span>เอกสาร</button>
+    <button type="button" id="bnCalendar" onclick="goTab('calendar')" aria-label="ปฏิทินอบรม"><span class="bn-ico">🗓️</span>ปฏิทิน<span id="bnCalendarDot" class="bn-dot" style="display:none;"></span></button>
     <button type="button" id="bnSearch"  onclick="goTab('search')" aria-label="ค้นหาเอกสาร"><span class="bn-ico">🔍</span>ค้นหา</button>
     <button type="button" id="bnAccount" onclick="goTab('account')" aria-label="บัญชีของฉัน"><span class="bn-ico">👤</span>บัญชี</button>
   </nav>
@@ -511,7 +574,7 @@
     }
 
     /* ---------- Bottom Navigation ---------- */
-    var TABS = ['home','pending','saved','search','account'];
+    var TABS = ['home','pending','saved','calendar','search','account'];
     function setNav(tab){
       TABS.forEach(function(t){
         var b = document.getElementById('bn' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -523,6 +586,7 @@
       if (tab === 'home') showHome();
       else if (tab === 'pending') showList('pending');
       else if (tab === 'saved') showList('saved');
+      else if (tab === 'calendar') showCalendar();
       else if (tab === 'search') showSearch();
       else if (tab === 'account') showAccount();
     }
@@ -556,6 +620,192 @@
       });
       html += '</div>' + closeBtn;
       app.innerHTML = html;
+    }
+
+    /* ================= ปฏิทินอบรม =================
+       โหลดครั้งเดียวแล้วเก็บไว้ เปลี่ยนเดือน/เลือกวันไม่เรียกเซิร์ฟเวอร์ซ้ำ
+       สำคัญบน In-App Browser ของ LINE ที่เน็ตมือถืออาจช้า */
+
+    var _calCache = null;    // ข้อมูลกิจกรรมที่โหลดมาแล้ว
+    var _calYM = null;       // เดือนที่แสดงอยู่ { y, m } — m นับ 1-12
+    var _calSel = null;      // วันที่เลือกดูรายละเอียด 'YYYY-MM-DD'
+
+    /**
+     * "วันนี้" ตามเวลาไทยเสมอ ไม่ใช่เวลาเครื่อง
+     * โทรศัพท์ที่ตั้งเขตเวลาผิดหรือถือไปต่างประเทศจะได้ไม่เห็นกรอบวันนี้ผิดวัน
+     * ไทยเป็น +07:00 คงที่ ไม่มี DST จึงบวกเวลาตรงๆ แล้วอ่านแบบ UTC ได้
+     */
+    function calToday(){
+      return new Date(Date.now() + 7*3600*1000).toISOString().slice(0,10);
+    }
+    function calKey(y,m,d){
+      return y + '-' + ('0'+m).slice(-2) + '-' + ('0'+d).slice(-2);
+    }
+    function calDateOnly(iso){
+      var m = /^\d{4}-\d{2}-\d{2}/.exec(String(iso||''));
+      return m ? m[0] : '';
+    }
+
+    /**
+     * กระจายกิจกรรมลงเป็นราย "วัน" — อบรมหลายวันต้องขึ้นครบทุกวันในช่วง
+     * ไม่ใช่โผล่แค่วันเริ่ม ไม่งั้นอบรม 3 วันจะดูเหมือนว่างในวันที่ 2 และ 3
+     * คืนค่า { 'YYYY-MM-DD': [{ t, mode }, ...] }
+     */
+    function calIndex(data){
+      var map = {};
+      function add(list, mode){
+        (list||[]).forEach(function(t){
+          var s = calDateOnly(t.startAt);
+          if (!s) return;                       // ไม่มีวันเริ่ม = วางบนปฏิทินไม่ได้ ข้ามไป
+          var e = calDateOnly(t.endAt) || s;
+          if (e < s) e = s;                     // ข้อมูลเพี้ยน (จบก่อนเริ่ม) ถือเป็นวันเดียว
+          // เดินวันด้วย UTC ล้วน เขตเวลาเครื่องจะได้ไม่ดันวันเลื่อนไปหนึ่งวัน
+          var cur = new Date(s + 'T00:00:00Z'), guard = 0;
+          while (guard++ < 400){                // กันลูปไม่รู้จบถ้าวันสิ้นสุดเพี้ยนไปไกลมาก
+            var k = cur.toISOString().slice(0,10);
+            (map[k] = map[k] || []).push({ t: t, mode: mode });
+            if (k >= e) break;
+            cur = new Date(cur.getTime() + 86400000);
+          }
+        });
+      }
+      add(data.upcoming, 'upcoming');
+      add(data.needCert, 'needCert');
+      add(data.past, 'past');
+      return map;
+    }
+
+    function calShift(delta){
+      var m = _calYM.m + delta, y = _calYM.y;
+      if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+      _calYM = { y:y, m:m };
+      renderCalendar();
+    }
+    function calGoToday(){
+      var k = calToday();
+      _calYM = { y:Number(k.slice(0,4)), m:Number(k.slice(5,7)) };
+      _calSel = k;
+      renderCalendar();
+    }
+    /** แตะวันเดิมซ้ำ = ปิดรายละเอียด จะได้เก็บกลับเองโดยไม่ต้องหาปุ่มปิด */
+    function calPick(key){
+      _calSel = (_calSel === key) ? null : key;
+      renderCalendar();
+    }
+
+    function showCalendar(force){
+      setNav('calendar');
+      if (_calCache && !force) { renderCalendar(); return; }
+      app.innerHTML = pageHead('ปฏิทินอบรม') +
+        '<div class="card"><div class="sk" style="height:22px;width:55%;"></div>' +
+        '<div class="sk" style="height:220px;margin-top:10px;"></div></div>';
+      api('trainings')
+        .then(function(d){ _calCache = d; setCalendarBadge(d.counts); renderCalendar(); })
+        .catch(function(e){ showErr(e, function(){ showCalendar(true); }); });
+    }
+
+    /** ตัวเลขบนเมนู "ปฏิทิน" — นับเฉพาะที่ยังไม่ได้เก็บเกียรติบัตร คือของที่ต้องลงมือทำจริง */
+    function setCalendarBadge(counts){
+      var d = document.getElementById('bnCalendarDot');
+      if (!d) return;
+      var n = (counts && counts.needCert) || 0;
+      if (n > 0) { d.textContent = n > 99 ? '99+' : String(n); d.style.display = ''; }
+      else d.style.display = 'none';
+    }
+
+    function calTimeText(t){
+      if (t.allDay) return 'ตลอดวัน';
+      var a = /T(\d{2}:\d{2})/.exec(String(t.startAt||''));
+      var b = /T(\d{2}:\d{2})/.exec(String(t.endAt||''));
+      if (!a) return '';
+      // เวลาเริ่มเท่ากับเวลาจบ = ข้อมูลไม่สมบูรณ์ บอกแค่เวลาเริ่มดีกว่าโชว์ "09:00-09:00"
+      return (b && b[1] !== a[1]) ? (a[1] + ' - ' + b[1] + ' น.') : (a[1] + ' น.');
+    }
+
+    /** การ์ดกิจกรรมใต้ปฏิทิน — อ่านอย่างเดียว การแก้ไขทำในหน้าเว็บ */
+    function calItemHtml(t, mode){
+      var meta = [];
+      var tm = calTimeText(t);
+      if (tm) meta.push(tm);
+      if (t.location) meta.push(esc(t.location));
+      if (t.hours) meta.push(esc(t.hours) + ' ชม.');
+      var span = (calDateOnly(t.endAt) && calDateOnly(t.endAt) !== calDateOnly(t.startAt))
+        ? ('<div class="m">📆 ' + toBE(t.startAt) + ' ถึง ' + toBE(t.endAt) + '</div>') : '';
+      var flag = mode === 'needCert'
+        ? '<div class="m" style="color:var(--nx-gold);">⚠️ ยังไม่ได้เก็บเกียรติบัตร</div>'
+        : (t.certificateId ? '<div class="m" style="color:var(--nx-green);">✅ เก็บเกียรติบัตรแล้ว</div>' : '');
+      var link = t.registerUrl
+        ? '<div class="m">🔗 <a href="' + esc(t.registerUrl) + '" target="_blank" rel="noopener noreferrer">ลิงก์สมัคร</a></div>' : '';
+      return '<div class="lcal-item"><div class="t">' + esc(t.title || 'กิจกรรม') + '</div>' +
+        (meta.length ? '<div class="m">' + meta.join(' • ') + '</div>' : '') +
+        span + flag + link + '</div>';
+    }
+
+    function renderCalendar(){
+      setNav('calendar');
+      if (!_calCache) return;
+
+      var map = calIndex(_calCache);
+      var today = calToday();
+      if (!_calYM) _calYM = { y:Number(today.slice(0,4)), m:Number(today.slice(5,7)) };
+      var y = _calYM.y, m = _calYM.m;
+
+      var startDow = new Date(Date.UTC(y, m-1, 1)).getUTCDay();     // 0 = อาทิตย์
+      var days = new Date(Date.UTC(y, m, 0)).getUTCDate();          // วันที่ 0 ของเดือนถัดไป = วันสุดท้ายเดือนนี้
+
+      var h = pageHead('ปฏิทินอบรม') + '<div class="card">' +
+        '<div class="lcal-head"><div class="lcal-title">' + THMONTHS[m-1] + ' ' + (y+543) + '</div>' +
+        '<div class="lcal-nav">' +
+          '<button type="button" onclick="calShift(-1)" aria-label="เดือนก่อนหน้า">‹</button>' +
+          '<button type="button" onclick="calGoToday()">วันนี้</button>' +
+          '<button type="button" onclick="calShift(1)" aria-label="เดือนถัดไป">›</button>' +
+        '</div></div><div class="lcal-grid">';
+
+      ['อา','จ','อ','พ','พฤ','ศ','ส'].forEach(function(d){
+        h += '<div class="lcal-dow">' + d + '</div>';
+      });
+      for (var b = 0; b < startDow; b++) h += '<div class="lcal-cell blank"></div>';
+
+      for (var d = 1; d <= days; d++){
+        var key = calKey(y, m, d);
+        var evs = map[key] || [];
+        var cls = 'lcal-cell' + (evs.length ? ' has' : '') +
+          (key === today ? ' today' : '') + (key === _calSel ? ' sel' : '');
+
+        var inner = '<div class="lcal-num">' + d + '</div>';
+        if (evs.length){
+          inner += '<div class="lcal-dots">';
+          // จำกัด 3 อัน — มากกว่านี้จุดจะล้นช่องบนมือถือ ที่เหลือดูได้ตอนแตะวัน
+          evs.slice(0,3).forEach(function(e){
+            inner += '<span class="lcal-dot ' + e.mode + '">' + esc(e.t.title || 'กิจกรรม') + '</span>';
+          });
+          inner += '</div>';
+        }
+
+        // วันที่ไม่มีกิจกรรมไม่ทำเป็นปุ่ม จะได้ไม่กินคิว Tab ของคนใช้คีย์บอร์ดเปล่าๆ
+        h += evs.length
+          ? '<button type="button" class="' + cls + '" onclick="calPick(\'' + key + '\')" aria-label="วันที่ ' +
+            d + ' มี ' + evs.length + ' กิจกรรม">' + inner + '</button>'
+          : '<div class="' + cls + '">' + inner + '</div>';
+      }
+      h += '</div>';
+
+      h += '<div class="lcal-legend">' +
+        '<span><i style="background:var(--nx-blue);"></i>กิจกรรม</span>' +
+        '<span><i style="background:var(--nx-gold);"></i>ยังไม่ได้เก็บเกียรติบัตร</span>' +
+        '<span><i style="background:var(--text-3);"></i>ผ่านไปแล้ว</span></div>';
+
+      if (_calSel && map[_calSel]){
+        h += '<div class="lcal-day"><h4>' + toBE(_calSel) + '</h4>' +
+          map[_calSel].map(function(e){ return calItemHtml(e.t, e.mode); }).join('') + '</div>';
+      } else if (!Object.keys(map).length){
+        h += '<div class="note" style="margin-top:10px;">ยังไม่มีกิจกรรมในระบบ — เพิ่มได้ที่หน้าเว็บของระบบ</div>';
+      } else {
+        h += '<div class="note" style="margin-top:10px;">แตะวันที่มีจุดเพื่อดูรายละเอียด</div>';
+      }
+
+      h += '</div><button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+      app.innerHTML = h;
     }
 
     /* ================= หน้าหลัก (Home) =================
@@ -1653,6 +1903,7 @@
       else if(tab==='report'){ showReportCenter(); }    // Rich Menu ปุ่ม "รายงานผลงาน"
       else if(tab==='dash'){ showDash(); }              // Rich Menu ปุ่ม "สรุป"
       else if(tab==='pending'){ showList('pending'); }
+      else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
       else { showHome(); }
     }
 
