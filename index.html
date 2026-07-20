@@ -323,8 +323,9 @@
     .wx-meta { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
     /* min-width:0 กันชื่อสถานที่ยาวๆ ดันการ์ดจนล้นจอ (บทเรียนเดียวกับตอนทำปฏิทิน) */
     .wx-mid { flex: 1; min-width: 0; }
+    /* flex-wrap: มีสองปุ่มแล้ว จอแคบใส่ไม่พอในบรรทัดเดียว ให้ปุ่มตกลงบรรทัดใหม่ดีกว่าถูกบีบจนอ่านไม่ออก */
     .wx-place { font-size: 11.5px; color: var(--text-2); display: flex; align-items: flex-start; gap: 6px;
-      margin-top: 8px; min-width: 0; }
+      margin-top: 8px; min-width: 0; flex-wrap: wrap; }
     /* ชื่อเต็มอย่าง "อำเภอไพศาลี จังหวัดนครสวรรค์ ประเทศไทย" ยาวเกิน 1 บรรทัดบนจอ 375px
        ให้ตกบรรทัดได้ถึง 2 บรรทัดแทนการตัดหาง — ชื่อจังหวัดแหว่งอ่านแล้วสับสนกว่าเสียพื้นที่ 1 บรรทัด
        เกิน 2 บรรทัดค่อยตัด กันกรณีตั้งชื่อยาวผิดปกติแล้วดันการ์ดเสียทรง */
@@ -335,6 +336,8 @@
       background: var(--nx-surface-2); color: var(--nx-cyan); border: 1px solid; border-color: var(--nx-line); }
     .wx-loc:active:not(:disabled) { border-color: var(--nx-line-hot); color: var(--nx-gold); }
     .wx-loc:disabled { opacity: .6; }
+    /* ปุ่มสำรอง — ให้เด่นน้อยกว่าปุ่มหลัก แต่ยังกดง่าย */
+    .wx-loc-alt { color: var(--text-2); }
     /* ข้อความเตือนเรื่องตำแหน่ง — LIFF ไม่มี toast จึงแสดงในการ์ดแทน */
     .wx-note { font-size: 11px; line-height: 1.5; color: var(--nx-gold); margin-top: 7px; }
     .wx-rain { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px;
@@ -988,19 +991,70 @@
     }
 
     function wxLocBtnHtml(w){
+      // เบราว์เซอร์ในแอป LINE ขอตำแหน่งไม่ผ่านบ่อย จึงต้องมีทางกรอกเองคู่กันไว้เสมอ
       return w.isUserLocation
         ? '<button type="button" class="wx-loc" onclick="wxClearMyLocation()">ใช้ตำแหน่งโรงเรียน</button>'
-        : '<button type="button" class="wx-loc" onclick="wxUseMyLocation(this)">ตำแหน่งของฉัน</button>';
+        : '<button type="button" class="wx-loc" onclick="wxUseMyLocation(this)">ตำแหน่งของฉัน</button>' +
+          '<button type="button" class="wx-loc wx-loc-alt" onclick="wxEnterCoords()">ใส่พิกัดเอง</button>';
     }
 
-    /** แสดงข้อความในการ์ดชั่วคราวแล้วลบทิ้งเอง — ไม่ให้ค้างกวนสายตา */
-    function wxSetNote(msg){
+    /**
+     * แสดงข้อความในการ์ด
+     * sticky = true สำหรับข้อความที่ผู้ใช้ต้องอ่านแล้วลงมือทำ ต้องไม่หายไปเอง
+     * ก่อนหน้านี้ข้อความ error หายใน 8 วินาที ผู้ใช้กดปุ่มแล้วเหมือนไม่มีอะไรเกิดขึ้น
+     */
+    function wxSetNote(msg, sticky){
       _wxLocNote = msg;
       if (_wxCache) {
         var b = document.getElementById('wxBox');
         if (b) b.innerHTML = wxCardHtml(_wxCache);
       }
-      if (msg) setTimeout(function(){ if (_wxLocNote === msg) wxSetNote(''); }, 8000);
+      if (msg && !sticky) setTimeout(function(){ if (_wxLocNote === msg) wxSetNote(''); }, 8000);
+    }
+
+    /** ใช้พิกัดใหม่: ล้างแคชแล้วโหลดอากาศ + ปฏิทินใหม่ทั้งคู่ */
+    function wxApplyLoc(loc){
+      wxSaveLoc(loc);
+      _wxCache = null;
+      _wxLocNote = '';
+      loadWeather();
+      if (document.querySelector('.lcal-grid')) renderCalendar();
+    }
+
+    /**
+     * แกะพิกัดจากข้อความที่ผู้ใช้วาง — รับทั้งตัวเลขล้วนและลิงก์ Google Maps แบบเต็ม
+     * ลิงก์ย่อ (maps.app.goo.gl) ไม่มีตัวเลขพิกัดอยู่ข้างใน จงใจไม่รองรับ และแจ้งผู้ใช้แยกกรณี
+     */
+    function wxParseCoords(text){
+      var s = String(text || '').trim();
+      if (!s) return null;
+      var m = s.match(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/) ||          // .../@15.5975,100.65806,17z
+              s.match(/[?&]q=(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/) ||     // ...?q=15.5975,100.65806
+              s.match(/^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/);         // 15.5975, 100.65806
+      if (!m) return null;
+      var lat = parseFloat(m[1]), lon = parseFloat(m[2]);
+      if (isNaN(lat) || lat < -90 || lat > 90) return null;
+      if (isNaN(lon) || lon < -180 || lon > 180) return null;
+      return { lat: lat, lon: lon };
+    }
+
+    /** ทางสำรองที่ไม่ต้องพึ่งสิทธิ์ตำแหน่งเลย — ใช้ได้ทุกเครื่องทุกเวอร์ชัน */
+    function wxEnterCoords(){
+      var t = prompt(
+        'วางพิกัดจาก Google Maps\n\n' +
+        'เปิด Google Maps → กดค้างที่ตำแหน่งที่ต้องการ → ตัวเลขพิกัดจะขึ้นมา → คัดลอกมาวางที่นี่\n\n' +
+        'ตัวอย่าง: 15.5975, 100.65806',
+        wxSavedLoc() ? (wxSavedLoc().lat + ', ' + wxSavedLoc().lon) : ''
+      );
+      if (t === null) return;
+      var loc = wxParseCoords(t);
+      if (!loc) {
+        wxSetNote(/goo\.gl/.test(String(t))
+          ? 'ลิงก์ย่อของ Google Maps ไม่มีตัวเลขพิกัดอยู่ข้างใน — กดค้างบนแผนที่แล้วคัดลอกตัวเลขพิกัดมาวางแทนครับ'
+          : 'อ่านพิกัดไม่ออก — ต้องเป็นตัวเลขสองชุดคั่นด้วยจุลภาค เช่น 15.5975, 100.65806', true);
+        return;
+      }
+      wxApplyLoc(loc);
     }
 
     /**
@@ -1009,28 +1063,48 @@
      * แล้วเบราว์เซอร์จำการปฏิเสธไว้ยาว กู้คืนยาก
      */
     function wxUseMyLocation(btn){
-      if (!navigator.geolocation) { wxSetNote('เครื่องนี้ไม่รองรับการระบุตำแหน่ง'); return; }
+      if (!navigator.geolocation) {
+        wxSetNote('เครื่องนี้ไม่รองรับการระบุตำแหน่ง — กด "ใส่พิกัดเอง" แทนได้ครับ', true);
+        return;
+      }
       if (btn) { btn.disabled = true; btn.textContent = 'กำลังขอตำแหน่ง...'; }
+
+      /* นาฬิกาจับเวลาของเราเอง — ห้ามพึ่ง timeout ของเบราว์เซอร์อย่างเดียว
+         ตามสเปก timeout เริ่มนับหลังผู้ใช้กดอนุญาตแล้วเท่านั้น ถ้าเบราว์เซอร์ในแอป LINE
+         ไม่เด้งกล่องขอสิทธิ์ให้ (บางเวอร์ชันไม่ได้ต่อ hook นี้ไว้) จะไม่มี callback ไหนถูกเรียกเลย
+         ปุ่มค้างเป็น "กำลังขอตำแหน่ง..." ตลอดกาล และผู้ใช้ไม่รู้ว่าเกิดอะไรขึ้น */
+      var settled = false;
+      function finish(){
+        if (settled) return true;
+        settled = true;
+        clearTimeout(watchdog);
+        if (btn) { btn.disabled = false; btn.textContent = 'ตำแหน่งของฉัน'; }
+        return false;
+      }
+      var watchdog = setTimeout(function(){
+        if (finish()) return;
+        wxSetNote('แอป LINE ไม่ตอบเรื่องสิทธิ์ตำแหน่ง — วิธีที่ได้ผลแน่คือกด "ใส่พิกัดเอง" ' +
+                  'แล้ววางพิกัดจาก Google Maps ครับ', true);
+      }, 12000);
+
       navigator.geolocation.getCurrentPosition(
         function(pos){
-          wxSaveLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-          _wxCache = null;
-          _wxLocNote = '';
-          loadWeather();
-          if (document.querySelector('.lcal-grid')) renderCalendar();
+          if (finish()) return;
+          wxApplyLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
         },
         function(err){
-          if (btn) { btn.disabled = false; btn.textContent = 'ตำแหน่งของฉัน'; }
-          var msg = 'ขอตำแหน่งไม่สำเร็จ';
-          if (err && err.code === 1) {
-            msg = 'ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง — เปิดสิทธิ์ตำแหน่งให้แอป LINE ' +
-                  'ในการตั้งค่าเครื่อง แล้วลองใหม่';
-          } else if (err && err.code === 2) {
-            msg = 'หาตำแหน่งไม่เจอ สัญญาณอาจไม่ดี ลองใหม่อีกครั้ง';
-          } else if (err && err.code === 3) {
-            msg = 'ขอตำแหน่งนานเกินไป ลองใหม่อีกครั้ง';
+          if (finish()) return;
+          var code = (err && err.code) || 0;
+          var msg = 'ขอตำแหน่งไม่สำเร็จ (รหัส ' + code + ')';
+          if (code === 1) {
+            msg = 'ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง — ต้องเปิดสิทธิ์ "ตำแหน่ง" ให้แอป LINE ' +
+                  'ในการตั้งค่าเครื่องก่อน (ไม่ใช่ในแอปนี้) หรือกด "ใส่พิกัดเอง" ก็ได้ครับ';
+          } else if (code === 2) {
+            msg = 'หาตำแหน่งไม่เจอ สัญญาณอาจไม่ดี ลองใหม่ หรือกด "ใส่พิกัดเอง"';
+          } else if (code === 3) {
+            msg = 'ขอตำแหน่งนานเกินไป ลองใหม่ หรือกด "ใส่พิกัดเอง"';
           }
-          wxSetNote(msg);
+          wxSetNote(msg, true);
         },
         // ไม่ต้องแม่นระดับ GPS — พยากรณ์อากาศใช้ระดับตำบลก็พอ และประหยัดแบตกว่ามาก
         { enableHighAccuracy: false, timeout: 10000, maximumAge: 10 * 60 * 1000 }
@@ -1038,11 +1112,7 @@
     }
 
     function wxClearMyLocation(){
-      wxSaveLoc(null);
-      _wxCache = null;
-      _wxLocNote = '';
-      loadWeather();
-      if (document.querySelector('.lcal-grid')) renderCalendar();
+      wxApplyLoc(null);
     }
 
     /** เติมการ์ดลงช่องที่ renderHome เว้นไว้ — หาไม่เจอแปลว่าผู้ใช้เปลี่ยนหน้าไปแล้ว ก็ไม่ต้องทำอะไร */
