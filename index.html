@@ -110,6 +110,10 @@
     .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
     .doc-item:last-child { border-bottom: none; }
     .doc-item:active { background: var(--bg-hover); }
+    /* เอกสารที่ AI กำลังอ่าน: กดไม่ได้ ต้องดูออกตั้งแต่ยังไม่ทันแตะ
+       ต้องยกเลิก :active ด้วย ไม่งั้นแถวยังกะพริบตอบสนองการแตะ ทั้งที่ไม่มีอะไรเกิดขึ้น */
+    .doc-item.is-busy { cursor: default; opacity: .62; }
+    .doc-item.is-busy:active { background: none; }
     /* ชื่อกิจกรรมยาวได้ ต้องตัดคำลงบรรทัดใหม่ ไม่ดันป้ายสถานะตกขอบจอ */
     .doc-item .doc-main { flex: 1 1 auto; min-width: 0; }
     .doc-item .doc-title { font-weight: 600; line-height: 1.5; overflow-wrap: break-word; word-break: normal; }
@@ -684,7 +688,9 @@
       }
       var badge = { AI_REVIEW:'<span class="badge b-ai">AI อ่านแล้ว</span>', MANUAL_REVIEW:'<span class="badge b-manual">กรอกเอง</span>',
         DRAFT:'<span class="badge b-draft">ร่าง</span>', FILE_STORED:'<span class="badge b-manual">รอกรอก</span>',
-        SAVED:'<span class="badge b-saved">บันทึกแล้ว</span>' };
+        SAVED:'<span class="badge b-saved">บันทึกแล้ว</span>',
+        QUEUED:'<span class="badge b-draft">🤖 อยู่ในคิว</span>',
+        AI_PROCESSING:'<span class="badge b-draft">🤖 กำลังอ่าน</span>' };
       var html = tabs + '<div class="msg">'+(which==='saved'?'เลือกเอกสารที่ต้องการแก้ไข':'เลือกเอกสารที่ต้องการตรวจและยืนยัน')+'</div><div class="card">';
       docs.forEach(function(d){
         // ชื่อกิจกรรมมาก่อน — ชื่อผู้รับคือเจ้าของบัญชีเองทุกใบ ขึ้นเป็นหัวแถวแล้วทุกแถวจะเหมือนกันหมด
@@ -693,9 +699,15 @@
         var meta = [d.documentType || '-'];
         if(d.academicYear) meta.push('ปี '+d.academicYear);
         if(d.recipientName) meta.push(d.recipientName);
-        html += '<div class="doc-item" onclick="openDoc(\''+d.certificateId+'\')">'+
+        /* เอกสารที่ AI กำลังอ่านอยู่ ต้องเห็นได้แต่กดเข้าไปไม่ได้
+           ฝั่งเซิร์ฟเวอร์ปฏิเสธการบันทึกอยู่แล้ว แต่ถ้าปล่อยให้กดเปิดฟอร์มได้
+           ครูจะกรอกจนเสร็จแล้วค่อยโดนปฏิเสธตอนกดบันทึก = เสียเวลากรอกฟรี */
+        var busy = (d.status === 'QUEUED' || d.status === 'AI_PROCESSING');
+        var note = busy ? 'น้องชาโปรกำลังอ่านให้อยู่ รอสักครู่นะครับ' : esc(meta.join(' • '));
+        html += '<div class="doc-item' + (busy ? ' is-busy' : '') + '"' +
+          (busy ? '' : ' onclick="openDoc(\''+d.certificateId+'\')"') + '>'+
           '<div class="doc-main"><div class="doc-title">'+esc(title)+'</div>'+
-          '<div class="note">'+esc(meta.join(' • '))+'</div></div>'+
+          '<div class="note">'+note+'</div></div>'+
           (badge[d.status]||'')+'</div>';
       });
       html += '</div>' + closeBtn;
@@ -1241,10 +1253,15 @@
         '<div style="font-size:14px;line-height:1.9;color:var(--text-2);">' +
         '<div><b style="color:var(--nx-blue);">1.</b> เปิดแชตน้องชาโปร</div>' +
         '<div><b style="color:var(--nx-blue);">2.</b> ถ่ายรูปเกียรติบัตร หรือส่งไฟล์ PDF เข้าไปในแชต</div>' +
-        '<div><b style="color:var(--nx-blue);">3.</b> AI อ่านข้อมูลให้อัตโนมัติ (ประมาณ 1–2 นาที)</div>' +
-        '<div><b style="color:var(--nx-blue);">4.</b> กลับมาที่เมนู <b>รอตรวจ</b> เพื่อตรวจและกดยืนยัน</div>' +
+        '<div><b style="color:var(--nx-blue);">3.</b> เอกสารจะโผล่ในเมนู <b>รอตรวจ</b> ทันที ' +
+        'ติดป้าย <b>🤖 อยู่ในคิว</b> ระหว่างที่ AI อ่านให้ (ประมาณ 1–2 นาที) — ช่วงนี้ยังกดเข้าไปแก้ไม่ได้</div>' +
+        '<div><b style="color:var(--nx-blue);">4.</b> พอป้ายเปลี่ยนเป็น <b>รอตรวจ</b> ให้กดเข้าไปตรวจข้อมูลแล้วกดยืนยัน</div>' +
         '</div>' +
-        '<div class="note" style="margin-top:10px;">รองรับรูป JPG/PNG สูงสุด 10MB และ PDF สูงสุด 20MB</div>' +
+        /* บอกเรื่องการกู้คิวอัตโนมัติไว้ตรงนี้ เพราะถ้าไม่บอก ครูที่เห็นป้าย "อยู่ในคิว" ค้างนานๆ
+           จะคิดว่าไฟล์หาย แล้วส่งซ้ำ — ซึ่งจะไปโดนระบบเตือนว่า "ไฟล์ซ้ำ" งงหนักกว่าเดิม */
+        '<div class="note" style="margin-top:10px;">ถ้าค้างที่ "อยู่ในคิว" เกิน 3 นาที ' +
+        'ระบบจะส่งให้ AI อ่านใหม่ให้เองอัตโนมัติ ไม่ต้องส่งไฟล์ซ้ำครับ</div>' +
+        '<div class="note" style="margin-top:6px;">รองรับรูป JPG/PNG/WEBP สูงสุด 8MB และ PDF สูงสุด 15MB</div>' +
         '<div class="btns" style="margin-top:14px;">' +
         '<button class="b-second" onclick="closeViewer()">ปิด</button>' +
         '<button class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button></div>' +
