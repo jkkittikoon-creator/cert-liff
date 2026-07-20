@@ -110,6 +110,10 @@
     .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
     .doc-item:last-child { border-bottom: none; }
     .doc-item:active { background: var(--bg-hover); }
+    /* ชื่อกิจกรรมยาวได้ ต้องตัดคำลงบรรทัดใหม่ ไม่ดันป้ายสถานะตกขอบจอ */
+    .doc-item .doc-main { flex: 1 1 auto; min-width: 0; }
+    .doc-item .doc-title { font-weight: 600; line-height: 1.5; overflow-wrap: break-word; word-break: normal; }
+    .doc-item .badge { flex: none; margin-left: 10px; align-self: flex-start; }
     /* แถวเอกสารในแดชบอร์ด: เรียงแนวตั้ง ชื่อกินเต็มความกว้าง → ข้อความไทยตัดคำธรรมชาติ ไม่ถูกบีบเป็นคอลัมน์แคบ */
     .dash-doc { display: block; cursor: default; }
     .dash-doc .dash-name { font-weight: 600; line-height: 1.55; overflow-wrap: break-word; word-break: normal; }
@@ -680,9 +684,15 @@
         SAVED:'<span class="badge b-saved">บันทึกแล้ว</span>' };
       var html = tabs + '<div class="msg">'+(which==='saved'?'เลือกเอกสารที่ต้องการแก้ไข':'เลือกเอกสารที่ต้องการตรวจและยืนยัน')+'</div><div class="card">';
       docs.forEach(function(d){
+        // ชื่อกิจกรรมมาก่อน — ชื่อผู้รับคือเจ้าของบัญชีเองทุกใบ ขึ้นเป็นหัวแถวแล้วทุกแถวจะเหมือนกันหมด
+        // เอกสารที่ AI ยังอ่านไม่เสร็จจะยังไม่มีชื่อกิจกรรม จึงถอยไปใช้ชื่อไฟล์
+        var title = d.activityName || d.fileName || d.recipientName || 'เอกสาร';
+        var meta = [d.documentType || '-'];
+        if(d.academicYear) meta.push('ปี '+d.academicYear);
+        if(d.recipientName) meta.push(d.recipientName);
         html += '<div class="doc-item" onclick="openDoc(\''+d.certificateId+'\')">'+
-          '<div><div>'+esc(d.recipientName||d.fileName||'เอกสาร')+'</div>'+
-          '<div class="note">'+esc(d.documentType||'-')+'</div></div>'+
+          '<div class="doc-main"><div class="doc-title">'+esc(title)+'</div>'+
+          '<div class="note">'+esc(meta.join(' • '))+'</div></div>'+
           (badge[d.status]||'')+'</div>';
       });
       html += '</div>' + closeBtn;
