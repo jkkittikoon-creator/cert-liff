@@ -319,8 +319,20 @@
     .wx-meta { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
     /* min-width:0 กันชื่อสถานที่ยาวๆ ดันการ์ดจนล้นจอ (บทเรียนเดียวกับตอนทำปฏิทิน) */
     .wx-mid { flex: 1; min-width: 0; }
-    .wx-place { font-size: 11.5px; color: var(--text-2); display: flex; align-items: center; gap: 4px;
-      margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .wx-place { font-size: 11.5px; color: var(--text-2); display: flex; align-items: flex-start; gap: 6px;
+      margin-top: 8px; min-width: 0; }
+    /* ชื่อเต็มอย่าง "อำเภอไพศาลี จังหวัดนครสวรรค์ ประเทศไทย" ยาวเกิน 1 บรรทัดบนจอ 375px
+       ให้ตกบรรทัดได้ถึง 2 บรรทัดแทนการตัดหาง — ชื่อจังหวัดแหว่งอ่านแล้วสับสนกว่าเสียพื้นที่ 1 บรรทัด
+       เกิน 2 บรรทัดค่อยตัด กันกรณีตั้งชื่อยาวผิดปกติแล้วดันการ์ดเสียทรง */
+    .wx-place .nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; line-height: 1.45; }
+    .wx-loc { flex: none; cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap;
+      padding: 4px 10px; border-radius: 999px; -webkit-tap-highlight-color: transparent;
+      background: var(--nx-surface-2); color: var(--nx-cyan); border: 1px solid; border-color: var(--nx-line); }
+    .wx-loc:active:not(:disabled) { border-color: var(--nx-line-hot); color: var(--nx-gold); }
+    .wx-loc:disabled { opacity: .6; }
+    /* ข้อความเตือนเรื่องตำแหน่ง — LIFF ไม่มี toast จึงแสดงในการ์ดแทน */
+    .wx-note { font-size: 11px; line-height: 1.5; color: var(--nx-gold); margin-top: 7px; }
     .wx-rain { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px;
       font-size: 11.5px; font-weight: 700; flex: none;
       background: var(--nx-surface-2); color: var(--nx-cyan); border: 1px solid; border-color: var(--nx-line); }
@@ -766,7 +778,7 @@
      */
     function warmWeather(){
       if (_wxCache) return;
-      api('weather').then(function(w){
+      api('weather', { loc: wxSavedLoc() }).then(function(w){
         _wxCache = w;
         if (document.querySelector('.lcal-grid')) renderCalendar();
       }).catch(function(){});
@@ -935,9 +947,92 @@
         (n.rainChance === null ? '' :
           '<span class="wx-rain' + rainCls + '">💧 ' + n.rainChance + '%</span>') +
         '</div>' +
-        '<div class="wx-place">📍 ' + esc(w.place) + '</div>' +
+        '<div class="wx-place"><span class="nm">📍 ' + esc(w.place) + '</span>' + wxLocBtnHtml(w) + '</div>' +
+        (_wxLocNote ? '<div class="wx-note">' + esc(_wxLocNote) + '</div>' : '') +
         '<div class="wx-days">' + days + '</div>' +
         '</div>';
+    }
+
+    /* ---------- ตำแหน่งของผู้ใช้ ---------- */
+
+    var WX_LOC_KEY = 'wxUserLoc';
+    var _wxLocNote = '';   // ข้อความเตือนชั่วคราวในการ์ด (LIFF ไม่มี toast)
+
+    /**
+     * ตำแหน่งที่ผู้ใช้เคยกดอนุญาต เก็บในเครื่องผู้ใช้เท่านั้น
+     * ไม่เคยถูกบันทึกลงชีทหรือ log — เซิร์ฟเวอร์เอาไปยิง API อากาศแล้วทิ้ง
+     * ห่อ try เพราะเบราว์เซอร์ในแอป LINE บางรุ่นปิด localStorage
+     */
+    function wxSavedLoc(){
+      try {
+        var o = JSON.parse(localStorage.getItem(WX_LOC_KEY) || 'null');
+        return (o && typeof o.lat === 'number' && typeof o.lon === 'number') ? o : null;
+      } catch(e){ return null; }
+    }
+
+    function wxSaveLoc(loc){
+      try {
+        if (loc) localStorage.setItem(WX_LOC_KEY, JSON.stringify(loc));
+        else localStorage.removeItem(WX_LOC_KEY);
+      } catch(e){ /* จำข้ามครั้งไม่ได้ ก็ยังใช้ได้ในรอบนี้ */ }
+    }
+
+    function wxLocBtnHtml(w){
+      return w.isUserLocation
+        ? '<button type="button" class="wx-loc" onclick="wxClearMyLocation()">ใช้ตำแหน่งโรงเรียน</button>'
+        : '<button type="button" class="wx-loc" onclick="wxUseMyLocation(this)">ตำแหน่งของฉัน</button>';
+    }
+
+    /** แสดงข้อความในการ์ดชั่วคราวแล้วลบทิ้งเอง — ไม่ให้ค้างกวนสายตา */
+    function wxSetNote(msg){
+      _wxLocNote = msg;
+      if (_wxCache) {
+        var b = document.getElementById('wxBox');
+        if (b) b.innerHTML = wxCardHtml(_wxCache);
+      }
+      if (msg) setTimeout(function(){ if (_wxLocNote === msg) wxSetNote(''); }, 8000);
+    }
+
+    /**
+     * ขอตำแหน่งจากเบราว์เซอร์ในแอป LINE — ขอเฉพาะตอนกดปุ่มเท่านั้น
+     * ไม่ขอเองตอนเปิดหน้า เพราะกล่องที่เด้งโดยผู้ใช้ไม่ได้ร้องขอ คนกดปฏิเสธเกือบทุกครั้ง
+     * แล้วเบราว์เซอร์จำการปฏิเสธไว้ยาว กู้คืนยาก
+     */
+    function wxUseMyLocation(btn){
+      if (!navigator.geolocation) { wxSetNote('เครื่องนี้ไม่รองรับการระบุตำแหน่ง'); return; }
+      if (btn) { btn.disabled = true; btn.textContent = 'กำลังขอตำแหน่ง...'; }
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          wxSaveLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+          _wxCache = null;
+          _wxLocNote = '';
+          loadWeather();
+          if (document.querySelector('.lcal-grid')) renderCalendar();
+        },
+        function(err){
+          if (btn) { btn.disabled = false; btn.textContent = 'ตำแหน่งของฉัน'; }
+          var msg = 'ขอตำแหน่งไม่สำเร็จ';
+          if (err && err.code === 1) {
+            msg = 'ไม่ได้รับอนุญาตให้ใช้ตำแหน่ง — เปิดสิทธิ์ตำแหน่งให้แอป LINE ' +
+                  'ในการตั้งค่าเครื่อง แล้วลองใหม่';
+          } else if (err && err.code === 2) {
+            msg = 'หาตำแหน่งไม่เจอ สัญญาณอาจไม่ดี ลองใหม่อีกครั้ง';
+          } else if (err && err.code === 3) {
+            msg = 'ขอตำแหน่งนานเกินไป ลองใหม่อีกครั้ง';
+          }
+          wxSetNote(msg);
+        },
+        // ไม่ต้องแม่นระดับ GPS — พยากรณ์อากาศใช้ระดับตำบลก็พอ และประหยัดแบตกว่ามาก
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 10 * 60 * 1000 }
+      );
+    }
+
+    function wxClearMyLocation(){
+      wxSaveLoc(null);
+      _wxCache = null;
+      _wxLocNote = '';
+      loadWeather();
+      if (document.querySelector('.lcal-grid')) renderCalendar();
     }
 
     /** เติมการ์ดลงช่องที่ renderHome เว้นไว้ — หาไม่เจอแปลว่าผู้ใช้เปลี่ยนหน้าไปแล้ว ก็ไม่ต้องทำอะไร */
@@ -946,7 +1041,7 @@
       if (!box) return;
       if (_wxCache) { box.innerHTML = wxCardHtml(_wxCache); return; }
       box.innerHTML = '<div class="sk" style="height:118px;border-radius:18px;margin-bottom:12px;"></div>';
-      api('weather').then(function(w){
+      api('weather', { loc: wxSavedLoc() }).then(function(w){
         _wxCache = w;
         var b = document.getElementById('wxBox');
         if (b) b.innerHTML = wxCardHtml(w);
