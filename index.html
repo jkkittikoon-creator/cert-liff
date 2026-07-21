@@ -1496,7 +1496,8 @@
       var org = ORG_BRANDING;
       var orgRow = (org && org.schoolName) ?
         ('<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
-          (org.logoDataUri ? '<img src="' + org.logoDataUri + '" alt="ตราหน่วยงาน" style="width:30px;height:30px;border-radius:7px;object-fit:contain;background:#fff;padding:2px;flex:none;">' : '') +
+          // ตราเสีย/เปิดไม่ได้ → ซ่อนรูปไปเลย ไม่ปล่อยให้ขึ้นกล่องรูปแตกคาหัวแอป
+          (org.logoDataUri ? '<img src="' + org.logoDataUri + '" alt="ตราหน่วยงาน" onerror="this.style.display=\'none\';" style="width:30px;height:30px;border-radius:7px;object-fit:contain;background:#fff;padding:2px;flex:none;">' : '') +
           '<span style="font-weight:700;font-size:13px;">' + esc(org.schoolName) + '</span></div>') : '';
       return '<div class="hero">' + orgRow +
         '<div class="hero-top">' + av +
