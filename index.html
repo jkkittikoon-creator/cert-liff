@@ -8,6 +8,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- กันจอวาบ: ตั้งธีมก่อนวาดหน้า (ตรรกะเดียวกับ themeDarkFor ในสคริปต์หลัก
+       เขียนซ้ำสั้น ๆ ตรงนี้เพราะสคริปต์หลักอยู่ท้ายไฟล์ กว่าจะทำงานก็วาดหน้าไปแล้ว) -->
+  <script>
+    (function () {
+      var m; try { m = localStorage.getItem('cert-liff-theme'); } catch (e) { m = null; }
+      if (m !== 'light' && m !== 'dark') {
+        var h = Number(new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(11, 13));
+        m = (h >= 18 || h < 6) ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', m);
+    })();
+  </script>
   <style>
     /* ============ DESIGN TOKENS — ชุดเดียวกับเว็บหลัก (Index.html) ============
        ธีม 3 สถานะ: ไม่มี data-theme = ตามเครื่อง · data-theme="light"/"dark" = ผู้ใช้บังคับเอง
@@ -413,6 +425,28 @@
       border-color: transparent; color: #fff; font-size: 15px; min-height: 58px; box-shadow: 0 6px 20px rgba(42, 120, 214, 0.28); }
     .act.primary .sub { display: block; font-size: 11.5px; font-weight: 400; opacity: .88; margin-top: 2px; }
 
+    /* ============ ข้อความด่วน: ปุ่มที่ "กดแล้วส่งเข้าแชตให้เลย" ============
+       ทำเป็นแถวเต็มความกว้าง (ไม่ใช่ชิป) เพราะแต่ละอันต้องมีคำอธิบายกำกับ
+       ครูจะได้รู้ว่ากดแล้วน้องชาโปรจะตอบอะไรกลับมา ไม่ต้องเดา */
+    .qm { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 11px 13px;
+      border-radius: 14px; border: 1px solid; border-color: var(--nx-line); background: var(--nx-surface-2);
+      color: var(--text-1); font-family: var(--font-body); font-size: 13.5px; font-weight: 600; min-height: 50px; }
+    .qm + .qm { margin-top: 8px; }
+    .qm:active { transform: scale(0.985); }
+    .qm[disabled] { opacity: .55; }
+    .qm .ico { font-size: 18px; flex: none; }
+    .qm .tx { flex: 1; min-width: 0; }
+    .qm .sub { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-3); margin-top: 2px; }
+    .qm .go { flex: none; font-size: 12px; color: var(--nx-blue); font-weight: 600; }
+
+    /* แจ้งผลสั้น ๆ ลอยเหนือเมนูล่าง — LIFF ยังไม่มี toast ใช้ร่วมกันมาก่อน */
+    .lft { position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 60; max-width: 88%;
+      background: var(--nx-surface); color: var(--text-1); border: 1px solid; border-color: var(--nx-line);
+      border-radius: 999px; padding: 9px 16px; font-size: 13px; box-shadow: var(--shadow-modal);
+      animation: lft-in .18s ease-out; }
+    @keyframes lft-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+
     /* ============ ค้นหา ============ */
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .chips button { flex: none; width: auto; padding: 6px 12px; font-size: 12px; font-weight: 500; border-radius: 999px;
@@ -634,27 +668,49 @@
         '</div>';
     }
 
-    /* ---------- ธีม: ตามเครื่อง → สว่าง → มืด (จำค่าไว้ในเครื่องผู้ใช้) ---------- */
     var THEME_KEY = 'cert-liff-theme';
-    function currentTheme(){ return document.documentElement.getAttribute('data-theme') || ''; }
-    function isDarkNow(){
-      var t = currentTheme();
-      if (t) return t === 'dark';
-      return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    /* ---------- ธีม 3 โหมด: อัตโนมัติตามเวลา / สว่าง / มืด ----------
+       ใช้เกณฑ์เดียวกับหน้าเว็บเป๊ะ (มืด 18:00-05:59 **เวลาไทย** ไม่ใช่เวลาเครื่อง)
+       ไอคอนบอกโหมดที่ใช้อยู่ ไม่ใช่โหมดถัดไป */
+    var THEME_MODES = ['auto', 'light', 'dark'];
+    var THEME_ICON = { auto: '🌗', light: '☀️', dark: '🌙' };
+    var THEME_LABEL = { auto: 'ธีมอัตโนมัติตามเวลา', light: 'ธีมสว่าง', dark: 'ธีมมืด' };
+    var THEME_DARK_FROM = 18, THEME_DARK_TO = 6;
+
+    function themeDarkFor(mode){
+      if (mode === 'dark') return true;
+      if (mode === 'light') return false;
+      var h = Number(new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(11, 13));
+      return h >= THEME_DARK_FROM || h < THEME_DARK_TO;
     }
-    function themeIcon(){ return isDarkNow() ? '☀️' : '🌙'; }
-    function applyTheme(t){
-      if (t) document.documentElement.setAttribute('data-theme', t);
-      else document.documentElement.removeAttribute('data-theme');
+    function themeMode(){
+      var m; try { m = localStorage.getItem(THEME_KEY); } catch(e) { m = null; }
+      return THEME_MODES.indexOf(m) !== -1 ? m : 'auto';
+    }
+    function currentTheme(){ return document.documentElement.getAttribute('data-theme') || ''; }
+    function isDarkNow(){ return currentTheme() === 'dark'; }
+    function themeIcon(){ return THEME_ICON[themeMode()]; }
+    function applyTheme(mode){
+      document.documentElement.setAttribute('data-theme', themeDarkFor(mode) ? 'dark' : 'light');
       var b = document.getElementById('thBtn');
-      if (b) b.innerHTML = themeIcon();
+      if (b) { b.innerHTML = THEME_ICON[mode]; b.setAttribute('aria-label', THEME_LABEL[mode]); }
     }
     function toggleTheme(){
-      var next = isDarkNow() ? 'light' : 'dark';
+      var next = THEME_MODES[(THEME_MODES.indexOf(themeMode()) + 1) % THEME_MODES.length];
       try { localStorage.setItem(THEME_KEY, next); } catch(e) { /* โหมดส่วนตัวเขียนไม่ได้ — ใช้ได้แค่รอบนี้ */ }
       applyTheme(next);
       forceRestyle();
     }
+    /** เปิดหน้าค้างข้ามช่วงเวลาได้ (เปิดตอนบ่าย ใช้ต่อถึงค่ำ) — คำนวณในเครื่องล้วน ไม่เรียกเซิร์ฟเวอร์ */
+    function themeTick(){
+      if (themeMode() !== 'auto') return;
+      var want = themeDarkFor('auto') ? 'dark' : 'light';
+      if (currentTheme() === want) return;
+      applyTheme('auto');
+      forceRestyle();
+    }
+    setInterval(themeTick, 60000);
+    document.addEventListener('visibilitychange', function(){ if (!document.hidden) themeTick(); });
     /* Chrome ไม่คำนวณ border-color ที่มาจาก custom property ใหม่ เมื่อ data-theme บนบรรพบุรุษเปลี่ยน
        (บั๊กเดียวกับที่เจอในแดชบอร์ดเว็บ) — บังคับคำนวณใหม่ทั้งหน้าในทีเดียว ผู้ใช้ไม่เห็นจอกะพริบ
        เพราะเกิดใน task เดียว แต่ต้องคืนตำแหน่งเลื่อนหน้าเพราะการซ่อน body ทำให้ scroll หาย */
@@ -1286,6 +1342,7 @@
         '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>รายงานผลงาน</button>' +
         '<button type="button" class="act" onclick="showProud()"><span class="ico">🌟</span>ผลงานที่ภาคภูมิใจ</button>' +
         '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
+        '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '</div>';
 
       // งานค้าง: แสดงเฉพาะตอนมีจริง — ไม่มีงานค้างก็ไม่ต้องรบกวนสายตา
@@ -1311,6 +1368,9 @@
       // อากาศวางไว้หลังงานค้าง — งานที่ต้องลงมือทำสำคัญกว่า อากาศเป็นข้อมูลประกอบ
       app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + proudTop + todo + '<div id="wxBox"></div>' + kpis +
         '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚡ เมนูด่วน</div>' + actions + '</div>' +
+        // ข้อความด่วนวางต่อจากเมนูด่วน: ทั้งคู่คือ "ทางลัด" เหมือนกัน ต่างกันแค่ปลายทาง
+        // (ในแอป vs. ตอบกลับในแชต) วางติดกันจะได้ไม่ต้องเดาว่าปุ่มไหนอยู่ไหน
+        quickMsgCardHtml() +
         recent + proudBottom;
       startClock();
       loadWeather();
@@ -1342,6 +1402,173 @@
         '<button class="b-second" onclick="closeViewer()">ปิด</button>' +
         '<button class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button></div>' +
         '</div></div>';
+    }
+
+    /* ================= ข้อความด่วน — กดแล้วส่งเข้าแชตให้เลย =================
+       เดิมคำสั่งลัด (งานค้าง / สรุปปีนี้ / อบรม ...) ต้อง "พิมพ์เอง" ในแชต ครูต้องจำคำให้ตรง
+       ที่นี่จึงทำเป็นปุ่ม: กด → liff.sendMessages() ส่งข้อความนั้นแทนครู → ปิดหน้าต่างกลับไปแชต
+       เห็นคำตอบของน้องชาโปรทันที (คำสั่งเดียวกับ handleLineDataCommand_ เป๊ะ ๆ ไม่มีคำสั่งลับ)
+
+       ถ้าส่งแทนไม่ได้ (เปิดในเบราว์เซอร์ / ไม่ได้เปิดจากห้องแชต / ผู้ใช้ไม่ได้ให้สิทธิ์
+       chat_message.write) จะ "คัดลอกข้อความให้" แล้วบอกให้วางในแชตแทน — ไม่ปล่อยให้กดแล้วเงียบ */
+    var QUICK_MSGS = [
+      { t: 'งานค้าง',       ico: '📌', d: 'เหลืออะไรต้องทำบ้าง' },
+      { t: 'สรุปปีนี้',      ico: '📈', d: 'จำนวนใบ + ชั่วโมงของปีการศึกษานี้' },
+      { t: 'อบรม',          ico: '📅', d: 'กิจกรรมที่จะถึง + ที่ยังไม่เก็บเอกสาร' },
+      { t: 'เอกสารล่าสุด',   ico: '🕐', d: 'สถานะไฟล์ที่เพิ่งส่งเข้าไป' },
+      { t: 'แดชบอร์ด',      ico: '📊', d: 'การ์ดสรุป + กราฟในแชต' },
+      { t: 'รายงาน',        ico: '📄', d: 'สร้างรายงานผลงาน PDF' },
+      { t: 'คำสั่ง',         ico: '⌨️', d: 'รายการคำสั่งลัดทั้งหมด' }
+    ];
+
+    /* ส่งแทนได้ก็ต่อเมื่อเปิดใน LINE "จากห้องแชต" เท่านั้น — เปิดจากลิงก์ภายนอกจะไม่มีห้องให้ส่ง */
+    function quickSendAvailable_(){
+      try {
+        if (typeof liff === 'undefined' || !liff.isInClient || !liff.isInClient()) return false;
+        if (typeof liff.sendMessages !== 'function') return false;
+        var ctx = liff.getContext && liff.getContext();
+        var t = ctx && ctx.type;
+        return t === 'utou' || t === 'room' || t === 'group' || t === 'square_chat';
+      } catch (e) { return false; }
+    }
+
+    function liffToast(msg, ms){
+      var old = document.getElementById('lftBox');
+      if (old && old.parentNode) old.parentNode.removeChild(old);
+      var el = document.createElement('div');
+      el.id = 'lftBox'; el.className = 'lft'; el.setAttribute('role', 'status');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, ms || 2200);
+    }
+
+    /* คัดลอกข้อความ — clipboard API ใช้ไม่ได้ในเว็บวิวบางรุ่น จึงมีทางถอยเป็น textarea + execCommand
+       ถอยไม่ได้จริง ๆ ค่อยเปิด prompt ให้ก๊อปมือ (แพทเทิร์นเดียวกับปุ่มคัดลอกลิงก์เอกสาร) */
+    function copyTextFallback_(text){
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:-1000px;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) { return false; }
+    }
+    function copyQuick_(text){
+      var done = function(){ liffToast('คัดลอกแล้ว — วางในแชตน้องชาโปรได้เลย', 2800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function(){
+          if (copyTextFallback_(text)) done(); else window.prompt('คัดลอกข้อความนี้ไปวางในแชต:', text);
+        });
+        return;
+      }
+      if (copyTextFallback_(text)) done(); else window.prompt('คัดลอกข้อความนี้ไปวางในแชต:', text);
+    }
+
+    var _qmBusy = false;
+    function sendQuick(text, btn){
+      if (_qmBusy) return;                       // กันกดรัว → ส่งซ้ำเข้าแชตหลายข้อความ
+      if (!quickSendAvailable_()) { copyQuick_(text); return; }
+      _qmBusy = true;
+      if (btn) btn.disabled = true;
+      liff.sendMessages([{ type: 'text', text: text }])
+        .then(function(){
+          liffToast('ส่ง "' + text + '" ให้แล้ว กำลังพากลับไปที่แชต...');
+          // หน่วงสั้น ๆ ให้เห็นว่าส่งสำเร็จก่อนหน้าต่างปิด ไม่งั้นจะเหมือนกดแล้วแอปเด้งเฉย ๆ
+          setTimeout(function(){ try { liff.closeWindow(); } catch (e) { _qmBusy = false; } }, 700);
+        })
+        .catch(function(){
+          _qmBusy = false;
+          if (btn) btn.disabled = false;
+          copyQuick_(text);                      // ส่วนใหญ่คือยังไม่ได้ให้สิทธิ์ส่งข้อความ
+        });
+    }
+
+    function quickMsgCardHtml(){
+      var canSend = quickSendAvailable_();
+      var rows = QUICK_MSGS.map(function(q){
+        // JSON.stringify ให้ปลอดภัยระดับ "สตริงใน JS" แล้วค่อย esc ให้ปลอดภัยระดับ "ค่าใน attribute"
+        // สองชั้นนี้ต้องเรียงแบบนี้เท่านั้น สลับกันแล้ว &quot; จะถูกใส่ backslash กลายเป็นข้อความเพี้ยน
+        return '<button type="button" class="qm" onclick="sendQuick(' + esc(JSON.stringify(q.t)) + ', this)">' +
+          '<span class="ico">' + q.ico + '</span>' +
+          '<span class="tx">' + esc(q.t) + '<span class="sub">' + esc(q.d) + '</span></span>' +
+          '<span class="go">' + (canSend ? 'ส่ง ›' : 'คัดลอก') + '</span></button>';
+      }).join('');
+      return '<div class="card"><div style="font-weight:600;margin-bottom:4px;">💬 ข้อความด่วน</div>' +
+        '<div class="note" style="margin-bottom:10px;">' +
+        (canSend ? 'กดแล้วน้องชาโปรตอบในแชตทันที ไม่ต้องพิมพ์เอง'
+                 : 'เปิดจากแชต LINE จะกดส่งได้ทันที ตอนนี้กดแล้วระบบจะคัดลอกข้อความให้ไปวางในแชต') +
+        '</div>' + rows + '</div>';
+    }
+
+    /* ================= คู่มือใช้งาน =================
+       เดิมคู่มืออยู่ในแชตอย่างเดียว (พิมพ์ "คู่มือ") ซึ่งเลื่อนหาย่อยยากและหาย้อนหลังยาก
+       จึงย้ายมาเป็นหน้าจริงในแอป: อ่านได้ตลอด + มีปุ่มกดใช้งานจริงคู่กับคำอธิบาย */
+    function guideSection_(ico, title, lines){
+      return '<div class="card"><div style="font-weight:600;margin-bottom:8px;">' + ico + ' ' + esc(title) + '</div>' +
+        '<div style="font-size:13.5px;line-height:1.85;color:var(--text-2);">' + lines.join('') + '</div></div>';
+    }
+    function gStep_(n, html){
+      return '<div style="display:flex;gap:8px;margin-bottom:4px;">' +
+        '<b style="color:var(--nx-blue);flex:none;">' + n + '.</b><div>' + html + '</div></div>';
+    }
+    function gLine_(html){ return '<div style="margin-bottom:4px;">' + html + '</div>'; }
+
+    function showGuide(){
+      setNav('account');
+      app.innerHTML = pageHead('คู่มือใช้งาน', 'goTab(\'account\')') +
+
+        '<div class="card" style="border-color:var(--nx-blue);">' +
+        '<div style="font-weight:700;font-size:15px;">🐶 อ่านครั้งเดียวจบ ใช้เวลา 2 นาที</div>' +
+        '<div class="note" style="margin-top:4px;">ทุกอย่างทำผ่าน LINE ที่มีอยู่แล้ว ไม่ต้องติดตั้งแอปเพิ่ม</div></div>' +
+
+        guideSection_('📤', 'ส่งเกียรติบัตรเข้าระบบ', [
+          gStep_(1, 'เปิดแชต <b>น้องชาโปร</b>'),
+          gStep_(2, '<b>ถ่ายรูปเกียรติบัตร</b> หรือส่ง <b>ไฟล์ PDF</b> เข้าไปในแชต'),
+          gStep_(3, 'เอกสารโผล่ในเมนู <b>รอตรวจ</b> ทันที ติดป้าย <b>🤖 อยู่ในคิว</b> ระหว่างที่ AI อ่านให้ (1–2 นาที) — ช่วงนี้ยังกดเข้าไปแก้ไม่ได้'),
+          gStep_(4, 'พอป้ายเปลี่ยนเป็น <b>รอตรวจ</b> กดเข้าไปตรวจข้อมูล แก้ตรงที่ผิด แล้วกด <b>ยืนยัน</b>'),
+          '<div class="note" style="margin-top:8px;">รูป JPG/PNG/WEBP สูงสุด 8MB · PDF สูงสุด 15MB — ถ้ามีไฟล์ PDF ต้นฉบับ ส่ง PDF ดีกว่าถ่ายรูปเสมอ</div>'
+        ]) +
+
+        guideSection_('🤖', 'ระหว่างรอ AI อ่าน', [
+          gLine_('ป้าย <b>🤖 อยู่ในคิว</b> = กำลังอ่าน ไม่ใช่แอปค้าง'),
+          gLine_('ค้างเกิน <b>3 นาที</b> ระบบส่งให้ AI อ่านใหม่ให้เอง <b>ไม่ต้องส่งไฟล์ซ้ำ</b>'),
+          gLine_('ส่งไฟล์เดิมซ้ำ น้องจะเตือนว่าซ้ำ และ<b>ไม่บันทึกซ้ำ</b>ให้'),
+          gLine_('ป้ายสี <span style="color:var(--nx-green);">เขียว</span> = AI มั่นใจสูง · <span style="color:var(--nx-gold);">เหลือง/ส้ม</span> = ควรตรวจให้ละเอียดเป็นพิเศษ')
+        ]) +
+
+        guideSection_('🧭', 'เมนูล่าง 6 ปุ่ม', [
+          gLine_('🏠 <b>หน้าหลัก</b> — สรุปตัวเลข งานค้าง อากาศ เอกสารล่าสุด'),
+          gLine_('🕒 <b>รอตรวจ</b> — เอกสารที่ต้องตรวจและยืนยัน (เลขแดง = จำนวนที่ค้าง)'),
+          gLine_('📂 <b>เอกสาร</b> — เอกสารที่บันทึกแล้วทั้งหมด'),
+          gLine_('🗓️ <b>ปฏิทิน</b> — กิจกรรมอบรม (เลขแดง = อบรมจบแล้วยังไม่เก็บเอกสาร)'),
+          gLine_('🔍 <b>ค้นหา</b> — ค้นตามชื่อกิจกรรม หน่วยงาน ปีการศึกษา'),
+          gLine_('👤 <b>บัญชี</b> — ธีมสี ถังขยะ ศูนย์รายงาน สรุปผลงาน และคู่มือนี้')
+        ]) +
+
+        quickMsgCardHtml() +
+
+        guideSection_('📄', 'เอาไปใช้ทำอะไรได้', [
+          gLine_('<b>ศูนย์รายงานผลงาน</b> — ออกรายงาน PDF/Word พร้อมหัวกระดาษและช่องลงชื่อ'),
+          gLine_('<b>QR ตรวจสอบ</b> — เปิดเอกสารแล้วกดขอ QR ให้คนอื่นสแกนยืนยันได้'),
+          gLine_('<b>ผลงานที่ภาคภูมิใจ</b> — เลือกใบเด่นขึ้นสไลด์โชว์หน้าแรกของตัวเอง'),
+          gLine_('<b>ถังขยะ</b> — ลบผิดกู้คืนได้ ไม่ได้หายถาวรทันที')
+        ]) +
+
+        guideSection_('❓', 'เจอปัญหาบ่อย ๆ', [
+          gLine_('<b>ส่งรูปแล้วไม่ขึ้น?</b> รอ 1–2 นาที แล้วดึงหน้าจอลงเพื่อรีเฟรช'),
+          gLine_('<b>รูปใหญ่เกิน 8MB?</b> ส่งแบบ "ขนาดปกติ" แทนแบบ HD'),
+          gLine_('<b>AI อ่านชื่อผิด?</b> แก้ในหน้าตรวจได้ทุกช่อง ระบบเก็บประวัติการแก้ไว้ให้'),
+          gLine_('<b>เข้าไม่ได้ / ขึ้นว่าไม่มีสิทธิ์?</b> ต้องเชื่อมบัญชีด้วย<b>อีเมลโรงเรียน</b> พิมพ์รหัส 6 ตัวในแชตเพื่อเชื่อม/เปลี่ยนบัญชี'),
+          gLine_('<b>จอสว่าง/มืดไม่ถูกใจ?</b> กดไอคอน 🌗 มุมขวาบน วนได้ 3 โหมด (อัตโนมัติ / สว่าง / มืด)')
+        ]) +
+
+        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showSendHelp()">📤 ดูวิธีส่งเกียรติบัตรแบบย่อ</button>' +
+        '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">← กลับหน้าบัญชี</button>';
+      window.scrollTo(0, 0);
     }
 
     /* ================= ค้นหา ================= */
@@ -1453,6 +1680,12 @@
         '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showReportCenter()">📄 ศูนย์รายงานผลงาน</button>' +
         '<button class="b-second" style="width:100%;" onclick="showDash()">📊 สรุปผลงาน</button></div>' +
 
+        '<div class="card"><div style="font-weight:600;margin-bottom:10px;">📖 ช่วยเหลือ</div>' +
+        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showGuide()">📖 คู่มือใช้งาน</button>' +
+        '<button class="b-second" style="width:100%;" onclick="showSendHelp()">📤 วิธีส่งเกียรติบัตร</button></div>' +
+
+        quickMsgCardHtml() +
+
         '<button class="b-second" style="width:100%;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
     }
 
@@ -1525,8 +1758,9 @@
 
       if(typeof Chart === 'undefined') return; // เผื่อโหลด Chart.js ไม่สำเร็จ (ยังเห็นตัวเลขได้)
       Chart.defaults.font.family = "'Sarabun', sans-serif";
-      // โหมดมืด: สีตัวอักษร/เส้นกริดของกราฟตามธีมเครื่อง (ค่า default ของ Chart.js อ่านยากบนพื้นมืด)
-      var chartDark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+      // โหมดมืด: สีตัวอักษร/เส้นกริดของกราฟตามธีมที่ใช้อยู่จริง (ค่า default ของ Chart.js อ่านยากบนพื้นมืด)
+      // ต้องอ่านจาก data-theme ไม่ใช่ prefers-color-scheme ไม่งั้นจะไม่ตรงเมื่อผู้ใช้ตั้งโหมดเอง/สลับตามเวลา
+      var chartDark = isDarkNow();
       Chart.defaults.color = chartDark ? '#aab3c5' : '#5b6472';
       Chart.defaults.borderColor = chartDark ? '#262f47' : '#e4e8ef';
       if(typeKeys.length){
@@ -2762,13 +2996,9 @@
       else { showHome(); }
     }
 
-    // อ่านธีมที่ผู้ใช้เคยเลือกก่อนวาดหน้าแรก จะได้ไม่เห็นจอกะพริบจากสว่างไปมืด
-    (function(){
-      try {
-        var t = localStorage.getItem(THEME_KEY);
-        if (t === 'dark' || t === 'light') applyTheme(t);
-      } catch(e) { /* โหมดส่วนตัวอ่านไม่ได้ — ใช้ธีมตามเครื่อง */ }
-    })();
+    // ตั้งธีมก่อนวาดหน้าแรก จะได้ไม่เห็นจอกะพริบจากสว่างไปมืด
+    // ไม่ได้เลือกไว้ = โหมดอัตโนมัติ (สลับตามเวลา) ตามค่าเริ่มต้นของ themeMode()
+    applyTheme(themeMode());
 
     liff.init({ liffId: LIFF_ID })
       .then(function(){
