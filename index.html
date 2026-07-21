@@ -197,6 +197,23 @@
     .lf-modal-msg { font-size: 14px; line-height: 1.7; color: var(--text-2); margin-top: 8px; white-space: pre-line; }
     /* ล็อกการเลื่อนพื้นหลังตอนกล่องยืนยันเปิดอยู่ */
     body.modal-open { overflow: hidden; }
+    /* กล่องเด้งขึ้นมาแทนที่จะโผล่ตัดจอ — ช่วยให้สายตาจับได้ว่ามีของใหม่มาทับ */
+    .lf-modal-backdrop { animation: lf-fade .16s ease-out; }
+    .lf-modal-box { animation: lf-pop .22s cubic-bezier(.2, .8, .3, 1); }
+    @keyframes lf-fade { from { opacity: 0; } }
+    @keyframes lf-pop { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+    /* ---- โฟกัสจากคีย์บอร์ด: ต้องเห็นว่าตอนนี้อยู่ปุ่มไหน (ไม่กระทบการแตะด้วยนิ้ว) ---- */
+    button:focus-visible, a:focus-visible, input:focus-visible,
+    select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+      outline: 3px solid var(--brand-ring); outline-offset: 2px; border-radius: 8px;
+    }
+    /* ผู้ใช้ที่ตั้งค่าลดการเคลื่อนไหว (เมาง่าย/ไวต่อภาพเคลื่อน)
+       มีกฎรวม * { animation-duration: 0.001ms } อยู่ท้ายไฟล์แล้ว ตรงนี้ระบุชัดอีกชั้นเพื่อกัน
+       การเผลอเขียนกฎใหม่ที่ specificity สูงกว่ามาทับแล้วภาพกลับมาเคลื่อนโดยไม่รู้ตัว */
+    @media (prefers-reduced-motion: reduce) {
+      .lf-modal-backdrop, .lf-modal-box, .lft, .lft.out { animation: none; }
+      button:active { transform: none; }
+    }
     .btns { display: flex; gap: 10px; margin-top: 8px; }
     button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; font-family: var(--font-body); }
     button:active { transform: scale(0.98); }
@@ -297,6 +314,19 @@
     .lcal-item:last-child { border-bottom: none; padding-bottom: 0; }
     .lcal-item .t { font-weight: 600; font-size: 14px; line-height: 1.35; }
     .lcal-item .m { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+
+    /* ---- อัปภาพประชาสัมพันธ์ → ลงปฏิทิน (ชุดเดียวกับหน้าเว็บ) ----
+       ทำเป็นพื้นที่แตะใหญ่ ๆ เพราะบนมือถือคนถ่ายรูปโปสเตอร์แล้วอยากส่งทันทีตรงนั้นเลย */
+    .tr-drop { position: relative; display: block; width: 100%; border: 1.5px dashed; border-color: var(--nx-line-hot);
+      border-radius: 14px; padding: 22px 14px; text-align: center; background: var(--bg-inset); }
+    .tr-drop:active { background: var(--bg-hover); }
+    .tr-drop .em { font-size: 30px; }
+    .tr-drop .ttl { font-weight: 600; font-size: 14px; margin-top: 6px; }
+    .tr-drop .sub { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+    /* input ทับเต็มพื้นที่แบบโปร่งใส — แตะตรงไหนของกรอบก็เปิดตัวเลือกไฟล์ได้ ไม่ต้องเล็งปุ่มเล็ก ๆ */
+    .tr-drop input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+    .tr-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tr-form .full { grid-column: 1 / -1; }
     .lcal-item a { color: var(--nx-blue); }
     /* จอกว้างขึ้น (แท็บเล็ต / LIFF แบบ Full) ช่องพอใส่ชื่อจริงได้ เลยโชว์ชื่อแทนจุด */
     @media (min-width: 560px) {
@@ -439,13 +469,26 @@
     .qm .sub { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-3); margin-top: 2px; }
     .qm .go { flex: none; font-size: 12px; color: var(--nx-blue); font-weight: 600; }
 
-    /* แจ้งผลสั้น ๆ ลอยเหนือเมนูล่าง — LIFF ยังไม่มี toast ใช้ร่วมกันมาก่อน */
-    .lft { position: fixed; left: 50%; transform: translateX(-50%);
-      bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 60; max-width: 88%;
+    /* แจ้งผลสั้น ๆ ลอยเหนือเมนูล่าง — ใช้แทน alert() ทุกที่ที่ผู้ใช้อ่านแล้วจบ
+       ซ้อนกันได้ (กล่องรวมเป็น flex column) เพราะบางจังหวะมีผลลัพธ์เด้งพร้อมกันหลายอัน
+       pointer-events: none ที่กล่องรวม — ไม่ให้บังปุ่มที่อยู่ใต้มัน */
+    .lft-wrap { position: fixed; left: 12px; right: 12px; z-index: 60;
+      bottom: calc(74px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+    .lft { max-width: min(420px, 100%);
       background: var(--nx-surface); color: var(--text-1); border: 1px solid; border-color: var(--nx-line);
-      border-radius: 999px; padding: 9px 16px; font-size: 13px; box-shadow: var(--shadow-modal);
-      animation: lft-in .18s ease-out; }
-    @keyframes lft-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+      border-radius: 14px; padding: 10px 16px; font-size: 13px; line-height: 1.55; white-space: pre-line;
+      box-shadow: var(--shadow-modal); animation: lft-in .2s cubic-bezier(.2, .8, .3, 1); }
+    /* สีบอกชนิด + ไอคอนนำหน้า — ไม่ใช้สีอย่างเดียวสื่อความหมาย เผื่อผู้ใช้ตาบอดสี */
+    .lft.ok { background: var(--ok-soft); color: var(--ok-text); border-color: var(--ok); }
+    .lft.err { background: var(--err-soft); color: var(--err-text); border-color: var(--err); font-weight: 600; }
+    .lft.warn { background: var(--warn-soft); color: var(--warn-text); border-color: var(--warn); }
+    .lft.ok::before { content: '✅ '; }
+    .lft.err::before { content: '⚠️ '; }
+    .lft.warn::before { content: '❗ '; }
+    .lft.out { animation: lft-out .2s ease-in forwards; }
+    @keyframes lft-in { from { opacity: 0; transform: translateY(12px); } }
+    @keyframes lft-out { to { opacity: 0; transform: translateY(6px); } }
 
     /* ============ ค้นหา ============ */
     .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -947,7 +990,7 @@
       return (b && b[1] !== a[1]) ? (a[1] + ' - ' + b[1] + ' น.') : (a[1] + ' น.');
     }
 
-    /** การ์ดกิจกรรมใต้ปฏิทิน — อ่านอย่างเดียว การแก้ไขทำในหน้าเว็บ */
+    /** การ์ดกิจกรรมใต้ปฏิทิน — เพิ่มกิจกรรมทำที่นี่ได้แล้ว ส่วนแก้ไข/ลบยังทำในหน้าเว็บ */
     function calItemHtml(t, mode){
       var meta = [];
       var tm = calTimeText(t);
@@ -966,6 +1009,156 @@
         span + flag + link + '</div>';
     }
 
+    /* ---------- อัปภาพประชาสัมพันธ์ → ลงปฏิทินอัตโนมัติ ----------
+       เดิมทำได้เฉพาะหน้าเว็บ ทั้งที่คนเจอโปสเตอร์อบรมตอนอยู่บนมือถือแทบทุกครั้ง
+       (เห็นในไลน์กลุ่ม → ต้องจำไว้ไปเปิดคอมทีหลัง ซึ่งก็ลืม)
+
+       flow เหมือนเว็บทุกขั้น: เลือกภาพ → AI อ่าน → ฟอร์มให้ตรวจ (แถบสีความมั่นใจ) → ยืนยัน → ลงปฏิทิน
+       ไม่ลงปฏิทินให้เงียบ ๆ เพราะโปสเตอร์มักเขียนวันแบบไม่บอกปี ถ้า AI เดาผิดแล้วลงเลย ครูจะไปผิดวัน */
+    var TR_FIELDS = [
+      { n:'title',       l:'ชื่อหลักสูตร / หัวข้ออบรม *', t:'text', full:true },
+      { n:'startDate',   l:'วันเริ่มอบรม *',              t:'date' },
+      { n:'endDate',     l:'วันสิ้นสุด (ว่าง = วันเดียว)', t:'date' },
+      { n:'startTime',   l:'เวลาเริ่ม (ว่าง = ทั้งวัน)',   t:'time' },
+      { n:'endTime',     l:'เวลาสิ้นสุด',                 t:'time' },
+      { n:'location',    l:'สถานที่',                     t:'text', full:true },
+      { n:'organizer',   l:'หน่วยงานที่จัด',              t:'text' },
+      { n:'hours',       l:'จำนวนชั่วโมง',                t:'text' },
+      { n:'targetGroup', l:'กลุ่มเป้าหมาย',               t:'text' },
+      { n:'fee',         l:'ค่าลงทะเบียน',                t:'text' },
+      { n:'registerUrl', l:'ลิงก์สมัคร',                  t:'text', full:true },
+      { n:'note',        l:'บันทึกเพิ่มเติม',             t:'text', full:true }
+    ];
+    var TR_MIME = ['image/jpeg','image/png','image/webp','application/pdf'];
+    var TR_MAX_BYTES = 8 * 1024 * 1024;      // ตรงกับ FILE_LIMITS.MAX_IMAGE_BYTES ฝั่งเซิร์ฟเวอร์
+    var _trDraft = null;                     // ร่างที่ AI อ่านมา (เก็บ posterFileId/aiResultJson ไว้ส่งกลับตอนยืนยัน)
+    var _trBusy = false;                     // กันแตะรัว → อ่าน/ลงปฏิทินซ้ำ
+
+    function trPosterCardHtml(){
+      return '<div class="card"><div style="font-weight:600;margin-bottom:4px;">📸 อัปภาพประชาสัมพันธ์ → ลงปฏิทิน</div>' +
+        '<div class="note" style="margin-bottom:10px;">ถ่ายรูปโปสเตอร์อบรมมาวางตรงนี้ AI จะอ่านชื่อหลักสูตร วันเวลา สถานที่ให้เอง ' +
+        '<b>ระบบจะให้ตรวจก่อนเสมอ ยังไม่ลงปฏิทินทันที</b></div>' +
+        '<label class="tr-drop"><div class="em">🖼️</div>' +
+        '<div class="ttl">แตะเพื่อเลือกภาพโปสเตอร์</div>' +
+        '<div class="sub">JPG / PNG / WebP / PDF — ไม่เกิน 8 MB</div>' +
+        '<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onchange="trPick(event)"></label>' +
+        '<button type="button" class="b-second" style="width:100%;margin-top:8px;" onclick="trManual()">✏️ หรือกรอกเองโดยไม่ใช้ภาพ</button>' +
+        '</div>';
+    }
+
+    /** ตรวจไฟล์ก่อนส่งขึ้นเซิร์ฟเวอร์ — บอกสาเหตุตรง ๆ ดีกว่าปล่อยให้ไปตายที่เซิร์ฟเวอร์แล้วค่อยเด้ง error */
+    function trBadFile_(f){
+      if (!f) return 'ยังไม่ได้เลือกไฟล์';
+      if (TR_MIME.indexOf(f.type) === -1) return 'รองรับเฉพาะ JPG / PNG / WebP / PDF';
+      if (f.size > TR_MAX_BYTES) return 'ไฟล์ใหญ่เกิน 8 MB กรุณาย่อภาพก่อน (ส่งแบบขนาดปกติแทน HD)';
+      return '';
+    }
+
+    function trPick(ev){
+      var f = ev.target.files && ev.target.files[0];
+      ev.target.value = '';                          // เคลียร์ไว้เสมอ ไม่งั้นเลือกไฟล์เดิมซ้ำจะไม่ยิง onchange
+      var bad = trBadFile_(f);
+      if (bad) { liffToast(bad, 3000); return; }
+      if (_trBusy) return;
+      _trBusy = true;
+
+      showSaveOverlay('AI กำลังอ่านโปสเตอร์...', 'ใช้เวลาประมาณ 10-20 วินาที รอสักครู่นะครับ 🐾');
+      var reader = new FileReader();
+      reader.onload = function(){
+        api('posterread', {
+          fileName: f.name, mimeType: f.type,
+          base64: String(reader.result || '').split(',')[1] || ''
+        }).then(function(res){
+          _trBusy = false;
+          hideSaveOverlay();
+          showTrainingForm(res);
+        }).catch(function(e){
+          _trBusy = false;
+          // อ่านไม่ได้ไม่ใช่ทางตัน — เปิดฟอร์มเปล่าให้กรอกเองต่อได้ทันที ไม่ต้องเริ่มใหม่
+          setSaveOverlayError(e.message + '\nกรอกเองได้เลยครับ', function(){ hideSaveOverlay(); trManual(); });
+        });
+      };
+      reader.onerror = function(){
+        _trBusy = false;
+        setSaveOverlayError('อ่านไฟล์ไม่สำเร็จ', hideSaveOverlay);
+      };
+      reader.readAsDataURL(f);
+    }
+
+    function trManual(){ showTrainingForm(null); }
+
+    function showTrainingForm(res){
+      _trDraft = res || null;
+      var ai = (res && res.fields) || {};
+
+      var rows = TR_FIELDS.map(function(f){
+        var v = (ai[f.n] && ai[f.n].value) || '';
+        // แถบสี/หมายเหตุความมั่นใจมีเฉพาะค่าที่ AI เพิ่งอ่านมา — ช่องที่กรอกเองไม่ต้องมี
+        var cls = res ? confClass(ai[f.n]) : '';
+        var note = res ? confNote(ai[f.n]) : '';
+        return '<div class="field ' + cls + (f.full ? ' full' : '') + '" id="trf_' + f.n + '">' +
+          '<label>' + esc(f.l) + '</label>' +
+          '<input type="' + f.t + '" id="tr_' + f.n + '" value="' + esc(v) + '">' +
+          note + '</div>';
+      }).join('');
+
+      app.innerHTML = pageHead(res ? 'ตรวจข้อมูลก่อนลงปฏิทิน' : 'เพิ่มกิจกรรมอบรม', 'trCancel()') +
+        '<div class="card">' +
+        '<div class="note" style="margin-bottom:10px;">' +
+        (res ? 'AI อ่านจากภาพให้แล้ว — <b>กรุณาตรวจวันที่เป็นพิเศษ</b> ช่องแถบเหลือง/แดงคือช่องที่ AI ไม่มั่นใจ แก้ได้เลย'
+             : 'กรอกข้อมูลกิจกรรมที่ต้องการลงปฏิทิน') + '</div>' +
+        '<div class="tr-form">' + rows + '</div>' +
+        '<div id="trMsg"></div>' +
+        '<button type="button" class="b-primary" id="trSaveBtn" style="width:100%;margin-top:12px;" onclick="trSubmit(this)">📅 ลงปฏิทิน</button>' +
+        '<button type="button" class="b-second" style="width:100%;margin-top:8px;" onclick="trCancel()">ยกเลิก</button>' +
+        '</div>';
+      window.scrollTo(0, 0);
+    }
+
+    function trCancel(){
+      _trDraft = null;
+      showCalendar();
+    }
+
+    function trSubmit(btn){
+      if (_trBusy) return;
+      var g = function(n){ var el = document.getElementById('tr_' + n); return el ? el.value.trim() : ''; };
+      var data = {};
+      TR_FIELDS.forEach(function(f){ data[f.n] = g(f.n); });
+      data.posterFileId = _trDraft ? _trDraft.posterFileId : '';
+      data.aiResultJson = _trDraft ? _trDraft.aiResultJson : '';
+
+      var msg = document.getElementById('trMsg');
+      if (!data.title || !data.startDate){
+        // ไม่ยิงเซิร์ฟเวอร์ทั้งที่รู้อยู่แล้วว่าไม่ผ่าน — เสียเวลารอเปล่า ๆ
+        msg.innerHTML = '<div class="msg err">กรุณากรอกชื่อหลักสูตรและวันเริ่มอบรม</div>';
+        var first = document.getElementById(data.title ? 'trf_startDate' : 'trf_title');
+        if (first) first.scrollIntoView({ behavior:'smooth', block:'center' });
+        return;
+      }
+
+      _trBusy = true;
+      if (btn) btn.disabled = true;
+      showSaveOverlay('กำลังลงปฏิทิน...', 'กรุณารอสักครู่นะครับ 🐾');
+      api('trainingadd', { data: data })
+        .then(function(){
+          _trBusy = false;
+          setSaveOverlaySuccess('ลงปฏิทินเรียบร้อย ✅', 'ดูได้ใน Google Calendar และหน้าปฏิทินนี้');
+          setTimeout(function(){
+            hideSaveOverlay();
+            _trDraft = null;
+            _calCache = null;                 // บังคับโหลดใหม่ ไม่งั้นกิจกรรมที่เพิ่งเพิ่มจะยังไม่โผล่
+            showCalendar(true);
+          }, 1100);
+        })
+        .catch(function(e){
+          _trBusy = false;
+          if (btn) btn.disabled = false;
+          setSaveOverlayError(e.message, function(){ hideSaveOverlay(); trSubmit(btn); });
+          msg.innerHTML = '<div class="msg err">' + esc(e.message) + '</div>';
+        });
+    }
+
     function renderCalendar(){
       setNav('calendar');
       if (!_calCache) return;
@@ -978,7 +1171,8 @@
       var startDow = new Date(Date.UTC(y, m-1, 1)).getUTCDay();     // 0 = อาทิตย์
       var days = new Date(Date.UTC(y, m, 0)).getUTCDate();          // วันที่ 0 ของเดือนถัดไป = วันสุดท้ายเดือนนี้
 
-      var h = pageHead('ปฏิทินอบรม') + '<div class="card">' +
+      // การ์ดอัปโปสเตอร์อยู่บนสุด: คนเปิดหน้านี้ส่วนใหญ่มาเพื่อ "เพิ่มกิจกรรม" ไม่ใช่มานั่งดูปฏิทินเปล่า
+      var h = pageHead('ปฏิทินอบรม') + trPosterCardHtml() + '<div class="card">' +
         '<div class="lcal-head"><div class="lcal-title">' + THMONTHS[m-1] + ' ' + (y+543) + '</div>' +
         '<div class="lcal-nav">' +
           '<button type="button" onclick="calShift(-1)" aria-label="เดือนก่อนหน้า">‹</button>' +
@@ -1025,7 +1219,7 @@
           wxLineHtml(_calSel) +
           map[_calSel].map(function(e){ return calItemHtml(e.t, e.mode); }).join('') + '</div>';
       } else if (!Object.keys(map).length){
-        h += '<div class="note" style="margin-top:10px;">ยังไม่มีกิจกรรมในระบบ — เพิ่มได้ที่หน้าเว็บของระบบ</div>';
+        h += '<div class="note" style="margin-top:10px;">ยังไม่มีกิจกรรมในระบบ — อัปภาพโปสเตอร์ด้านบนได้เลย</div>';
       } else {
         h += '<div class="note" style="margin-top:10px;">แตะวันที่มีจุดเพื่อดูรายละเอียด</div>';
       }
@@ -1432,15 +1626,36 @@
       } catch (e) { return false; }
     }
 
-    function liffToast(msg, ms){
-      var old = document.getElementById('lftBox');
-      if (old && old.parentNode) old.parentNode.removeChild(old);
+    /**
+     * แจ้งผลสั้น ๆ — ใช้แทน alert() ทุกที่ที่ผู้ใช้ "อ่านแล้วจบ" ไม่ต้องตัดสินใจอะไรต่อ
+     * ต่างจาก alert() ตรงที่ไม่หยุดหน้าจอรอให้กด OK และไม่ใช่กล่องของระบบที่หน้าตาหลุดจากแอป
+     *
+     * เรียกได้ 2 แบบ (แบบเก่ายังใช้ได้ ไม่ต้องไล่แก้ที่เรียกเดิม):
+     *   liffToast('ข้อความ', 2800)          → ตัวเลข = ระยะเวลาเป็น ms
+     *   liffToast('ข้อความ', 'ok'|'err'|'warn') → ข้อความ = ชนิด (err ค้างนานกว่าเพราะต้องอ่านให้ทัน)
+     */
+    function liffToast(msg, kindOrMs, ms){
+      var kind = typeof kindOrMs === 'string' ? kindOrMs : '';
+      if (typeof kindOrMs === 'number') ms = kindOrMs;
+      var wrap = document.getElementById('lftWrap');
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'lftWrap'; wrap.className = 'lft-wrap';
+        document.body.appendChild(wrap);
+      }
       var el = document.createElement('div');
-      el.id = 'lftBox'; el.className = 'lft'; el.setAttribute('role', 'status');
-      el.textContent = msg;
-      document.body.appendChild(el);
-      setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, ms || 2200);
+      el.className = 'lft' + (kind ? ' ' + kind : '');
+      // error ต้องให้เครื่องช่วยอ่านประกาศทันที ส่วนข้อความปกติรอจังหวะว่างได้
+      el.setAttribute('role', kind === 'err' ? 'alert' : 'status');
+      el.textContent = String(msg == null ? '' : msg);
+      wrap.appendChild(el);
+      setTimeout(function(){
+        el.className += ' out';
+        setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 220);
+      }, ms || (kind === 'err' ? 5200 : kind === 'warn' ? 3800 : 2800));
     }
+    /** ทางลัดที่ใช้บ่อยที่สุด: .catch(liffErr_) — ข้อความผิดพลาดจากเซิร์ฟเวอร์เด้งเป็น toast แดง */
+    function liffErr_(e){ liffToast((e && e.message) || 'เกิดข้อผิดพลาด', 'err'); }
 
     /* คัดลอกข้อความ — clipboard API ใช้ไม่ได้ในเว็บวิวบางรุ่น จึงมีทางถอยเป็น textarea + execCommand
        ถอยไม่ได้จริง ๆ ค่อยเปิด prompt ให้ก๊อปมือ (แพทเทิร์นเดียวกับปุ่มคัดลอกลิงก์เอกสาร) */
@@ -1828,7 +2043,14 @@
     // ลบไปถังขยะ (soft-delete) — ยืนยันก่อน แล้วแถวเปลี่ยนเป็นข้อความ "ลบแล้ว" พร้อมปุ่มกู้คืน (undo ได้ทันที)
     function deleteDoc(certId){
       var d = _dashDocs[certId] || {};
-      if(!confirm('ลบ "'+(d.name||'เอกสารนี้')+'" ไปที่ถังขยะ?\n\nกู้คืนได้ทันทีหลังลบ หรือภายหลังจากถังขยะในหน้าเว็บครับ')) return;
+      liffConfirm({
+        title: 'ลบ "'+(d.name||'เอกสารนี้')+'" ไปที่ถังขยะ?',
+        message: 'กู้คืนได้ทันทีหลังลบ หรือภายหลังจากถังขยะครับ',
+        okLabel: '🗑️ ลบไปถังขยะ'
+      }, function(){ doDeleteDoc_(certId, d); });
+    }
+    /** ส่วนลบจริง — แยกจากกล่องยืนยันเพื่อให้อ่านง่ายและเรียกซ้ำได้ */
+    function doDeleteDoc_(certId, d){
       var row = document.getElementById('dd_'+certId);
       if(row) row.innerHTML = '<div class="note">กำลังลบ... 🐾</div>';
       api('delete', { certificateId: certId })
@@ -1839,7 +2061,7 @@
           if(row) row.innerHTML = '<div class="note">🗑️ ลบ "'+esc(d.name||'เอกสาร')+'" ไปที่ถังขยะแล้ว</div>'+
             '<button class="b-second" style="margin-top:6px;padding:6px 12px;font-size:12px;" onclick="restoreDoc(\''+certId+'\')">↩️ กู้คืน</button>';
         })
-        .catch(function(e){ if(row) row.innerHTML = dashDocRowInner(d); alert(e.message); });
+        .catch(function(e){ if(row) row.innerHTML = dashDocRowInner(d); liffErr_(e); });
     }
 
     // กู้คืนจากถังขยะ — วาดแถวเดิมกลับคืนพร้อมปุ่มครบ
@@ -1856,7 +2078,7 @@
         .catch(function(e){
           if(row) row.innerHTML = '<div class="note">🗑️ อยู่ในถังขยะ</div>'+
             '<button class="b-second" style="margin-top:6px;padding:6px 12px;font-size:12px;" onclick="restoreDoc(\''+certId+'\')">↩️ กู้คืน</button>';
-          alert(e.message);
+          liffErr_(e);
         });
     }
 
@@ -2051,14 +2273,17 @@
     // Word ต้องได้ไฟล์ .docx เท่านั้น — รายงานที่ไม่มีไฟล์ Word แจ้งผู้ใช้ตรงๆ ไม่ส่ง PDF แทน
     function rcWord(id){
       var r = rcFind(id); if(!r) return;
-      if(!r.wordUrl){ alert('รายงานฉบับนี้ไม่มีไฟล์ Word (.docx) ครับ 🐶\nดาวน์โหลดเป็น PDF ได้จากปุ่ม ⬇️ PDF'); return; }
+      if(!r.wordUrl){
+        liffAlert('รายงานฉบับนี้ไม่มีไฟล์ Word (.docx) ครับ 🐶\nดาวน์โหลดเป็น PDF ได้จากปุ่ม ⬇️ PDF', { title: 'ไม่มีไฟล์ Word' });
+        return;
+      }
       liffOpen(r.wordUrl);
     }
 
     // คัดลอกลิงก์เปิดดูรายงาน (ลิงก์ Drive /view ของ PDF — ลิงก์เดียวกับ QR) ไว้แชร์ให้ผู้บริหารเปิดได้โดยไม่ต้องล็อกอิน
     function rcCopy(id){
       var r = rcFind(id); if(!r || !r.viewUrl) return;
-      function done(){ alert('คัดลอกลิงก์รายงานแล้วครับ 🔗\nวางส่งให้ผู้บริหารเปิดดูได้เลย (เปิดได้โดยไม่ต้องล็อกอิน)'); }
+      function done(){ liffToast('คัดลอกลิงก์รายงานแล้ว 🔗 วางส่งให้ผู้บริหารเปิดดูได้เลย', 'ok'); }
       if(navigator.clipboard && navigator.clipboard.writeText){
         navigator.clipboard.writeText(r.viewUrl).then(done).catch(function(){ window.prompt('คัดลอกลิงก์นี้:', r.viewUrl); });
       } else {
@@ -2068,7 +2293,13 @@
 
     function rcDelete(id){
       var r = rcFind(id); if(!r) return;
-      if(!confirm('ลบรายงาน "'+r.label+'" ออกจากคลัง?\n\nไฟล์จะย้ายไปถังขยะ Google Drive (กู้คืนได้ภายใน 30 วัน) และลิงก์เดิมจะเปิดไม่ได้อีกครับ')) return;
+      liffConfirm({
+        title: 'ลบรายงาน "'+r.label+'" ออกจากคลัง?',
+        message: 'ไฟล์จะย้ายไปถังขยะ Google Drive (กู้คืนได้ภายใน 30 วัน) และลิงก์เดิมจะเปิดไม่ได้อีกครับ',
+        okLabel: '🗑️ ลบรายงาน'
+      }, function(){ doRcDelete_(id, r); });
+    }
+    function doRcDelete_(id, r){
       var row = document.getElementById('rc_'+id);
       if(row) row.innerHTML = '<div class="note">กำลังลบ... 🐾</div>';
       api('reportdelete', { reportId: id })
@@ -2076,7 +2307,7 @@
           _reports = _reports.filter(function(x){ return x.reportId!==id; });
           if(row) row.innerHTML = '<div class="note">🗑️ ลบรายงาน "'+esc(r.label)+'" แล้ว (ไฟล์อยู่ในถังขยะ Drive 30 วัน)</div>';
         })
-        .catch(function(e){ if(row) row.innerHTML = rcRowInner(r); alert(e.message); });
+        .catch(function(e){ if(row) row.innerHTML = rcRowInner(r); liffErr_(e); });
     }
 
     // สร้างรายงานตามตัวเลือก — แสดง progress เป็นขั้น แล้วเพิ่มเข้าในคลังทันทีเมื่อเสร็จ (ไม่ต้องรีเฟรช)
@@ -2085,17 +2316,17 @@
       var filters = { reportKind: kind };
       if(kind==='year'){
         var y = document.getElementById('rc_year').value;
-        if(!y){ alert('กรุณาเลือกปีการศึกษาก่อนครับ 🐶'); return; }
+        if(!y){ liffToast('กรุณาเลือกปีการศึกษาก่อนครับ 🐶', 'warn'); return; }
         filters.academicYear = y;
         filters.reportLabel = 'รายงานปีการศึกษา '+y;
       } else if(kind==='doctype'){
         var t = document.getElementById('rc_doctype').value;
-        if(!t){ alert('กรุณาเลือกประเภทเอกสารก่อนครับ 🐶'); return; }
+        if(!t){ liffToast('กรุณาเลือกประเภทเอกสารก่อนครับ 🐶', 'warn'); return; }
         filters.documentType = t;
         filters.reportLabel = 'รายงาน'+t;
       } else if(kind==='pa'){
         var py = document.getElementById('rc_payear').value;
-        if(!py){ alert('กรุณาเลือกปีที่ประเมินก่อนครับ 🐶'); return; }
+        if(!py){ liffToast('กรุณาเลือกปีที่ประเมินก่อนครับ 🐶', 'warn'); return; }
         var rng = rcPaRange(py);
         filters.dateFrom = rng.from; filters.dateTo = rng.to;
         filters.reportLabel = 'รายงาน ว.PA ปี '+py+' ('+rng.label+')';
@@ -2147,7 +2378,10 @@
     function doAttach(certId, file){
       var isPdf = file.type === 'application/pdf';
       var maxBytes = isPdf ? 20*1024*1024 : 10*1024*1024;
-      if(file.size > maxBytes){ alert('ไฟล์ใหญ่เกินกำหนด (รูปสูงสุด 10MB, PDF สูงสุด 20MB)'); return; }
+      if(file.size > maxBytes){
+        liffToast('ไฟล์ใหญ่เกินกำหนด (รูปสูงสุด 10MB · PDF สูงสุด 20MB)\nถ่ายใหม่แบบ "ขนาดปกติ" แทน HD จะผ่านครับ', 'err');
+        return;
+      }
       var d = _dashDocs[certId] || {};
       var row = document.getElementById('dd_'+certId);
       if(row) row.innerHTML = '<div class="dash-name">'+esc(d.name||'เอกสาร')+'</div><div class="note">กำลังแนบไฟล์... 🐾</div>';
@@ -2160,9 +2394,9 @@
             _dashLatest.forEach(function(x){ if(x.certificateId===certId){ x.hasFile = true; x.fileName = file.name; } });
             if(row) row.innerHTML = dashDocRowInner(d);
           })
-          .catch(function(e){ if(row) row.innerHTML = dashDocRowInner(d); alert(e.message); });
+          .catch(function(e){ if(row) row.innerHTML = dashDocRowInner(d); liffErr_(e); });
       };
-      reader.onerror = function(){ if(row) row.innerHTML = dashDocRowInner(d); alert('อ่านไฟล์ไม่สำเร็จ'); };
+      reader.onerror = function(){ if(row) row.innerHTML = dashDocRowInner(d); liffToast('อ่านไฟล์ไม่สำเร็จ ลองเลือกไฟล์ใหม่อีกครั้งครับ', 'err'); };
       reader.readAsDataURL(file);
     }
 
@@ -2374,7 +2608,7 @@
       if(prev) prev.innerHTML = '';
       if(!file) return;
       var bad = pwmBadFile_(file);
-      if(bad){ alert(bad); ev.target.value = ''; return; }
+      if(bad){ liffToast(bad, 'err'); ev.target.value = ''; return; }
       var reader = new FileReader();
       reader.onload = function(){
         var uri = String(reader.result||'');
@@ -2383,12 +2617,12 @@
         pwAddPending_ = { name: file.name, mimeType: file.type, base64: uri.split(',')[1] || '' };
         if(btn) btn.disabled = false;
       };
-      reader.onerror = function(){ alert('อ่านไฟล์ไม่สำเร็จ'); };
+      reader.onerror = function(){ liffToast('อ่านไฟล์ไม่สำเร็จ ลองเลือกไฟล์ใหม่อีกครั้งครับ', 'err'); };
       reader.readAsDataURL(file);
     }
 
     function pwmAdd(){
-      if(!pwAddPending_){ alert('ยังไม่ได้เลือกไฟล์ภาพ'); return; }
+      if(!pwAddPending_){ liffToast('ยังไม่ได้เลือกไฟล์ภาพ — แตะกรอบด้านบนเพื่อเลือกรูปก่อนครับ', 'warn'); return; }
       var btn = document.getElementById('pwmAddBtn');
       if(btn){ btn.disabled = true; btn.textContent = 'กำลังเพิ่ม...'; }
       var meta = {
@@ -2399,7 +2633,7 @@
       };
       api('proudadd', { meta: meta, fileName: pwAddPending_.name, mimeType: pwAddPending_.mimeType, base64: pwAddPending_.base64 })
         .then(function(){ pwAddPending_ = null; pwmReload_(); })
-        .catch(function(e){ alert(e.message); if(btn){ btn.disabled = false; btn.textContent = '➕ เพิ่มภาพผลงาน'; } });
+        .catch(function(e){ liffErr_(e); if(btn){ btn.disabled = false; btn.textContent = '➕ เพิ่มภาพผลงาน'; } });
     }
 
     function pwmEdit(id){ pwEditingId_ = id; renderProud(); }
@@ -2414,7 +2648,7 @@
       };
       api('proudupdate', { workId: id, fields: fields })
         .then(function(){ pwEditingId_ = null; pwmReload_(); })
-        .catch(function(e){ alert(e.message); });
+        .catch(function(e){ liffErr_(e); });
     }
 
     function pwmChangeImage(id){
@@ -2424,15 +2658,21 @@
         var f = inp.files && inp.files[0];
         if(!f) return;
         var bad = pwmBadFile_(f);
-        if(bad){ alert(bad); return; }
-        if(!confirm('ใช้รูปใหม่นี้แทนรูปเดิมหรือไม่? รูปเดิมจะย้ายลงถังขยะ')) return;
-        var reader = new FileReader();
-        reader.onload = function(){
-          api('proudimage', { workId: id, fileName: f.name, mimeType: f.type, base64: String(reader.result||'').split(',')[1] || '' })
-            .then(pwmReload_).catch(function(e){ alert(e.message); });
-        };
-        reader.onerror = function(){ alert('อ่านไฟล์ไม่สำเร็จ'); };
-        reader.readAsDataURL(f);
+        if(bad){ liffToast(bad, 'err'); return; }
+        liffConfirm({
+          title: 'ใช้รูปใหม่นี้แทนรูปเดิม?',
+          message: 'รูปเดิมจะย้ายลงถังขยะ',
+          okLabel: '🔄 ใช้รูปใหม่'
+        }, function(){
+          var reader = new FileReader();
+          reader.onload = function(){
+            api('proudimage', { workId: id, fileName: f.name, mimeType: f.type, base64: String(reader.result||'').split(',')[1] || '' })
+              .then(function(){ liffToast('เปลี่ยนรูปผลงานแล้ว ✅', 'ok'); return pwmReload_(); })
+              .catch(liffErr_);
+          };
+          reader.onerror = function(){ liffToast('อ่านไฟล์ไม่สำเร็จ ลองเลือกไฟล์ใหม่อีกครั้งครับ', 'err'); };
+          reader.readAsDataURL(f);
+        });
       };
       inp.click();
     }
@@ -2447,12 +2687,19 @@
       renderProud();                                    // สลับให้เห็นทันที แล้วค่อยบันทึก
       api('proudreorder', { orderedWorkIds: items.map(function(x){ return x.workId; }) })
         .then(function(){ PW_HOME = null; loadProudHome_(); })
-        .catch(function(e){ alert(e.message); showProud(); });
+        .catch(function(e){ liffErr_(e); showProud(); });
     }
 
     function pwmDelete(id){
-      if(!confirm('ต้องการลบภาพผลงานนี้หรือไม่? ไฟล์จะย้ายลงถังขยะ')) return;
-      api('prouddelete', { workId: id }).then(pwmReload_).catch(function(e){ alert(e.message); });
+      liffConfirm({
+        title: 'ลบภาพผลงานนี้?',
+        message: 'ไฟล์จะย้ายลงถังขยะ กู้คืนได้จาก Google Drive ภายใน 30 วัน',
+        okLabel: '🗑️ ลบภาพ'
+      }, function(){
+        api('prouddelete', { workId: id })
+          .then(function(){ liffToast('ลบภาพผลงานแล้ว 🗑️', 'ok'); return pwmReload_(); })
+          .catch(liffErr_);
+      });
     }
 
     function pwmSavePrefs(){
@@ -2462,7 +2709,7 @@
       };
       api('proudprefs', { prefs: prefs })
         .then(function(){ pwmReload_(); })
-        .catch(function(e){ alert(e.message); });
+        .catch(function(e){ liffErr_(e); });
     }
 
     /** โหลดรายการใหม่ + ล้างแคชสไลด์โชว์หน้าหลักให้ตรงกันเสมอ */
@@ -2521,7 +2768,7 @@
           refreshCalendarBadge_();          // กู้เอกสารกลับมา = กิจกรรมที่ผูกไว้ถือว่าเก็บครบอีกครั้ง
           if(row) row.innerHTML = '<div class="note">✅ กู้คืน "'+esc(d.name||'เอกสาร')+'" กลับไปที่ "บันทึกแล้ว" เรียบร้อยแล้ว</div>';
         })
-        .catch(function(e){ if(row) row.innerHTML = trashRowInner(d); alert(e.message); });
+        .catch(function(e){ if(row) row.innerHTML = trashRowInner(d); liffErr_(e); });
     }
 
     // QR เปิดดูไฟล์เกียรติบัตรใบนั้น — สแกนแล้วพาไปลิงก์ Google Drive ของไฟล์ใบนั้นโดยตรง
@@ -2547,7 +2794,7 @@
           '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
       }).catch(function(e){
         document.getElementById('viewerRoot').innerHTML = '';
-        alert(e.message);
+        liffErr_(e);
       });
     }
 
@@ -2567,7 +2814,7 @@
     function openFile(certId){
       api('fileqr', { certificateId: certId })
         .then(function(d){ liffOpen(d.fileViewUrl); })
-        .catch(function(e){ alert(e.message); });
+        .catch(function(e){ liffErr_(e); });
     }
 
     // เปิดไฟล์เกียรติบัตรใบนั้นใน Google Drive โดยตรง (ไม่ต้องล็อกอิน)
@@ -2575,7 +2822,7 @@
     function openDrive(certId){
       api('fileqr', { certificateId: certId, share: true })
         .then(function(d){ liffOpen(d.driveUrl || d.fileViewUrl); })
-        .catch(function(e){ alert(e.message); });
+        .catch(function(e){ liffErr_(e); });
     }
 
     function liffOpen(url){
@@ -2858,6 +3105,26 @@
       if(root) root.innerHTML = '';
       document.body.classList.remove('modal-open');
     }
+
+    /* ---------- กล่องบอกอย่างเดียว (ปุ่มเดียว) แทน window.alert ----------
+       ใช้เมื่อผู้ใช้ "ต้องอ่านแล้วตัดสินใจทำอะไรต่อ" เช่น รายงานนี้ไม่มีไฟล์ Word
+       ถ้าเป็นแค่ผลลัพธ์ที่อ่านแล้วจบ ให้ใช้ liffToast จะไม่ขวางมือ */
+    function liffAlert(message, opts){
+      opts = opts || {};
+      var root = document.getElementById('confirmRoot');
+      if(!root){ root = document.createElement('div'); root.id = 'confirmRoot'; document.body.appendChild(root); }
+      root.innerHTML =
+        '<div class="lf-modal-backdrop" onclick="if(event.target===this)liffConfirmClose()">' +
+          '<div class="lf-modal-box" role="alertdialog" aria-modal="true">' +
+            '<div class="lf-modal-title">'+esc(opts.title || 'แจ้งให้ทราบ')+'</div>' +
+            '<div class="lf-modal-msg">'+esc(message || '')+'</div>' +
+            '<div class="save-actions">' +
+              '<button type="button" class="b-primary" onclick="liffConfirmClose()">'+esc(opts.okLabel || 'รับทราบ')+'</button>' +
+            '</div>' +
+          '</div></div>';
+      document.body.classList.add('modal-open');
+    }
+
 
     function saveDraft(){
       liffSetFormButtonsDisabled_(true);
