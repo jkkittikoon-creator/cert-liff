@@ -170,6 +170,21 @@
     .save-check { font-size: 40px; margin-bottom: 10px; }
     .save-text { font-size: 15px; color: var(--text-1); font-weight: bold; }
     .save-sub { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+    /* กล่อง "บันทึกไม่สำเร็จ" + กล่องยืนยันในหน้า — ต้องกดด้วยนิ้วได้ทุกปุ่ม (≥44px) */
+    .save-card { max-width: min(400px, calc(100vw - 32px)); padding: 24px 20px; }
+    .save-err-msg { color: #d32f2f; font-size: 13px; line-height: 1.6; white-space: pre-line; margin-top: 8px; }
+    .save-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+    .save-actions button { min-height: 44px; flex: 1; }
+    .lf-modal-backdrop {
+      position: fixed; inset: 0; background: var(--backdrop); z-index: 300;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+      -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+    }
+    .lf-modal-box { background: var(--bg-card); border-radius: 14px; padding: 22px 20px; width: 100%; max-width: 400px; box-shadow: var(--shadow-modal); }
+    .lf-modal-title { font-size: 16px; font-weight: bold; color: var(--text-1); }
+    .lf-modal-msg { font-size: 14px; line-height: 1.7; color: var(--text-2); margin-top: 8px; white-space: pre-line; }
+    /* ล็อกการเลื่อนพื้นหลังตอนกล่องยืนยันเปิดอยู่ */
+    body.modal-open { overflow: hidden; }
     .btns { display: flex; gap: 10px; margin-top: 8px; }
     button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; font-family: var(--font-body); }
     button:active { transform: scale(0.98); }
@@ -421,6 +436,33 @@
       box-shadow: 0 8px 26px rgba(0, 0, 0, 0.16); }
     .sticky-act .btns { margin-top: 0; }
 
+    /* ---------- ผลงานที่ภาคภูมิใจ (Proud Works) — สไลด์โชว์ปัดนิ้วได้ + รายการจัดการ ---------- */
+    .pw-slideshow { position: relative; width: 100%; border-radius: 14px; overflow: hidden; background: #000; }
+    .pw-track { display: flex; transition: transform .35s ease; touch-action: pan-y; }
+    .pw-slide { flex: 0 0 100%; position: relative; }
+    .pw-slide img { display: block; width: 100%; height: clamp(170px, 56vw, 340px); object-fit: contain; background: #000; }
+    .pw-caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 9px 12px;
+      background: linear-gradient(transparent, rgba(0,0,0,.76)); color: #fff; pointer-events: none; }
+    .pw-cap-title { font-weight: 700; font-size: 14px; }
+    .pw-cap-meta { font-size: 11px; opacity: .9; margin-top: 2px; }
+    .pw-cap-desc { font-size: 12px; margin-top: 2px; opacity: .95; max-height: 3.2em; overflow: hidden; }
+    .pw-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: none;
+      border-radius: 50%; background: rgba(0,0,0,.42); color: #fff; font-size: 26px; line-height: 1;
+      display: grid; place-items: center; padding: 0; -webkit-tap-highlight-color: transparent; }
+    .pw-prev { left: 6px; } .pw-next { right: 6px; }
+    .pw-dots { position: absolute; left: 0; right: 0; bottom: 7px; display: flex; gap: 6px; justify-content: center; }
+    .pw-dot { width: 10px; height: 10px; border-radius: 50%; border: none; background: rgba(255,255,255,.5); padding: 0; flex: none; }
+    .pw-dot.on { background: #fff; }
+    .pw-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--nx-line); }
+    .pw-thumb { width: 64px; height: 64px; flex: none; object-fit: cover; border-radius: 10px; background: #eee; }
+    .pw-item-body { flex: 1; min-width: 0; }
+    .pw-item-title { font-weight: 600; font-size: 14px; }
+    .pw-acts { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+    .pw-acts button { flex: none; width: auto; min-width: 42px; min-height: 42px; padding: 6px 10px; font-size: 15px; }
+    .pw-ov { position: fixed; inset: 0; background: rgba(0,0,0,.86); z-index: 999; display: grid; place-items: center; padding: 14px; }
+    .pw-ov-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px;
+      border-radius: 50%; border: none; background: #fff; color: #222; font-size: 20px; }
+
     /* ผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ในเครื่อง — ปิดอนิเมชันทั้งหมด */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
@@ -520,6 +562,15 @@
         if (e && e.fromServer) throw e;
         throw new Error('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
       });
+    }
+
+    // อัตลักษณ์หน่วยงาน (ชื่อ+ตรา) จากตั้งค่ากลาง — โหลดครั้งเดียว ไม่บล็อกการทำงาน ถ้าไม่มีก็ข้าม
+    var ORG_BRANDING = null;
+    function loadOrgBranding_(){
+      api('orgconfig').then(function(b){
+        ORG_BRANDING = b;
+        if (_homeCache && document.querySelector('.hero')) renderHome(_homeCache);  // อยู่หน้าหลัก → วาดใหม่ให้เห็นตรา
+      }).catch(function(){ /* ไม่มี branding ก็ข้าม */ });
     }
 
     function getCertParam(){
@@ -797,6 +848,18 @@
     }
 
     /**
+     * อัปเดตเลขแดงเมนูปฏิทินโดยไม่เปิดหน้าปฏิทิน
+     * เรียกตอนเปิดแอป และหลัง "ทุก action ที่ทำให้ตัวเลขเปลี่ยน" (บันทึก/ลบ/กู้คืนเอกสาร)
+     * — เรียกตามเหตุการณ์เท่านั้น ไม่มีการ polling วนลูป
+     * ล้างแคชด้วย เพราะถ้าเปิดหน้าปฏิทินทีหลังจะได้ไม่เห็นข้อมูลเก่าที่ขัดกับตัวเลข
+     */
+    function refreshCalendarBadge_(){
+      api('trainings')
+        .then(function(d){ _calCache = d; setCalendarBadge(d.counts); })
+        .catch(function(){ /* เงียบ — ตัวเลขแจ้งเตือนไม่ควรทำให้หน้าจอพัง */ });
+    }
+
+    /**
      * ดึงอากาศไว้เงียบๆ ให้แผงรายละเอียดวันมีข้อมูลพร้อมใช้
      * วาดปฏิทินซ้ำหลังได้ข้อมูล เพราะผู้ใช้อาจกดเลือกวันไปแล้วระหว่างรอ
      * ถ้าดึงไม่ได้ก็ปล่อยผ่าน — ปฏิทินต้องใช้งานได้ต่อแม้ไม่มีพยากรณ์
@@ -809,11 +872,12 @@
       }).catch(function(){});
     }
 
-    /** ตัวเลขบนเมนู "ปฏิทิน" — นับเฉพาะที่ยังไม่ได้เก็บเกียรติบัตร คือของที่ต้องลงมือทำจริง */
+    /** ตัวเลขบนเมนู "ปฏิทิน" — ใช้ counts.badge ที่เซิร์ฟเวอร์นับมาให้ ชุดเดียวกับเว็บแอป
+        (needCert เป็นค่าสำรองเผื่อเปิดหน้านี้ค้างไว้ก่อนอัปเดตฝั่งเซิร์ฟเวอร์) */
     function setCalendarBadge(counts){
       var d = document.getElementById('bnCalendarDot');
       if (!d) return;
-      var n = (counts && counts.needCert) || 0;
+      var n = (counts && (counts.badge != null ? counts.badge : counts.needCert)) || 0;
       if (n > 0) { d.textContent = n > 99 ? '99+' : String(n); d.style.display = ''; }
       else d.style.display = 'none';
     }
@@ -1179,7 +1243,12 @@
       var av = (LIFF_PROFILE && LIFF_PROFILE.pictureUrl)
         ? '<img class="hero-av" src="' + esc(LIFF_PROFILE.pictureUrl) + '" alt="รูปโปรไฟล์ LINE">'
         : '<div class="hero-av hero-av-fb">' + esc((name || '?').charAt(0)) + '</div>';
-      return '<div class="hero">' +
+      var org = ORG_BRANDING;
+      var orgRow = (org && org.schoolName) ?
+        ('<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+          (org.logoDataUri ? '<img src="' + org.logoDataUri + '" alt="ตราหน่วยงาน" style="width:30px;height:30px;border-radius:7px;object-fit:contain;background:#fff;padding:2px;flex:none;">' : '') +
+          '<span style="font-weight:700;font-size:13px;">' + esc(org.schoolName) + '</span></div>') : '';
+      return '<div class="hero">' + orgRow +
         '<div class="hero-top">' + av +
         '<div style="flex:1;min-width:0;">' +
         '<div class="hero-greet">' + greetOf(p.hour, p.minute) + (name ? ' คุณ' + esc(name) : '') + '</div>' +
@@ -1215,6 +1284,7 @@
         '<button type="button" class="act" onclick="goTab(\'search\')"><span class="ico">🔍</span>ค้นหาเอกสาร</button>' +
         '<button type="button" class="act" onclick="showDash()"><span class="ico">📊</span>สรุปผลงาน</button>' +
         '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>รายงานผลงาน</button>' +
+        '<button type="button" class="act" onclick="showProud()"><span class="ico">🌟</span>ผลงานที่ภาคภูมิใจ</button>' +
         '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
         '</div>';
 
@@ -1233,12 +1303,18 @@
           : '<div class="note">ยังไม่มีเอกสารครับ 🐶 ส่งรูปเกียรติบัตรเข้าแชตได้เลย</div>') +
         '</div>';
 
+      // สไลด์โชว์ผลงานของเจ้าของบัญชี — วางบน/ล่างตามที่เจ้าของเลือกไว้เอง
+      var proudCard = pwHomeCardHtml();
+      var proudTop = (PW_HOME && PW_HOME.position === 'bottom') ? '' : proudCard;
+      var proudBottom = (PW_HOME && PW_HOME.position === 'bottom') ? proudCard : '';
+
       // อากาศวางไว้หลังงานค้าง — งานที่ต้องลงมือทำสำคัญกว่า อากาศเป็นข้อมูลประกอบ
-      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + todo + '<div id="wxBox"></div>' + kpis +
+      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + proudTop + todo + '<div id="wxBox"></div>' + kpis +
         '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚡ เมนูด่วน</div>' + actions + '</div>' +
-        recent;
+        recent + proudBottom;
       startClock();
       loadWeather();
+      pwMountHome_();
     }
 
     /* วิธีส่งเอกสารเข้าระบบ — ระบบรับไฟล์ทางแชต LINE (webhook → คิว AI) ไม่ได้อัปโหลดในหน้านี้
@@ -1524,6 +1600,8 @@
       api('delete', { certificateId: certId })
         .then(function(){
           _dashLatest = _dashLatest.filter(function(x){ return x.certificateId!==certId; });
+          // เอกสารที่ถูกลบอาจเคยผูกกับกิจกรรมอบรมอยู่ → กิจกรรมนั้นกลับมาเป็น "ยังไม่เก็บเอกสาร"
+          refreshCalendarBadge_();
           if(row) row.innerHTML = '<div class="note">🗑️ ลบ "'+esc(d.name||'เอกสาร')+'" ไปที่ถังขยะแล้ว</div>'+
             '<button class="b-second" style="margin-top:6px;padding:6px 12px;font-size:12px;" onclick="restoreDoc(\''+certId+'\')">↩️ กู้คืน</button>';
         })
@@ -1538,6 +1616,7 @@
       api('restore', { certificateId: certId })
         .then(function(){
           _dashLatest.unshift(d);
+          refreshCalendarBadge_();          // กู้เอกสารกลับมา = กิจกรรมที่ผูกไว้ถือว่าเก็บครบอีกครั้ง
           if(row) row.innerHTML = dashDocRowInner(d);
         })
         .catch(function(e){
@@ -1853,6 +1932,327 @@
       reader.readAsDataURL(file);
     }
 
+    /* ---------- ผลงานที่ภาคภูมิใจ (Proud Works) — พื้นที่ส่วนตัวของผู้ใช้แต่ละคน ----------
+       ข้อมูลผูกกับบัญชีที่ยืนยันด้วย LINE idToken ฝั่งเซิร์ฟเวอร์ — หน้านี้ไม่เคยส่ง userId ไปเอง
+       ผู้ใช้เห็นและจัดการได้เฉพาะผลงานของตนเองเท่านั้น */
+
+    var PW_HOME = null;        // ข้อมูลสไลด์โชว์สำหรับหน้าหลัก
+    var PW_M = null;           // ข้อมูลหน้าจัดการ {config, prefs, count, items}
+    var pwAddPending_ = null;  // ไฟล์ที่เลือกไว้รอกดเพิ่ม
+    var pwEditingId_ = null;   // รายการที่กำลังกางฟอร์มแก้อยู่
+    var pwHomeTimer_ = null;   // ตัวจับเวลาเลื่อนสไลด์อัตโนมัติหน้าหลัก
+
+    function pwThaiDate_(s){
+      var m = String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if(!m) return String(s||'');
+      var mo = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      return Number(m[3])+' '+mo[Number(m[2])]+' '+(Number(m[1])+543);
+    }
+
+    /** HTML ของสไลด์โชว์ — 1 ภาพ = ภาพเดี่ยว, 2 ภาพขึ้นไป = มีปุ่ม+จุด+ปัดนิ้วได้ */
+    function pwSlideHtml(items, uid){
+      if(!items || !items.length) return '';
+      var slides = items.map(function(it){
+        var cap = [];
+        if(it.title) cap.push('<div class="pw-cap-title">'+esc(it.title)+'</div>');
+        var meta = [];
+        if(it.workDate) meta.push(esc(pwThaiDate_(it.workDate)));
+        if(it.extra) meta.push(esc(it.extra));
+        if(meta.length) cap.push('<div class="pw-cap-meta">'+meta.join(' · ')+'</div>');
+        if(it.description) cap.push('<div class="pw-cap-desc">'+esc(it.description)+'</div>');
+        return '<div class="pw-slide"><img src="'+(it.imageUrl||'')+'" alt="'+esc(it.title||'ผลงาน')+'">'+
+          (cap.length ? '<div class="pw-caption">'+cap.join('')+'</div>' : '')+'</div>';
+      }).join('');
+      var multi = items.length > 1;
+      var nav = multi ? '<button type="button" class="pw-nav pw-prev" data-dir="-1" aria-label="ภาพก่อนหน้า">‹</button>'+
+        '<button type="button" class="pw-nav pw-next" data-dir="1" aria-label="ภาพถัดไป">›</button>' : '';
+      var dots = multi ? '<div class="pw-dots">'+items.map(function(_,i){
+        return '<button type="button" class="pw-dot'+(i===0?' on':'')+'" data-goto="'+i+'" aria-label="ไปภาพที่ '+(i+1)+'"></button>';
+      }).join('')+'</div>' : '';
+      return '<div class="pw-slideshow" id="'+uid+'"><div class="pw-track">'+slides+'</div>'+nav+dots+'</div>';
+    }
+
+    /** ผูกปุ่ม/จุด/การปัดนิ้วให้สไลด์โชว์ — คืนตัวควบคุมไว้ให้เลื่อนอัตโนมัติ */
+    function pwInitSlideshow(root){
+      if(!root) return null;
+      var track = root.querySelector('.pw-track');
+      var slides = root.querySelectorAll('.pw-slide');
+      var dots = root.querySelectorAll('.pw-dot');
+      var n = slides.length;
+      if(!track || !n) return null;
+      var idx = 0;
+      function go(i){
+        idx = (i % n + n) % n;
+        track.style.transform = 'translateX(-'+(idx*100)+'%)';
+        for(var d=0; d<dots.length; d++) dots[d].className = 'pw-dot'+(d===idx?' on':'');
+      }
+      root.addEventListener('click', function(e){
+        var nav = e.target.closest ? e.target.closest('.pw-nav') : null;
+        if(nav){ go(idx + Number(nav.getAttribute('data-dir'))); return; }
+        var dot = e.target.closest ? e.target.closest('.pw-dot') : null;
+        if(dot) go(Number(dot.getAttribute('data-goto')));
+      });
+      var sx = null;
+      track.addEventListener('touchstart', function(e){ sx = e.touches[0].clientX; }, {passive:true});
+      track.addEventListener('touchend', function(e){
+        if(sx===null) return;
+        var dx = e.changedTouches[0].clientX - sx; sx = null;
+        if(Math.abs(dx) > 40) go(idx + (dx<0?1:-1));
+      }, {passive:true});
+      go(0);
+      return { go: go, next: function(){ go(idx+1); } };
+    }
+
+    /* ---------- สไลด์โชว์บนหน้าหลัก ---------- */
+
+    function loadProudHome_(){
+      api('prouddisplay').then(function(d){
+        PW_HOME = d;
+        if(_homeCache && document.querySelector('.hero')) renderHome(_homeCache);  // อยู่หน้าหลัก → วาดใหม่
+      }).catch(function(){ /* ไม่มีก็ข้าม — หน้าหลักต้องใช้งานได้ต่อ */ });
+    }
+
+    /** การ์ดสไลด์โชว์บนหน้าหลัก — คืน '' เมื่อปิดทั้งระบบ/เจ้าของปิดเอง */
+    function pwHomeCardHtml(){
+      var d = PW_HOME;
+      if(!d || !d.featureEnabled || !d.enabled) return '';
+      var head = '<div style="font-weight:600;margin-bottom:8px;">🌟 ผลงานที่ภาคภูมิใจ</div>';
+      if(!d.items || !d.items.length){
+        return '<div class="card">'+head+'<div class="note">ยังไม่มีภาพผลงานของคุณ</div>'+
+          '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="showProud()">➕ เพิ่มผลงานที่ภาคภูมิใจ</button></div>';
+      }
+      return '<div class="card">'+head+pwSlideHtml(d.items, 'pwHomeShow')+
+        '<button class="b-second" style="width:100%;margin-top:10px;" onclick="showProud()">⚙️ จัดการผลงานของฉัน</button></div>';
+    }
+
+    /** ผูกการใช้งานสไลด์โชว์หน้าหลักหลังวาด innerHTML เสร็จ */
+    function pwMountHome_(){
+      if(pwHomeTimer_){ clearInterval(pwHomeTimer_); pwHomeTimer_ = null; }
+      var root = document.getElementById('pwHomeShow');
+      if(!root) return;
+      var ctrl = pwInitSlideshow(root);
+      var n = (PW_HOME && PW_HOME.items) ? PW_HOME.items.length : 0;
+      if(ctrl && n > 1){
+        pwHomeTimer_ = setInterval(ctrl.next, 5000);
+        root.addEventListener('touchstart', function(){
+          if(pwHomeTimer_){ clearInterval(pwHomeTimer_); pwHomeTimer_ = null; }   // ผู้ใช้คุมเอง = หยุดเลื่อนเอง
+        }, {passive:true});
+      }
+    }
+
+    /* ---------- หน้าจัดการผลงานของฉัน ---------- */
+
+    function showProud(){
+      setNav('home');
+      app.innerHTML = pageHead('ผลงานที่ภาคภูมิใจ', "goTab('home')") + '<div class="center">กำลังโหลด...</div>';
+      api('proudlist').then(function(d){ PW_M = d; renderProud(); })
+        .catch(function(e){ showErr(e, showProud); });
+    }
+
+    function renderProud(){
+      var d = PW_M;
+      var head = pageHead('ผลงานที่ภาคภูมิใจ', "goTab('home')");
+      if(!d.config.featureEnabled){
+        app.innerHTML = head + '<div class="msg">ฟีเจอร์นี้ถูกปิดใช้งานโดยผู้ดูแลระบบ</div>' +
+          '<button class="b-second" style="width:100%;" onclick="goTab(\'home\')">กลับหน้าหลัก</button>';
+        return;
+      }
+      var full = d.count >= d.config.maxImages;
+
+      var info = '<div class="msg">🌟 พื้นที่ส่วนตัวของคุณ — มีภาพ <b>'+d.count+'/'+d.config.maxImages+'</b> ภาพ<br>' +
+        '<span class="note">ผู้ใช้คนอื่นมองไม่เห็นและแก้ไขผลงานของคุณไม่ได้</span></div>';
+
+      var prefs = '<div class="card"><div style="font-weight:600;margin-bottom:8px;">การแสดงผลของฉัน</div>' +
+        '<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px;">' +
+          '<input type="checkbox" id="pwmEnabled"'+(d.prefs.enabled?' checked':'')+'> เปิดแสดงสไลด์โชว์บนหน้าหลัก</label>' +
+        '<div class="note" style="margin-bottom:4px;">ตำแหน่งการแสดง</div>' +
+        '<select id="pwmPos" style="width:100%;padding:9px;border-radius:10px;margin-bottom:10px;">' +
+          '<option value="top"'+(d.prefs.position==='top'?' selected':'')+'>ด้านบน (ใต้แถบต้อนรับ)</option>' +
+          '<option value="bottom"'+(d.prefs.position==='bottom'?' selected':'')+'>ด้านล่าง (ท้ายหน้า)</option>' +
+        '</select>' +
+        '<button class="b-primary" style="width:100%;" onclick="pwmSavePrefs()">💾 บันทึกการตั้งค่า</button>' +
+        (d.items.length ? '<button class="b-second" style="width:100%;margin-top:8px;" onclick="pwmPreview()">👁️ ดูตัวอย่างสไลด์โชว์</button>' : '') +
+        '</div>';
+
+      var addCard = '<div class="card"><div style="font-weight:600;margin-bottom:8px;">➕ เพิ่มภาพผลงาน</div>' +
+        (full
+          ? '<div class="note">ครบ '+d.config.maxImages+' ภาพแล้ว — กรุณาลบภาพเดิมก่อนเพิ่มใหม่</div>'
+          : '<input type="file" id="pwmFile" accept="image/png,image/jpeg,image/webp" onchange="pwmAddPick(event)" style="width:100%;font-size:13px;">' +
+            '<div class="note" style="margin:6px 0;">รองรับ '+esc(d.config.allowedMime.join(', '))+' · สูงสุด '+d.config.maxMb+' MB</div>' +
+            '<div id="pwmPrev"></div>' +
+            '<input type="text" id="pwmTitle" placeholder="ชื่อผลงาน (ไม่บังคับ)" maxlength="200" style="width:100%;padding:9px;border-radius:10px;margin:6px 0;">' +
+            '<textarea id="pwmDesc" placeholder="คำอธิบาย (ไม่บังคับ)" maxlength="1000" style="width:100%;padding:9px;border-radius:10px;min-height:52px;margin-bottom:6px;"></textarea>' +
+            '<input type="date" id="pwmDate" style="width:100%;padding:9px;border-radius:10px;margin-bottom:6px;">' +
+            '<input type="text" id="pwmExtra" placeholder="ข้อมูลประกอบ เช่น สถานที่/รางวัล" maxlength="1000" style="width:100%;padding:9px;border-radius:10px;margin-bottom:8px;">' +
+            '<button class="b-primary" id="pwmAddBtn" style="width:100%;" onclick="pwmAdd()" disabled>➕ เพิ่มภาพผลงาน</button>') +
+        '</div>';
+
+      var list = '<div class="card"><div style="font-weight:600;margin-bottom:8px;">ผลงานของฉัน</div>' +
+        (d.items.length ? d.items.map(function(it,i){ return pwmItemHtml(it, i, d.items.length); }).join('')
+                        : '<div class="note">ยังไม่มีภาพผลงาน — เพิ่มภาพแรกได้ด้านบน</div>') +
+        '</div>';
+
+      app.innerHTML = head + info + prefs + addCard + list +
+        '<button class="b-second" style="width:100%;" onclick="goTab(\'home\')">กลับหน้าหลัก</button>';
+    }
+
+    function pwmItemHtml(it, i, total){
+      var sub = [];
+      if(it.workDate) sub.push(esc(pwThaiDate_(it.workDate)));
+      if(it.extra) sub.push(esc(it.extra));
+      var body;
+      if(pwEditingId_ === it.workId){
+        body = '<input type="text" id="pwmEdTitle" maxlength="200" placeholder="ชื่อผลงาน" value="'+esc(it.title)+'" style="width:100%;padding:8px;border-radius:9px;margin-bottom:5px;">' +
+          '<textarea id="pwmEdDesc" maxlength="1000" placeholder="คำอธิบาย" style="width:100%;padding:8px;border-radius:9px;min-height:48px;margin-bottom:5px;">'+esc(it.description)+'</textarea>' +
+          '<input type="date" id="pwmEdDate" value="'+esc(it.workDate)+'" style="width:100%;padding:8px;border-radius:9px;margin-bottom:5px;">' +
+          '<input type="text" id="pwmEdExtra" maxlength="1000" placeholder="ข้อมูลประกอบ" value="'+esc(it.extra)+'" style="width:100%;padding:8px;border-radius:9px;margin-bottom:6px;">' +
+          '<div class="pw-acts">' +
+            '<button class="b-primary" onclick="pwmSave(\''+it.workId+'\')">💾 บันทึก</button>' +
+            '<button class="b-second" onclick="pwmCancel()">ยกเลิก</button></div>';
+      } else {
+        body = '<div class="pw-item-title">'+(it.title ? esc(it.title) : '<span class="note">(ไม่มีชื่อผลงาน)</span>')+'</div>' +
+          (sub.length ? '<div class="note">'+sub.join(' · ')+'</div>' : '') +
+          (it.description ? '<div class="note">'+esc(it.description)+'</div>' : '') +
+          '<div class="pw-acts">' +
+            '<button class="b-second" title="เลื่อนขึ้น" onclick="pwmMove(\''+it.workId+'\',-1)"'+(i===0?' disabled':'')+'>↑</button>' +
+            '<button class="b-second" title="เลื่อนลง" onclick="pwmMove(\''+it.workId+'\',1)"'+(i===total-1?' disabled':'')+'>↓</button>' +
+            '<button class="b-second" title="แก้ไขข้อมูล" onclick="pwmEdit(\''+it.workId+'\')">✏️</button>' +
+            '<button class="b-second" title="เปลี่ยนรูป" onclick="pwmChangeImage(\''+it.workId+'\')">🖼️</button>' +
+            '<button class="b-second" title="ลบ" onclick="pwmDelete(\''+it.workId+'\')">🗑️</button></div>';
+      }
+      return '<div class="pw-item"><img class="pw-thumb" src="'+(it.imageUrl||'')+'" alt="'+esc(it.title||'ผลงาน')+'">' +
+        '<div class="pw-item-body">'+body+'</div></div>';
+    }
+
+    /** ตรวจไฟล์ตามกติกากลางก่อนอ่าน (เซิร์ฟเวอร์ตรวจซ้ำอีกชั้นเสมอ) */
+    function pwmBadFile_(file){
+      if(!PW_M) return 'ยังโหลดการตั้งค่าไม่เสร็จ';
+      if(PW_M.config.allowedMime.indexOf(file.type) === -1) return 'รองรับเฉพาะ: '+PW_M.config.allowedMime.join(', ');
+      if(file.size > PW_M.config.maxMb*1024*1024) return 'ไฟล์ใหญ่เกิน '+PW_M.config.maxMb+' MB';
+      return '';
+    }
+
+    function pwmAddPick(ev){
+      var file = ev.target.files && ev.target.files[0];
+      var btn = document.getElementById('pwmAddBtn');
+      pwAddPending_ = null; if(btn) btn.disabled = true;
+      var prev = document.getElementById('pwmPrev');
+      if(prev) prev.innerHTML = '';
+      if(!file) return;
+      var bad = pwmBadFile_(file);
+      if(bad){ alert(bad); ev.target.value = ''; return; }
+      var reader = new FileReader();
+      reader.onload = function(){
+        var uri = String(reader.result||'');
+        if(prev) prev.innerHTML = '<img src="'+uri+'" alt="ตัวอย่าง" style="width:100%;max-height:200px;object-fit:contain;border-radius:10px;background:#000;">' +
+          '<div class="note" style="margin-top:4px;">แสดงตัวอย่างแล้ว — กด "เพิ่มภาพผลงาน" เพื่อบันทึกจริง</div>';
+        pwAddPending_ = { name: file.name, mimeType: file.type, base64: uri.split(',')[1] || '' };
+        if(btn) btn.disabled = false;
+      };
+      reader.onerror = function(){ alert('อ่านไฟล์ไม่สำเร็จ'); };
+      reader.readAsDataURL(file);
+    }
+
+    function pwmAdd(){
+      if(!pwAddPending_){ alert('ยังไม่ได้เลือกไฟล์ภาพ'); return; }
+      var btn = document.getElementById('pwmAddBtn');
+      if(btn){ btn.disabled = true; btn.textContent = 'กำลังเพิ่ม...'; }
+      var meta = {
+        title: (document.getElementById('pwmTitle')||{}).value || '',
+        description: (document.getElementById('pwmDesc')||{}).value || '',
+        workDate: (document.getElementById('pwmDate')||{}).value || '',
+        extra: (document.getElementById('pwmExtra')||{}).value || ''
+      };
+      api('proudadd', { meta: meta, fileName: pwAddPending_.name, mimeType: pwAddPending_.mimeType, base64: pwAddPending_.base64 })
+        .then(function(){ pwAddPending_ = null; pwmReload_(); })
+        .catch(function(e){ alert(e.message); if(btn){ btn.disabled = false; btn.textContent = '➕ เพิ่มภาพผลงาน'; } });
+    }
+
+    function pwmEdit(id){ pwEditingId_ = id; renderProud(); }
+    function pwmCancel(){ pwEditingId_ = null; renderProud(); }
+
+    function pwmSave(id){
+      var fields = {
+        title: (document.getElementById('pwmEdTitle')||{}).value || '',
+        description: (document.getElementById('pwmEdDesc')||{}).value || '',
+        workDate: (document.getElementById('pwmEdDate')||{}).value || '',
+        extra: (document.getElementById('pwmEdExtra')||{}).value || ''
+      };
+      api('proudupdate', { workId: id, fields: fields })
+        .then(function(){ pwEditingId_ = null; pwmReload_(); })
+        .catch(function(e){ alert(e.message); });
+    }
+
+    function pwmChangeImage(id){
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp';
+      inp.onchange = function(){
+        var f = inp.files && inp.files[0];
+        if(!f) return;
+        var bad = pwmBadFile_(f);
+        if(bad){ alert(bad); return; }
+        if(!confirm('ใช้รูปใหม่นี้แทนรูปเดิมหรือไม่? รูปเดิมจะย้ายลงถังขยะ')) return;
+        var reader = new FileReader();
+        reader.onload = function(){
+          api('proudimage', { workId: id, fileName: f.name, mimeType: f.type, base64: String(reader.result||'').split(',')[1] || '' })
+            .then(pwmReload_).catch(function(e){ alert(e.message); });
+        };
+        reader.onerror = function(){ alert('อ่านไฟล์ไม่สำเร็จ'); };
+        reader.readAsDataURL(f);
+      };
+      inp.click();
+    }
+
+    function pwmMove(id, dir){
+      if(!PW_M || !PW_M.items) return;
+      var items = PW_M.items, at = -1;
+      for(var i=0;i<items.length;i++) if(items[i].workId===id){ at = i; break; }
+      var to = at + dir;
+      if(at === -1 || to < 0 || to >= items.length) return;
+      var tmp = items[at]; items[at] = items[to]; items[to] = tmp;
+      renderProud();                                    // สลับให้เห็นทันที แล้วค่อยบันทึก
+      api('proudreorder', { orderedWorkIds: items.map(function(x){ return x.workId; }) })
+        .then(function(){ PW_HOME = null; loadProudHome_(); })
+        .catch(function(e){ alert(e.message); showProud(); });
+    }
+
+    function pwmDelete(id){
+      if(!confirm('ต้องการลบภาพผลงานนี้หรือไม่? ไฟล์จะย้ายลงถังขยะ')) return;
+      api('prouddelete', { workId: id }).then(pwmReload_).catch(function(e){ alert(e.message); });
+    }
+
+    function pwmSavePrefs(){
+      var prefs = {
+        enabled: !!(document.getElementById('pwmEnabled')||{}).checked,
+        position: (document.getElementById('pwmPos')||{}).value || 'top'
+      };
+      api('proudprefs', { prefs: prefs })
+        .then(function(){ pwmReload_(); })
+        .catch(function(e){ alert(e.message); });
+    }
+
+    /** โหลดรายการใหม่ + ล้างแคชสไลด์โชว์หน้าหลักให้ตรงกันเสมอ */
+    function pwmReload_(){
+      pwEditingId_ = null;
+      api('proudlist').then(function(d){
+        PW_M = d; renderProud();
+        PW_HOME = null; loadProudHome_();
+      }).catch(function(e){ showErr(e, showProud); });
+    }
+
+    function pwmPreview(){
+      if(!PW_M || !PW_M.items || !PW_M.items.length) return;
+      var ov = document.createElement('div');
+      ov.className = 'pw-ov';
+      ov.innerHTML = '<button type="button" class="pw-ov-close" aria-label="ปิด">✕</button>' +
+        '<div style="width:100%;max-width:560px;">' + pwSlideHtml(PW_M.items, 'pwPreviewShow') + '</div>';
+      ov.addEventListener('click', function(e){
+        if(e.target === ov || (e.target.closest && e.target.closest('.pw-ov-close'))) document.body.removeChild(ov);
+      });
+      document.body.appendChild(ov);
+      pwInitSlideshow(document.getElementById('pwPreviewShow'));
+    }
+
     /* ---------- แท็บถังขยะ: ดูรายการที่ลบ + กู้คืน ---------- */
     function showTrash(){
       app.innerHTML = tabsBar('trash') + '<div class="center">กำลังโหลดถังขยะ...</div>';
@@ -1883,7 +2283,10 @@
       var row = document.getElementById('tr_'+certId);
       if(row) row.innerHTML = '<div class="note">กำลังกู้คืน... 🐾</div>';
       api('restore', { certificateId: certId })
-        .then(function(){ if(row) row.innerHTML = '<div class="note">✅ กู้คืน "'+esc(d.name||'เอกสาร')+'" กลับไปที่ "บันทึกแล้ว" เรียบร้อยแล้ว</div>'; })
+        .then(function(){
+          refreshCalendarBadge_();          // กู้เอกสารกลับมา = กิจกรรมที่ผูกไว้ถือว่าเก็บครบอีกครั้ง
+          if(row) row.innerHTML = '<div class="note">✅ กู้คืน "'+esc(d.name||'เอกสาร')+'" กลับไปที่ "บันทึกแล้ว" เรียบร้อยแล้ว</div>';
+        })
         .catch(function(e){ if(row) row.innerHTML = trashRowInner(d); alert(e.message); });
     }
 
@@ -2157,16 +2560,86 @@
         '<div class="save-text">'+esc(text)+'</div>' +
         (sub ? '<div class="save-sub">'+esc(sub)+'</div>' : '') + '</div>';
     }
+    /**
+     * บันทึกไม่สำเร็จ — บอกสาเหตุกลางจอพร้อมปุ่ม "ลองอีกครั้ง"
+     * ใช้ชุดเดียวกับหน้าเว็บ ไม่ใช้ alert() เพราะบน LIFF กล่องของระบบจะทับหน้าจอทั้งใบ
+     * และผู้ใช้กด OK ทิ้งไปโดยยังไม่ได้อ่านสาเหตุ
+     */
+    var saveRetryFn_ = null;
+    function setSaveOverlayError(msg, onRetry){
+      var el = document.getElementById('saveOverlay');
+      if(!el){ el = document.createElement('div'); el.id = 'saveOverlay'; document.body.appendChild(el); }
+      saveRetryFn_ = onRetry || null;
+      el.className = 'save-overlay show';
+      el.innerHTML = '<div class="save-card"><div class="save-check">⚠️</div>' +
+        '<div class="save-text">บันทึกข้อมูลไม่สำเร็จ</div>' +
+        '<div class="save-sub save-err-msg">'+esc(msg || 'ไม่ทราบสาเหตุ')+'</div>' +
+        '<div class="save-actions">' +
+        (onRetry ? '<button type="button" class="b-primary" onclick="retrySave_()">ลองอีกครั้ง</button>' : '') +
+        '<button type="button" class="b-second" onclick="hideSaveOverlay()">ปิด</button>' +
+        '</div></div>';
+    }
+    function retrySave_(){
+      var f = saveRetryFn_;
+      saveRetryFn_ = null;
+      hideSaveOverlay();
+      if(f) f();
+    }
     function hideSaveOverlay(){
       var el = document.getElementById('saveOverlay');
+      saveRetryFn_ = null;
       if(el) el.className = 'save-overlay';
     }
 
+    /** ปิด/เปิดปุ่มในแถบปุ่มของฟอร์ม — กันกดบันทึกซ้ำระหว่างที่ยังส่งไม่เสร็จ */
+    function liffSetFormButtonsDisabled_(on){
+      var btns = document.querySelectorAll('#app .btns button');
+      for(var i=0;i<btns.length;i++) btns[i].disabled = !!on;
+    }
+
+    /* ---------- กล่องยืนยันในหน้า แทน window.confirm ----------
+       confirm() ของเบราว์เซอร์บน LIFF โผล่เป็นกล่องระบบที่หน้าตาไม่เข้ากับแอปเลย
+       และบางรุ่นถูกบล็อกจนกดยืนยันไม่ได้ — ใช้กล่องของเราเองจะแน่นอนกว่า */
+    function liffConfirm(opts, onYes){
+      var root = document.getElementById('confirmRoot');
+      if(!root){ root = document.createElement('div'); root.id = 'confirmRoot'; document.body.appendChild(root); }
+      root.innerHTML =
+        '<div class="lf-modal-backdrop" onclick="if(event.target===this)liffConfirmClose()">' +
+          '<div class="lf-modal-box">' +
+            '<div class="lf-modal-title">'+esc(opts.title || 'ยืนยันการทำรายการ')+'</div>' +
+            '<div class="lf-modal-msg">'+esc(opts.message || '')+'</div>' +
+            '<div class="save-actions">' +
+              '<button type="button" class="b-second" onclick="liffConfirmClose()">'+esc(opts.cancelLabel || 'ยกเลิก')+'</button>' +
+              '<button type="button" class="b-primary" id="lfConfirmOk">'+esc(opts.okLabel || 'ยืนยัน')+'</button>' +
+            '</div>' +
+          '</div></div>';
+      document.body.classList.add('modal-open');
+      document.getElementById('lfConfirmOk').onclick = function(){
+        liffConfirmClose();
+        if(onYes) onYes();
+      };
+    }
+    function liffConfirmClose(){
+      var root = document.getElementById('confirmRoot');
+      if(root) root.innerHTML = '';
+      document.body.classList.remove('modal-open');
+    }
+
     function saveDraft(){
-      setFormMsg('<div class="msg">กำลังบันทึกร่าง...</div>');
+      liffSetFormButtonsDisabled_(true);
+      showSaveOverlay('กำลังบันทึกร่าง...', 'กรุณารอสักครู่นะครับ 🐾');
       api('savedraft', { certificateId: curCert.certificateId, formData: collect() })
-        .then(function(){ setFormMsg('<div class="msg ok">บันทึกร่างแล้ว ✅</div>'); })
-        .catch(function(e){ setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+        .then(function(){
+          liffSetFormButtonsDisabled_(false);
+          setSaveOverlaySuccess('บันทึกข้อมูลเรียบร้อยแล้ว', 'เก็บไว้เป็นร่าง กลับมาแก้ต่อได้');
+          setTimeout(hideSaveOverlay, 1200);
+          setFormMsg('<div class="msg ok">บันทึกร่างแล้ว ✅</div>');
+        })
+        .catch(function(e){
+          liffSetFormButtonsDisabled_(false);
+          setSaveOverlayError(e.message, saveDraft);
+          setFormMsg('<div class="msg err">'+esc(e.message)+'</div>');
+        });
     }
 
     // F10 + F11: validation summary + เลื่อนไปหาฟิลด์ที่ขาด + confirm dialog ก่อนบันทึกจริง
@@ -2179,20 +2652,32 @@
         if(ff) ff.scrollIntoView({ behavior:'smooth', block:'center' });
         return;
       }
-      if(!window.confirm('ยืนยันการบันทึกข้อมูลนี้ใช่หรือไม่?\n\nเมื่อบันทึกแล้วข้อมูลจะถูกนำไปใช้ในระบบจัดเก็บเอกสาร/ว.PA')) return;
+      liffConfirm({
+        title: 'ยืนยันการบันทึกข้อมูลนี้ใช่หรือไม่?',
+        message: 'เมื่อบันทึกแล้วข้อมูลจะถูกนำไปใช้ในระบบจัดเก็บเอกสาร/ว.PA',
+        okLabel: '✅ ยืนยันบันทึก'
+      }, doConfirmSave_);
+    }
 
-      var d = collect();
+    /** ส่วนบันทึกจริง — แยกออกมาเพื่อให้ปุ่ม "ลองอีกครั้ง" เรียกซ้ำได้โดยไม่ต้องถามยืนยันใหม่ */
+    function doConfirmSave_(){
+      liffSetFormButtonsDisabled_(true);
       showSaveOverlay('กำลังบันทึกข้อมูล...', 'กรุณารอสักครู่นะครับ 🐾');
-      api('confirm', { certificateId: curCert.certificateId, formData: d })
+      api('confirm', { certificateId: curCert.certificateId, formData: collect() })
         .then(function(){
-          setSaveOverlaySuccess('บันทึกสำเร็จแล้วครับเจ้านาย! ✅', 'น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า');
+          liffSetFormButtonsDisabled_(false);
+          setSaveOverlaySuccess('บันทึกข้อมูลเรียบร้อยแล้ว ✅', 'น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า');
           setTimeout(function(){
             hideSaveOverlay();
             app.innerHTML = '<div class="msg ok">บันทึกสำเร็จแล้วครับเจ้านาย! ✅🐾<br>น้องชาโปรส่งสรุปกลับไปในแชต LINE ให้แล้วน้า</div>'+
               '<div class="btns"><button class="b-second" onclick="showList(\'pending\')">ตรวจเอกสารถัดไป</button><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
           }, 1300);
         })
-        .catch(function(e){ hideSaveOverlay(); setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+        .catch(function(e){
+          liffSetFormButtonsDisabled_(false);
+          setSaveOverlayError(e.message, doConfirmSave_);
+          setFormMsg('<div class="msg err">'+esc(e.message)+'</div>');
+        });
     }
 
     // ดู QR ตรวจสอบเอกสาร (เฉพาะ SAVED) — เรนเดอร์ภาพ QR จาก verifyUrl (ลิงก์ตรวจสอบสาธารณะ ไม่มีข้อมูลส่วนตัว)
@@ -2219,20 +2704,37 @@
         if(ff) ff.scrollIntoView({ behavior:'smooth', block:'center' });
         return;
       }
-      if(!window.confirm('ยืนยันการบันทึกการแก้ไขใช่หรือไม่?\n\nระบบจะบันทึกเป็นเวอร์ชันใหม่ (เก็บประวัติเดิมไว้)')) return;
+      liffConfirm({
+        title: 'ยืนยันการบันทึกการแก้ไขใช่หรือไม่?',
+        message: 'ระบบจะบันทึกเป็นเวอร์ชันใหม่ (เก็บประวัติเดิมไว้)',
+        okLabel: '💾 บันทึกการแก้ไข'
+      }, doUpdateDoc_);
+    }
+
+    /** ส่วนบันทึกจริงของ updateDoc — แยกไว้ให้ปุ่ม "ลองอีกครั้ง" เรียกซ้ำได้ */
+    function doUpdateDoc_(){
+      liffSetFormButtonsDisabled_(true);
       showSaveOverlay('กำลังบันทึกการแก้ไข...', 'กรุณารอสักครู่นะครับ 🐾');
       api('update', { certificateId: curCert.certificateId, formData: collect() })
         .then(function(r){
-          hideSaveOverlay();
-          if(r && r.changed===false){ setFormMsg('<div class="msg ok">ไม่มีข้อมูลที่เปลี่ยนแปลง</div>'); return; }
-          setSaveOverlaySuccess('บันทึกการแก้ไขแล้ว ✅');
+          liffSetFormButtonsDisabled_(false);
+          if(r && r.changed===false){
+            hideSaveOverlay();
+            setFormMsg('<div class="msg ok">ไม่มีข้อมูลที่เปลี่ยนแปลง</div>');
+            return;
+          }
+          setSaveOverlaySuccess('บันทึกข้อมูลเรียบร้อยแล้ว ✅', 'บันทึกเป็นเวอร์ชันใหม่แล้ว');
           setTimeout(function(){
             hideSaveOverlay();
             app.innerHTML = '<div class="msg ok">บันทึกการแก้ไขเรียบร้อยแล้วครับเจ้านาย! ✅🐾</div>'+
               '<div class="btns"><button class="b-second" onclick="showList(\'saved\')">กลับหน้ารายการ</button><button class="b-primary" onclick="closeOrHome()">เสร็จสิ้น</button></div>';
-          }, 1000);
+          }, 1200);
         })
-        .catch(function(e){ hideSaveOverlay(); setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+        .catch(function(e){
+          liffSetFormButtonsDisabled_(false);
+          setSaveOverlayError(e.message, doUpdateDoc_);
+          setFormMsg('<div class="msg err">'+esc(e.message)+'</div>');
+        });
     }
 
     function closeOrHome(){
@@ -2246,6 +2748,11 @@
     /* ---------- เริ่มทำงาน ---------- */
     function start(){
       var cert = getCertParam(), tab = getTabParam();
+      loadOrgBranding_();                               // ดึงชื่อ+ตราหน่วยงานมาแสดง (ไม่บล็อก)
+      loadProudHome_();                                 // ดึงสไลด์โชว์ผลงานของเจ้าของบัญชี (ไม่บล็อก)
+      // เลขแดงเมนูปฏิทินให้เห็นตั้งแต่เปิดแอป (ไม่บล็อก)
+      // ถ้าเปิดมาที่หน้าปฏิทินอยู่แล้ว showCalendar ดึงชุดเดียวกันให้เอง — ไม่ยิงซ้ำ
+      if (tab !== 'calendar') refreshCalendarBadge_();
       app.innerHTML = homeSkeleton();
       if(cert){ openDoc(cert); }                        // เปิดจากลิงก์เอกสารใบใดใบหนึ่ง
       else if(tab==='report'){ showReportCenter(); }    // Rich Menu ปุ่ม "รายงานผลงาน"
