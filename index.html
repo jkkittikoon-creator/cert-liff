@@ -3109,6 +3109,7 @@
       var root = document.getElementById('confirmRoot');
       if(root) root.innerHTML = '';
       document.body.classList.remove('modal-open');
+      liffExitAsking_ = false;   // กล่อง "ปิดหน้านี้?" ถูกปิดแล้ว — ปัดกลับรอบหน้าถามใหม่ได้
     }
 
     /* ---------- กล่องบอกอย่างเดียว (ปุ่มเดียว) แทน window.alert ----------
@@ -3255,7 +3256,7 @@
        ถ้าไม่มีที่ให้ย้อนแล้วค่อยยอมให้ปิด และต้องกดสองครั้ง */
     var liffBackFn_ = '';          // ทางย้อนกลับของหน้าที่กำลังเปิดอยู่ (pageHead เป็นคนตั้ง)
     var liffSaving_ = 0;           // จำนวนงานบันทึกที่ยังส่งไม่เสร็จ
-    var liffExitArmedUntil_ = 0;   // ช่วงเวลาที่ "กดซ้ำเพื่อออก" ยังนับเป็นครั้งที่สอง
+    var liffExitAsking_ = false;   // กล่องยืนยัน "ปิดหน้านี้?" เปิดค้างอยู่ (กันเปิดซ้อนตอนปัดรัว)
 
     /** ช่องกรอกที่ถูกแตะจะติดป้ายไว้ที่ตัวมันเอง — พอเปลี่ยนหน้า (app.innerHTML ใหม่) ป้ายหายเอง */
     document.addEventListener('input', function(e){
@@ -3305,16 +3306,19 @@
       if (confirmOpen_()) { liffPushGuard_(); liffConfirmClose(); return; }   // ปิดกล่องยืนยันก่อน
       if (liffSaving_ > 0) { liffPushGuard_(); liffToast('กำลังบันทึกอยู่ครับ รอสักครู่นะ'); return; }
       if (liffBackFn_) { liffPushGuard_(); liffRunBack_(); return; }          // ยังมีที่ให้ย้อนในแอป
-      if (Date.now() > liffExitArmedUntil_) {
-        liffPushGuard_();
-        liffExitArmedUntil_ = Date.now() + 3000;
-        liffToast(liffHasUnsaved_()
-          ? 'ยังมีข้อมูลที่ยังไม่ได้บันทึก — ปัดกลับอีกครั้งถ้าต้องการปิด'
-          : 'ปัดกลับอีกครั้งเพื่อปิดหน้านี้');
-        return;
-      }
-      // ปัดซ้ำภายใน 3 วินาที = ตั้งใจปิดจริง — ไม่ดันยามกลับ
-      if (liff.isInClient()) { try { liff.closeWindow(); } catch (e) {} }
+      // อยู่หน้าแรกแล้ว = ปัดครั้งนี้จะปิดแอป → ถามด้วยกล่องยืนยันของแอป (ชุดเดียวกับหน้าเว็บ)
+      liffPushGuard_();
+      if (liffExitAsking_) return;              // กล่องเปิดค้างอยู่แล้ว ไม่ต้องซ้อนอีกใบ
+      liffExitAsking_ = true;
+      liffConfirm({
+        title: 'ปิดหน้านี้?',
+        message: 'ต้องการปิดระบบเกียรติบัตรใช่ไหมครับ' +
+          (liffHasUnsaved_() ? '\n\n⚠️ มีข้อมูลที่ยังไม่ได้บันทึกอยู่ ถ้าปิดตอนนี้ข้อมูลนั้นจะหาย' : ''),
+        okLabel: 'ปิดหน้านี้', cancelLabel: 'ใช้งานต่อ'
+      }, function(){
+        liffExitAsking_ = false;
+        if (liff.isInClient()) { try { liff.closeWindow(); } catch (e) {} }
+      });
     });
     liffPushGuard_();
 
