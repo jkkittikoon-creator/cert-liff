@@ -162,6 +162,9 @@
     .note { font-size: 12px; font-weight: 400; color: var(--text-3); margin-top: 3px; }
     .t-ok { color: var(--ok-text); }
     .t-warn { color: var(--warn-text); }
+    /* ป้ายวันหมดอายุ — สีมาจาก .t-ok/.t-warn/.t-err ที่ครอบอีกชั้น จึงตามธีมสว่าง/มืดเองอยู่แล้ว */
+    .expiry-badge { display: inline-block; font-size: 11px; font-weight: 600; white-space: nowrap;
+      padding: 1px 8px; border-radius: 999px; background: var(--bg-inset); border: 1px solid var(--border); }
     .t-err { color: var(--err-text); }
     .t-info { color: var(--info-text); }
     .summary { padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); color: var(--warn-text); font-size: 13px; margin-bottom: 12px; }
@@ -571,14 +574,16 @@
 
     var app = document.getElementById('app');
     var FIELDS = ['documentType','academicYear','recipientName','position','activityName',
-      'hours','awardResult','competitionLevel','participationRole','issuer','receivedDate','certificateNumber'];
+      'hours','awardResult','competitionLevel','participationRole','issuer','receivedDate','certificateNumber',
+      'expiryDate'];   // ไม่บังคับ (ไม่อยู่ใน REQUIRED) — เอกสารส่วนใหญ่ไม่มีวันหมดอายุ
     // verify-form F2: ปีการศึกษาไม่บังคับแล้ว
     var REQUIRED = ['documentType','recipientName','position','activityName','issuer','receivedDate'];
     var LABELS = {
       documentType:'ประเภทเอกสาร', academicYear:'ปีการศึกษา', recipientName:'ชื่อผู้ได้รับ',
       position:'ตำแหน่ง', activityName:'ชื่อกิจกรรม/หลักสูตร', hours:'จำนวนชั่วโมง',
       awardResult:'ผลรางวัล', competitionLevel:'ระดับการแข่งขัน', participationRole:'บทบาท',
-      issuer:'หน่วยงานที่ออก', receivedDate:'วันที่ได้รับ', certificateNumber:'เลขที่เอกสาร'
+      issuer:'หน่วยงานที่ออก', receivedDate:'วันที่ได้รับ', certificateNumber:'เลขที่เอกสาร',
+      expiryDate:'วันหมดอายุ'
     };
     // verify-form F1: ฟิลด์ dropdown + "อื่นๆ"  (documentType/competitionLevel ดึงตัวเลือกจากเซิร์ฟเวอร์)
     var SELECT_FIELDS = ['documentType','academicYear','awardResult','competitionLevel','participationRole'];
@@ -857,7 +862,7 @@
         var note = busy ? 'น้องชาโปรกำลังอ่านให้อยู่ รอสักครู่นะครับ' : esc(meta.join(' • '));
         html += '<div class="doc-item' + (busy ? ' is-busy' : '') + '"' +
           (busy ? '' : ' onclick="openDoc(\''+d.certificateId+'\')"') + '>'+
-          '<div class="doc-main"><div class="doc-title">'+esc(title)+'</div>'+
+          '<div class="doc-main"><div class="doc-title">'+esc(title)+expiryBadgeHtml(d.expiryDate)+'</div>'+
           '<div class="note">'+note+'</div></div>'+
           (badge[d.status]||'')+'</div>';
       });
@@ -2868,6 +2873,12 @@
         // F5: วันที่ (เก็บ ค.ศ.) + หมายเหตุแสดง พ.ศ.
         input = '<input type="date" id="f_'+name+'" value="'+esc(val)+'" oninput="onDate()">'+
           '<div class="note t-ok" id="beNote">'+(val?'📅 '+toBE(val)+' (พ.ศ.)':'')+'</div>';
+      } else if(name==='expiryDate'){
+        // วันหมดอายุ — ไม่บังคับ และ AI ยังไม่อ่านให้ จึงไม่มีแถบสีความมั่นใจ
+        cls = '';
+        note = '';
+        input = '<input type="date" id="f_'+name+'" value="'+esc(val)+'" oninput="onExpiry()">'+
+          '<div class="note t-info" id="exNote">'+expiryHint(val)+'</div>';
       } else if(name==='hours'){
         // F11: จำนวนชั่วโมงเป็นตัวเลข (ขึ้นแป้นตัวเลขบนมือถือ)
         input = '<input type="number" inputmode="decimal" min="0" step="0.5" id="f_'+name+'" value="'+esc(val)+'" oninput="edited(\''+name+'\')">';
@@ -2974,6 +2985,39 @@
       var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||'')); if(!m) return '';
       return Number(m[3])+' '+THMONTHS[Number(m[2])-1]+' '+(Number(m[1])+543);
     }
+    /* ---------- วันหมดอายุ: แสดงผลทันทีระหว่างกรอก ----------
+       แหล่งความจริงของการ "แจ้งเตือน" อยู่ที่ ExpiryService.gs ฝั่งเซิร์ฟเวอร์เสมอ
+       ตรงนี้แค่ให้ผู้ใช้เห็นว่าค่าที่เพิ่งกรอกแปลว่าอะไร · เกณฑ์ 30 วันตรงกับ EXPIRY_SOON_DEFAULT_DAYS */
+    var EXPIRY_SOON_DAYS = 30;
+    function expiryDaysLeft(iso){
+      var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||'')); if(!m) return null;
+      var now=new Date();
+      var today=Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+      return Math.round((Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])) - today)/86400000);
+    }
+    function expiryBadge(iso){
+      var left=expiryDaysLeft(iso); if(left===null) return null;
+      if(left<0) return { tone:'t-err', icon:'🔴', text:'หมดอายุแล้ว '+Math.abs(left)+' วัน' };
+      if(left===0) return { tone:'t-err', icon:'🔴', text:'หมดอายุวันนี้' };
+      if(left<=EXPIRY_SOON_DAYS) return { tone:'t-warn', icon:'🟡', text:'เหลืออีก '+left+' วัน' };
+      return { tone:'t-ok', icon:'🟢', text:'เหลืออีก '+left+' วัน' };
+    }
+    function expiryBadgeHtml(iso){
+      var b=expiryBadge(iso); if(!b) return '';
+      // ไอคอน + ข้อความเสมอ ไม่ใช้สีเป็นสัญญาณเดียว
+      return ' <span class="expiry-badge '+b.tone+'">'+b.icon+' '+esc(b.text)+'</span>';
+    }
+    function expiryHint(iso){
+      var b=expiryBadge(iso);
+      if(!b) return 'เอกสารส่วนใหญ่ไม่มีวันหมดอายุ — เว้นว่างไว้ได้ครับ';
+      return b.icon+' '+b.text+' (หมดอายุ '+esc(toBE(iso))+')';
+    }
+    function onExpiry(){
+      var el=document.getElementById('f_expiryDate'), n=document.getElementById('exNote');
+      if(n) n.innerHTML = expiryHint(el?el.value:'');
+      edited('expiryDate');
+    }
+
     function onDate(){
       var el=document.getElementById('f_receivedDate'), n=document.getElementById('beNote');
       if(n) n.innerHTML=(el&&el.value)?'📅 '+toBE(el.value)+' (พ.ศ.)':'';
