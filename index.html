@@ -704,6 +704,7 @@
 
     // หัวหน้าจอ: ชื่อหน้า + ปุ่มสลับธีม (ปุ่มเดียวกันทุกหน้า ตำแหน่งเดิมเสมอ)
     function pageHead(title, backFn){
+      liffBackFn_ = backFn || '';   // จำไว้ให้ปุ่ม Back ของเครื่องใช้ทางเดียวกับปุ่ม ← ในหน้า
       return '<div class="pg-head">' +
         (backFn ? '<button type="button" class="icon-btn" onclick="'+backFn+'" aria-label="ย้อนกลับ">←</button>' : '') +
         '<h2>' + esc(title) + '</h2>' +
@@ -2908,6 +2909,7 @@
           '<button class="b-primary" onclick="confirmSave()">ยืนยันบันทึก</button>';
 
       var backBtn = '<button class="b-second" style="width:100%;margin-bottom:10px;" onclick="showList(lastList)">← กลับไปหน้ารายการ</button>';
+      liffBackFn_ = 'showList(lastList)';   // หน้านี้ไม่ได้ใช้ pageHead — บอกทางย้อนกลับให้ปุ่ม Back ของเครื่องเอง
       var qrBtn = isSaved ? '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showQr()">🔳 ดู QR ตรวจสอบเอกสาร</button>' : '';
 
       app.innerHTML =
@@ -3030,6 +3032,7 @@
     function showSaveOverlay(text, sub){
       var el = document.getElementById('saveOverlay');
       if(!el){ el = document.createElement('div'); el.id = 'saveOverlay'; document.body.appendChild(el); }
+      if (el.className.indexOf('show') === -1) liffSaving_++;   // กำลังส่ง = ห้ามให้หน้าปิดไปเงียบ ๆ
       el.className = 'save-overlay show';
       el.innerHTML = '<div class="save-card"><div class="save-spinner"></div>' +
         '<div class="save-text">'+esc(text)+'</div>' +
@@ -3070,6 +3073,7 @@
     function hideSaveOverlay(){
       var el = document.getElementById('saveOverlay');
       saveRetryFn_ = null;
+      if (el && el.className.indexOf('show') !== -1) liffSaving_ = Math.max(0, liffSaving_ - 1);
       if(el) el.className = 'save-overlay';
     }
 
@@ -3243,6 +3247,76 @@
       if (liff.isInClient()) liff.closeWindow();
       else start();
     }
+
+    /* ---------- กันปิดหน้าโดยไม่ตั้งใจ (ชุดเดียวกับหน้าเว็บ) ----------
+       บนมือถือ ปุ่ม Back ของเครื่อง/ปัดกลับ อยู่ติดนิ้วมาก เผลอโดนทีเดียว
+       หน้าต่าง LIFF ปิดทันที ข้อมูลที่กรอกค้างหายทั้งหมด และต้องเปิดจากแชตใหม่
+       แนวทาง: ให้ปุ่ม Back ของเครื่อง "ย้อนในแอป" เหมือนปุ่ม ← ในหน้าก่อน
+       ถ้าไม่มีที่ให้ย้อนแล้วค่อยยอมให้ปิด และต้องกดสองครั้ง */
+    var liffBackFn_ = '';          // ทางย้อนกลับของหน้าที่กำลังเปิดอยู่ (pageHead เป็นคนตั้ง)
+    var liffSaving_ = 0;           // จำนวนงานบันทึกที่ยังส่งไม่เสร็จ
+    var liffExitArmedUntil_ = 0;   // ช่วงเวลาที่ "กดซ้ำเพื่อออก" ยังนับเป็นครั้งที่สอง
+
+    /** ช่องกรอกที่ถูกแตะจะติดป้ายไว้ที่ตัวมันเอง — พอเปลี่ยนหน้า (app.innerHTML ใหม่) ป้ายหายเอง */
+    document.addEventListener('input', function(e){
+      var t = e.target;
+      if (!t || !t.tagName) return;
+      if (t.tagName !== 'INPUT' && t.tagName !== 'SELECT' && t.tagName !== 'TEXTAREA') return;
+      // ช่องค้นหา/ตัวกรอง และสวิตช์ตั้งค่าที่บันทึกให้ทันทีอยู่แล้ว ไม่นับว่าเป็น "ข้อมูลที่ยังไม่บันทึก"
+      if (t.type === 'search' || t.type === 'checkbox' || t.type === 'radio') return;
+      if (t.getAttribute('data-nodirty') === '1') return;
+      t.setAttribute('data-dirty', '1');
+    }, true);
+
+    function liffHasUnsaved_(){
+      return liffSaving_ > 0 || !!document.querySelector('#app [data-dirty="1"]');
+    }
+
+    function liffPushGuard_(){
+      try { history.pushState({ liffGuard: 1 }, ''); } catch (e) { /* เบราว์เซอร์เก่า — ข้ามไป ปุ่มในหน้ายังใช้ได้ */ }
+    }
+
+    /** ไปตามทางย้อนกลับของหน้าปัจจุบัน — ถามก่อนถ้ายังมีข้อมูลกรอกค้าง */
+    function liffRunBack_(){
+      var fn = liffBackFn_;
+      var go = function(){ liffBackFn_ = ''; try { new Function(fn)(); } catch (e) { showHome(); } };
+      if (!liffHasUnsaved_()) { go(); return; }
+      liffConfirm({
+        title: 'ยังไม่ได้บันทึก',
+        message: 'ข้อมูลที่กรอกไว้จะหายไป ต้องการออกจากหน้านี้ไหมครับ',
+        okLabel: 'ออกโดยไม่บันทึก', cancelLabel: 'กรอกต่อ'
+      }, go);
+    }
+
+    window.addEventListener('beforeunload', function(e){
+      if (!liffHasUnsaved_()) return;      // ไม่มีอะไรค้าง = ปิด/รีเฟรชได้เลย ไม่กวน
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    });
+
+    /* หมายเหตุสำคัญ: ทุกทางที่ "ยังไม่ออก" ต้องดันยามกลับเข้าไปเอง
+       ส่วนทางที่ "ยอมให้ออก" ต้องไม่ดันกลับ ไม่งั้นจะวนดันยาม–ถอยยามไม่รู้จบ */
+    var confirmOpen_ = function(){
+      var r = document.getElementById('confirmRoot');
+      return !!(r && r.innerHTML);
+    };
+    window.addEventListener('popstate', function(){
+      if (confirmOpen_()) { liffPushGuard_(); liffConfirmClose(); return; }   // ปิดกล่องยืนยันก่อน
+      if (liffSaving_ > 0) { liffPushGuard_(); liffToast('กำลังบันทึกอยู่ครับ รอสักครู่นะ'); return; }
+      if (liffBackFn_) { liffPushGuard_(); liffRunBack_(); return; }          // ยังมีที่ให้ย้อนในแอป
+      if (Date.now() > liffExitArmedUntil_) {
+        liffPushGuard_();
+        liffExitArmedUntil_ = Date.now() + 3000;
+        liffToast(liffHasUnsaved_()
+          ? 'ยังมีข้อมูลที่ยังไม่ได้บันทึก — ปัดกลับอีกครั้งถ้าต้องการปิด'
+          : 'ปัดกลับอีกครั้งเพื่อปิดหน้านี้');
+        return;
+      }
+      // ปัดซ้ำภายใน 3 วินาที = ตั้งใจปิดจริง — ไม่ดันยามกลับ
+      if (liff.isInClient()) { try { liff.closeWindow(); } catch (e) {} }
+    });
+    liffPushGuard_();
 
     /* ---------- เปิดจาก Rich Menu ปุ่ม "รายงานผลงาน" (?tab=report): เข้าศูนย์รายงานผลงาน ---------- */
     function autoReport(){ showReportCenter(); }
