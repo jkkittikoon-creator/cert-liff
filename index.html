@@ -50,6 +50,18 @@
       --nx-pink: #d94a86; --nx-green: #12a06d; --nx-gold: #c98a06; --nx-danger: #d8455f;
       --nx-hero-a: rgba(42, 120, 214, 0.14); --nx-hero-b: rgba(124, 86, 232, 0.16);
       --nx-hero-text: var(--text-1);
+      /* ชั้น --lux-* : ชุดเดียวกับ src/Index.html เพื่อให้เว็บกับ LIFF เป็นภาษาออกแบบเดียวกัน
+         ⚠️ แก้ที่นี่แล้วต้องแก้ใน src/Index.html ด้วย (คนละไฟล์ แชร์ CSS กันไม่ได้)
+         สีนีออนสดใช้เป็นเส้น/glow เท่านั้น ห้ามเป็นสีตัวอักษร — คอนทราสต์ไม่ผ่านบนพื้นขาว */
+      --lux-accent: #7c56e8; --lux-accent-2: #d94a86;
+      --lux-gold: #b8860b; --lux-gold-soft: rgba(184, 134, 11, 0.14);
+      --lux-hairline: rgba(42, 120, 214, 0.14); --lux-hairline-hot: rgba(124, 86, 232, 0.4);
+      --lux-glow-soft: 0 6px 18px rgba(42, 120, 214, 0.09), 0 18px 44px rgba(124, 86, 232, 0.07);
+      --lux-glow-focus: 0 0 0 3px rgba(124, 86, 232, 0.22);
+      --lux-btn-a: #2a78d6; --lux-btn-b: #7c56e8;
+      --lux-btn-glow: 0 4px 14px rgba(42, 120, 214, 0.28);
+      --lux-ripple: rgba(255, 255, 255, 0.5);
+      --lux-grid: transparent;
       color-scheme: light;
     }
     /* ค่าโหมดมืดซ้ำ 2 ชุดโดยตั้งใจ: ชุดใน @media = ตามเครื่อง (เมื่อผู้ใช้ไม่ได้บังคับ light)
@@ -78,6 +90,15 @@
         --nx-pink: #ff74ba; --nx-green: #42e8ad; --nx-gold: #ffd65a; --nx-danger: #ff6b8a;
         --nx-hero-a: rgba(89, 133, 255, 0.22); --nx-hero-b: rgba(168, 117, 255, 0.2);
         --nx-hero-text: #f5f7ff;
+        --lux-accent: #a875ff; --lux-accent-2: #ff5fa8;
+        --lux-gold: #e8c66a; --lux-gold-soft: rgba(232, 198, 106, 0.12);
+        --lux-hairline: rgba(140, 170, 255, 0.16); --lux-hairline-hot: rgba(120, 220, 255, 0.55);
+        --lux-glow-soft: 0 8px 24px rgba(0, 0, 0, 0.42);
+        --lux-glow-focus: 0 0 0 3px rgba(168, 117, 255, 0.32);
+        --lux-btn-a: #7b2ff7; --lux-btn-b: #ff2e88;
+        --lux-btn-glow: 0 4px 16px rgba(123, 47, 247, 0.4);
+        --lux-ripple: rgba(255, 255, 255, 0.4);
+        --lux-grid: rgba(123, 47, 247, 0.055);
         color-scheme: dark;
       }
     }
@@ -103,11 +124,30 @@
       --nx-pink: #ff74ba; --nx-green: #42e8ad; --nx-gold: #ffd65a; --nx-danger: #ff6b8a;
       --nx-hero-a: rgba(89, 133, 255, 0.22); --nx-hero-b: rgba(168, 117, 255, 0.2);
       --nx-hero-text: #f5f7ff;
+      --lux-accent: #a875ff; --lux-accent-2: #ff5fa8;
+      --lux-gold: #e8c66a; --lux-gold-soft: rgba(232, 198, 106, 0.12);
+      --lux-hairline: rgba(140, 170, 255, 0.16); --lux-hairline-hot: rgba(120, 220, 255, 0.55);
+      --lux-glow-soft: 0 8px 24px rgba(0, 0, 0, 0.42);
+      --lux-glow-focus: 0 0 0 3px rgba(168, 117, 255, 0.32);
+      --lux-btn-a: #7b2ff7; --lux-btn-b: #ff2e88;
+      --lux-btn-glow: 0 4px 16px rgba(123, 47, 247, 0.4);
+      --lux-ripple: rgba(255, 255, 255, 0.4);
+      --lux-grid: rgba(123, 47, 247, 0.055);
       color-scheme: dark;
     }
 
     * { box-sizing: border-box; }
-    body { font-family: var(--font-body); margin: 0; color: var(--text-1); background: var(--bg-page); }
+    body {
+      font-family: var(--font-body); margin: 0; color: var(--text-1); background: var(--bg-page);
+      /* ตาราง retro แบบเดียวกับฝั่งเว็บ — โหมดสว่าง --lux-grid เป็น transparent จึงหายไปเอง
+         ไม่ใช้ background-attachment: fixed เพราะ LIFF รันใน WebView ของ LINE บน iOS
+         ซึ่งเรนเดอร์ fixed ผิดตำแหน่งเวลาแป้นพิมพ์เด้งขึ้น */
+      background-image:
+        linear-gradient(var(--lux-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--lux-grid) 1px, transparent 1px);
+      background-size: 42px 42px;
+      transition: background-color 220ms cubic-bezier(.4, 0, .2, 1), color 220ms cubic-bezier(.4, 0, .2, 1);
+    }
     /* เว้นล่างให้พ้นแถบเมนู + Safe Area ของ iPhone — ปุ่มท้ายหน้าจึงไม่ถูกแถบ LINE บัง */
     .wrap { max-width: 640px; margin: 0 auto; padding: 16px; padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
     h2 { font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 8px 0 12px; }
@@ -117,8 +157,15 @@
     /* การ์ดกลาง: มุมโค้ง 18px + เส้นขอบ neon + เงานุ่ม — ชุดเดียวกับ .nx-card ของเว็บหลัก
        เขียน border-color แยกจาก shorthand เพราะ Chrome ไม่ recompute ค่าจาก custom property
        ที่อยู่ใน shorthand เมื่อ data-theme เปลี่ยน (บั๊กเดียวกับที่เจอในแดชบอร์ดเว็บ) */
-    .card { background: var(--nx-surface); border: 1px solid; border-color: var(--nx-line);
-      border-radius: 18px; padding: 14px; box-shadow: var(--nx-glow); margin-bottom: 12px; }
+    .card { position: relative; background: var(--nx-surface); border: 1px solid; border-color: var(--lux-hairline);
+      border-radius: 18px; padding: 14px; box-shadow: var(--nx-glow), var(--lux-glow-soft); margin-bottom: 12px; }
+    /* เส้นไล่เฉดบางที่ขอบบน — รายละเอียดเดียวกับการ์ดฝั่งเว็บ ให้สองฝั่งรู้สึกเป็นระบบเดียวกัน
+       overflow ของการ์ดไม่ถูกตัด จึงต้องกำหนด border-radius ให้เส้นโค้งตามมุมการ์ดเอง */
+    .card::before {
+      content: ''; position: absolute; inset: 0 0 auto 0; height: 1px; border-radius: 18px 18px 0 0;
+      background: linear-gradient(90deg, transparent, var(--lux-hairline-hot) 25%, var(--lux-gold) 50%, var(--lux-hairline-hot) 75%, transparent);
+      opacity: .5; pointer-events: none;
+    }
     .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
     .doc-item:last-child { border-bottom: none; }
     .doc-item:active { background: var(--bg-hover); }
@@ -218,12 +265,29 @@
       button:active { transform: none; }
     }
     .btns { display: flex; gap: 10px; margin-top: 8px; }
-    button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; font-family: var(--font-body); }
+    button {
+      position: relative; overflow: hidden;   /* ตัดวง ripple ให้อยู่ในทรงปุ่ม */
+      flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 10px;
+      cursor: pointer; font-family: var(--font-body);
+      transition: box-shadow 220ms cubic-bezier(.4, 0, .2, 1), background 150ms cubic-bezier(.4, 0, .2, 1);
+    }
     button:active { transform: scale(0.98); }
-    .b-primary { background: var(--line); color: #fff; box-shadow: 0 2px 8px rgba(6, 199, 85, 0.3); }
-    .b-primary:active { background: var(--line-strong); }
-    .b-second { background: var(--bg-hover); color: var(--text-1); }
+    /* ปุ่มหลักคงสีเขียว LINE ไว้ตามเดิม — เป็นสีแบรนด์ของหน้านี้ ไม่ใช่แค่การตกแต่ง
+       ครูคุ้นว่า "ปุ่มเขียว = ปุ่มยืนยัน" อยู่แล้ว เปลี่ยนเป็นม่วง-ชมพูจะทำให้ต้องเรียนรู้ใหม่โดยไม่ได้อะไรกลับมา
+       เพิ่มเฉพาะ glow ให้เข้าชุดกับชั้น --lux-* */
+    .b-primary { background: var(--line); color: #fff; box-shadow: 0 2px 10px rgba(6, 199, 85, 0.34), 0 0 20px rgba(6, 199, 85, 0.14); }
+    .b-primary:active { background: var(--line-strong); box-shadow: 0 1px 6px rgba(6, 199, 85, 0.4); }
+    .b-second { background: var(--bg-hover); color: var(--text-1); border: 1px solid var(--lux-hairline); }
     button:disabled { opacity: 0.5; }
+
+    /* ---- Ripple ตอนแตะ (ชุดเดียวกับฝั่งเว็บ) ---- */
+    .lux-ripple {
+      position: absolute; border-radius: 50%; pointer-events: none;
+      background: var(--lux-ripple); transform: scale(0); opacity: .55;
+      animation: lux-ripple 520ms cubic-bezier(.4, 0, .2, 1) forwards;
+    }
+    @keyframes lux-ripple { to { transform: scale(2.4); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .lux-ripple { display: none; } }
     .center { text-align: center; padding: 40px 0; color: var(--text-2); }
     /* ขั้นตอน progress ตอนสร้างรายงาน (แทน inline style เดิม) */
     .rc-step { color: var(--text-3); }
@@ -1641,6 +1705,30 @@
      *   liffToast('ข้อความ', 2800)          → ตัวเลข = ระยะเวลาเป็น ms
      *   liffToast('ข้อความ', 'ok'|'err'|'warn') → ข้อความ = ชนิด (err ค้างนานกว่าเพราะต้องอ่านให้ทัน)
      */
+
+    /**
+     * Ripple ตอนแตะปุ่ม — listener ตัวเดียวที่ document (ชุดเดียวกับ src/Index.html)
+     * ใช้ delegation เพราะปุ่มเกือบทั้งหมดในหน้านี้ถูกสร้างด้วย innerHTML หลังโหลดข้อมูลเสร็จ
+     * ไม่แตะ onclick เดิมของปุ่มใด ๆ — ฟังก์ชันเดิมทำงานปกติทุกตัว
+     */
+    (function () {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      document.addEventListener('pointerdown', function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest('button') : null;
+        if (!btn || btn.disabled) return;
+        var r = btn.getBoundingClientRect();
+        if (!r.width) return;
+        var size = Math.max(r.width, r.height);
+        var s = document.createElement('span');
+        s.className = 'lux-ripple';
+        s.style.width = s.style.height = size + 'px';
+        s.style.left = (ev.clientX - r.left - size / 2) + 'px';
+        s.style.top = (ev.clientY - r.top - size / 2) + 'px';
+        s.addEventListener('animationend', function () { if (s.parentNode) s.parentNode.removeChild(s); });
+        btn.appendChild(s);
+      }, { passive: true });
+    })();
+
     function liffToast(msg, kindOrMs, ms){
       var kind = typeof kindOrMs === 'string' ? kindOrMs : '';
       if (typeof kindOrMs === 'number') ms = kindOrMs;
@@ -1921,6 +2009,115 @@
       api('dashboard').then(renderDash).catch(function(e){ showErr(e, showDash); });
     }
 
+    /* ---------- พิมพ์เขียว 2.3: เป้าหมายชั่วโมงต่อปีการศึกษา (บน LIFF) ----------
+       ข้อมูลมาจากแกนกลางตัวเดียวกับหน้าเว็บ (action 'yeargoal' → getYearGoalStatsForUser_)
+       ตัวเลขสองหน้าจึงตรงกันเสมอ ไม่ได้คำนวณซ้ำคนละที่
+       ถ้าเซิร์ฟเวอร์ยังเป็นเวอร์ชันเก่า (ไม่รู้จัก action นี้) การ์ดจะหายเงียบ ๆ ไม่ทำแดชบอร์ดพัง */
+
+    function loadLiffGoal(){
+      var box = document.getElementById('lgGoalBox');
+      if(!box) return;
+      api('yeargoal').then(function(d){ renderLiffGoal(d); }).catch(function(){ box.innerHTML = ''; });
+    }
+
+    function renderLiffGoal(d){
+      var box = document.getElementById('lgGoalBox');
+      if(!box || !d) return;
+
+      var goalRow = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">'+
+        '<span class="note" style="flex:none;">เป้าหมาย</span>'+
+        '<input type="number" id="lgGoalInput" class="in-txt" inputmode="decimal" min="1" max="2000" '+
+        'value="'+Number(d.goalHours)+'" style="flex:1;min-width:0;">'+
+        '<span class="note" style="flex:none;">ชม./ปี</span>'+
+        '<button class="b-primary" id="lgGoalBtn" style="flex:none;width:auto;padding:9px 14px;font-size:13px;" '+
+        'onclick="saveLiffGoal()">บันทึก</button></div>';
+
+      if(!d.hasData){
+        box.innerHTML = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:6px;">🎯 เป้าหมายพัฒนาตนเอง</div>'+
+          goalRow+'<div class="note">ยังไม่มีเอกสารที่ระบุปีการศึกษา — กราฟจะขึ้นเองเมื่อมีข้อมูล</div></div>';
+        return;
+      }
+
+      // สเกลกราฟอิงค่ามากสุดระหว่างชั่วโมงสูงสุดกับเป้าหมาย เพื่อให้เส้นเป้าอยู่ในกรอบเสมอ (เหมือนหน้าเว็บ)
+      var maxVal = Number(d.goalHours);
+      d.years.forEach(function(y){ if(y.hours > maxVal) maxVal = y.hours; });
+      if(maxVal <= 0) maxVal = 1;
+      var goalPct = (Number(d.goalHours)/maxVal)*100;
+
+      var rows = d.years.map(function(y){
+        var w = Math.max((y.hours/maxVal)*100, y.hours > 0 ? 2 : 0);
+        var delta = '';
+        if(y.diffFromPrev !== null && y.diffFromPrev !== undefined){
+          if(y.diffFromPrev > 0) delta = ' <span style="color:#06c755;">▲ +'+y.diffFromPrev+'</span>';
+          else if(y.diffFromPrev < 0) delta = ' <span style="color:#e53935;">▼ '+y.diffFromPrev+'</span>';
+          else delta = ' <span class="note">เท่าปีก่อน</span>';
+        }
+        return '<div style="margin-bottom:10px;">'+
+          '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px;">'+
+            '<b>'+esc(y.year)+(y.year === d.currentYear ? ' <span class="note">(ปีปัจจุบัน)</span>' : '')+'</b>'+
+            '<span>'+y.hours+' ชม. · '+y.count+' ใบ'+delta+'</span></div>'+
+          '<div style="position:relative;height:16px;border-radius:8px;background:rgba(128,128,128,.2);overflow:hidden;">'+
+            '<div style="height:100%;border-radius:8px;width:'+w+'%;background:'+(y.metGoal ? '#06c755' : '#f9a825')+';"></div>'+
+            '<div style="position:absolute;top:0;bottom:0;left:'+goalPct+'%;width:2px;background:#e53935;"></div>'+
+          '</div></div>';
+      }).join('');
+
+      box.innerHTML = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:6px;">'+
+        '🎯 เป้าหมายพัฒนาตนเอง <span class="note">ย้อนหลัง '+d.years.length+' ปีการศึกษา</span></div>'+
+        goalRow + rows +
+        '<div class="note">🟩 ถึงเป้าแล้ว · 🟨 ยังไม่ถึงเป้า · เส้นแดง = เป้าหมาย '+Number(d.goalHours)+' ชม.</div></div>';
+    }
+
+    function saveLiffGoal(){
+      var input = document.getElementById('lgGoalInput');
+      var btn = document.getElementById('lgGoalBtn');
+      var v = Number(input.value);
+      if(!(v >= 1 && v <= 2000)){ liffToast('กรุณาใส่จำนวนชั่วโมงระหว่าง 1–2000', 'warn'); return; }
+      btn.disabled = true;
+      api('setgoal', { hours: v }).then(function(){
+        btn.disabled = false;
+        liffToast('บันทึกเป้าหมาย '+v+' ชั่วโมงต่อปีแล้ว', 'ok');
+        loadLiffGoal();      // วาดกราฟใหม่ให้เส้นเป้าขยับ
+        loadLiffBadges();    // เหรียญ "ถึงเป้าปีนี้" ใช้เป้าหมายนี้เป็นเกณฑ์
+      }).catch(function(e){ btn.disabled = false; liffErr_(e); });
+    }
+
+    /* ---------- พิมพ์เขียว 2.9: เหรียญความสำเร็จ (บน LIFF) ----------
+       คำนวณสดจากเอกสารจริงทุกครั้ง ไม่เก็บสถานะเหรียญไว้ที่ใด (เหมือนหน้าเว็บทุกประการ) */
+
+    function loadLiffBadges(){
+      var box = document.getElementById('lgBadgeBox');
+      if(!box) return;
+      api('badges').then(function(d){ renderLiffBadges(d); }).catch(function(){ box.innerHTML = ''; });
+    }
+
+    function renderLiffBadges(d){
+      var box = document.getElementById('lgBadgeBox');
+      if(!box || !d) return;
+
+      var items = (d.badges||[]).map(function(b){
+        var lv = (b.earned && b.levelName && b.levelName !== b.name)
+          ? ' <span style="color:#f9a825;font-size:11.5px;font-weight:700;">'+esc(b.levelName)+
+            (b.maxLevel > 1 ? ' ('+b.level+'/'+b.maxLevel+')' : '')+'</span>' : '';
+        var next = (b.nextTarget === null || b.nextTarget === undefined)
+          ? 'เก็บครบทุกระดับแล้ว 🎉'
+          : 'อีก '+b.remaining+' '+esc(b.unit)+' จะได้ระดับถัดไป';
+        return '<div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid rgba(128,128,128,.18);">'+
+          '<div style="font-size:22px;flex:none;'+(b.earned ? '' : 'filter:grayscale(1);opacity:.45;')+'">'+b.icon+'</div>'+
+          '<div style="flex:1;min-width:0;">'+
+            '<div style="font-size:13.5px;font-weight:600;">'+esc(b.name)+lv+'</div>'+
+            '<div style="height:5px;border-radius:5px;background:rgba(128,128,128,.2);overflow:hidden;margin:5px 0 3px;">'+
+              '<div style="height:100%;border-radius:5px;width:'+b.pctToNext+'%;background:'+(b.earned ? '#06c755' : '#f9a825')+';"></div></div>'+
+            '<div class="note" style="font-size:11.5px;">ตอนนี้ '+b.value+' '+esc(b.unit)+' · '+next+'</div>'+
+          '</div></div>';
+      }).join('');
+
+      box.innerHTML = '<div class="card"><div style="font-weight:bold;font-size:14px;margin-bottom:4px;">'+
+        '🎖️ เหรียญความสำเร็จ <span class="note">ได้แล้ว '+d.earnedCount+' จาก '+d.totalCount+' ใบ</span></div>'+
+        '<div class="note" style="margin-bottom:6px;">รวม '+d.totalDocs+' ใบ · '+d.totalHours+' ชั่วโมงสะสม</div>'+
+        items+'</div>';
+    }
+
     function statTile(n, label, color){
       return '<div class="stat" style="border-top-color:'+color+';"><div class="n" style="color:'+color+';">'+esc(n)+'</div><div class="l">'+esc(label)+'</div></div>';
     }
@@ -1976,7 +2173,11 @@
         return;
       }
 
-      app.innerHTML = tabsBar('dash') + tiles + typeCard + yearCard + hoursCard + reportCard + recent + closeBtn;
+      // พิมพ์เขียว 2.3 + 2.9 — โหลดแยกหลังวาดแดชบอร์ดเสร็จ ถ้าสองก้อนนี้ล้มแดชบอร์ดเดิมยังอยู่ครบ
+      app.innerHTML = tabsBar('dash') + tiles + typeCard + yearCard + hoursCard +
+        '<div id="lgGoalBox"></div><div id="lgBadgeBox"></div>' + reportCard + recent + closeBtn;
+      loadLiffGoal();
+      loadLiffBadges();
 
       if(typeof Chart === 'undefined') return; // เผื่อโหลด Chart.js ไม่สำเร็จ (ยังเห็นตัวเลขได้)
       Chart.defaults.font.family = "'Sarabun', sans-serif";

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ตรวจว่าไมโครโฟนใช้ได้ไหม</title>
+  <!--
+    หน้าตรวจอย่างเดียว — ไม่ใช่ฟีเจอร์ ไม่เชื่อมกับระบบจริง ไม่บันทึกอะไรทั้งสิ้น
+
+    ทำไมต้องมีหน้านี้: หน้าเว็บ Apps Script ใช้ไมโครโฟนไม่ได้ (อยู่ใน iframe ที่ Google
+    ไม่ได้ประกาศสิทธิ์ไมค์) จึงจะย้ายไปทำที่ LIFF ซึ่งอยู่บน GitHub Pages ไม่ได้อยู่ใน iframe
+    แต่ WebView ในแอป LINE อาจไม่รองรับ Web Speech API เหมือนกัน — ยังไม่รู้จนกว่าจะลอง
+
+    บทเรียนจากรอบที่แล้ว: สร้างของทั้งชุดก่อนแล้วค่อยรู้ว่าใช้ไม่ได้ = เสียเวลาเปล่า
+    รอบนี้จึงตรวจด้วยหน้าเปล่าหน้าเดียวก่อน แล้วค่อยตัดสินใจว่าจะทำต่อไหม
+  -->
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 20px;
+           line-height: 1.7; background: #12141a; color: #e8e9ee; }
+    h1 { font-size: 19px; margin: 0 0 4px; }
+    .sub { font-size: 13px; opacity: .7; margin-bottom: 18px; }
+    .card { background: #1b1e26; border: 1px solid #2c313d; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 6px 0;
+           border-bottom: 1px solid #262a34; }
+    .row:last-child { border-bottom: 0; }
+    .row b { font-weight: 600; }
+    .yes { color: #4ade80; font-weight: 700; }
+    .no  { color: #f87171; font-weight: 700; }
+    button { width: 100%; padding: 16px; font-size: 17px; font-weight: 700; border: 0; border-radius: 12px;
+             background: #3b82f6; color: #fff; cursor: pointer; }
+    button:disabled { opacity: .5; }
+    button.listening { background: #ef4444; }
+    #result { margin-top: 14px; font-size: 15px; white-space: pre-wrap; }
+    #heard { margin-top: 10px; font-size: 17px; font-weight: 700; min-height: 26px; color: #fbbf24; }
+    .big { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+    code { background: #262a34; padding: 1px 5px; border-radius: 5px; font-size: 12.5px; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <h1>🎤 ตรวจว่าไมโครโฟนใช้ได้ไหม</h1>
+  <div class="sub">หน้าทดสอบชั่วคราว — ไม่บันทึกเสียง ไม่ส่งข้อมูลไปที่ใด</div>
+
+  <div class="card" id="envBox"></div>
+
+  <div class="card">
+    <button id="btn">กดแล้วพูด</button>
+    <div id="heard"></div>
+    <div id="result"></div>
+  </div>
+
+  <div class="card sub" style="font-size:12.5px;">
+    เปิดหน้านี้ <b>ในแอป LINE</b> (ไม่ใช่เบราว์เซอร์ปกติ) จึงจะตอบได้ว่า LIFF ใช้ไมค์ได้จริงไหม
+  </div>
+
+<script>
+(function () {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  var ua = navigator.userAgent;
+  var inLine = /Line\//i.test(ua);
+
+  function row(label, value, good) {
+    return '<div class="row"><b>' + label + '</b><span class="' +
+      (good === true ? 'yes' : good === false ? 'no' : '') + '">' + value + '</span></div>';
+  }
+
+  document.getElementById('envBox').innerHTML =
+    row('เปิดในแอป LINE', inLine ? 'ใช่' : 'ไม่ใช่ (เบราว์เซอร์ปกติ)', inLine) +
+    row('รองรับ SpeechRecognition', SR ? 'รองรับ' : 'ไม่รองรับ', !!SR) +
+    row('มี getUserMedia', (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? 'มี' : 'ไม่มี',
+        !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) +
+    row('การเชื่อมต่อปลอดภัย (https)', window.isSecureContext ? 'ใช่' : 'ไม่ใช่', !!window.isSecureContext) +
+    row('อยู่ใน iframe', (window.top !== window.self) ? 'ใช่ (เสี่ยงถูกบล็อก)' : 'ไม่ใช่',
+        !(window.top !== window.self)) +
+    '<div class="row" style="display:block;"><b>UserAgent</b><br><code>' + ua + '</code></div>';
+
+  var btn = document.getElementById('btn');
+  var res = document.getElementById('result');
+  var heard = document.getElementById('heard');
+  var rec = null;
+
+  if (!SR) {
+    btn.disabled = true;
+    btn.textContent = 'เบราว์เซอร์นี้ไม่รองรับ';
+    res.innerHTML = '<div class="big no">❌ ไม่รองรับ Web Speech API</div>' +
+      'สรุป: ทำ "พูดแทนพิมพ์" ที่นี่ไม่ได้';
+    return;
+  }
+
+  btn.onclick = function () {
+    if (rec) { rec.stop(); return; }
+
+    heard.textContent = '';
+    res.innerHTML = 'กำลังขอสิทธิ์ไมโครโฟน...';
+
+    rec = new SR();
+    rec.lang = 'th-TH';
+    rec.interimResults = true;
+    rec.continuous = false;
+
+    rec.onstart = function () {
+      btn.textContent = 'กำลังฟัง... (กดเพื่อหยุด)';
+      btn.classList.add('listening');
+      res.innerHTML = '<div class="big yes">✅ เริ่มฟังได้ — พูดอะไรก็ได้</div>';
+    };
+
+    rec.onresult = function (ev) {
+      var t = '';
+      for (var i = ev.resultIndex; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+      heard.textContent = '“' + t + '”';
+    };
+
+    rec.onerror = function (ev) {
+      res.innerHTML = '<div class="big no">❌ ใช้ไม่ได้</div>รหัสข้อผิดพลาด: <code>' + ev.error + '</code>' +
+        (ev.error === 'not-allowed' || ev.error === 'service-not-allowed'
+          ? '\n\nถ้าไม่มีป๊อปอัปขอสิทธิ์ขึ้นเลย = สภาพแวดล้อมนี้บล็อกไมโครโฟน แก้ที่โค้ดไม่ได้'
+          : '');
+    };
+
+    rec.onend = function () {
+      rec = null;
+      btn.textContent = 'กดแล้วพูด';
+      btn.classList.remove('listening');
+      if (heard.textContent) {
+        res.innerHTML = '<div class="big yes">✅ ใช้ได้จริง</div>ได้ยินข้อความข้างบนแล้ว — ทำ "พูดแทนพิมพ์" ที่นี่ได้';
+      }
+    };
+
+    try {
+      rec.start();
+    } catch (e) {
+      res.innerHTML = '<div class="big no">❌ เริ่มไม่ได้</div><code>' + e.message + '</code>';
+      rec = null;
+    }
+  };
+})();
+</script>
+</body>
+</html>
