@@ -3623,10 +3623,13 @@
       app.innerHTML = homeSkeleton();
       if(cert){ openDoc(cert); }                        // เปิดจากลิงก์เอกสารใบใดใบหนึ่ง
       else if(tab==='report'){ showReportCenter(); }    // Rich Menu ปุ่ม "รายงานผลงาน"
-      else if(tab==='dash'){ showDash(); }              // Rich Menu ปุ่ม "สรุป"
+      else if(tab==='dash'){ showDash(); }              // Rich Menu ปุ่ม "แดชบอร์ด"
+      else if(tab==='saved'){ showList('saved'); }      // Rich Menu ปุ่ม "เอกสารของฉัน"
+      else if(tab==='guide'){ showGuide(); }            // Rich Menu ปุ่ม "คู่มือ"
+      else if(tab==='sendhelp'){ showHome(); showSendHelp(); } // Rich Menu ปุ่ม "ส่งเอกสาร" — เปิดหน้าหลักไว้ข้างหลัง + การ์ดวิธีส่งลอยด้านบน
       else if(tab==='pending'){ showList('pending'); }
       else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
-      else { showHome(); }
+      else { showHome(); }                              // Rich Menu ปุ่ม "เอกสารล่าสุด" (ไม่มี tab) — หน้าหลักมีการ์ดเอกสารล่าสุดอยู่แล้ว
     }
 
     // ตั้งธีมก่อนวาดหน้าแรก จะได้ไม่เห็นจอกะพริบจากสว่างไปมืด
