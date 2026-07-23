@@ -1973,7 +1973,7 @@
       app.innerHTML = pageHead('บัญชีของฉัน') +
         '<div class="card"><div class="hero-top">' + av +
         '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:16px;">' + esc(name) + '</div>' +
-        '<div class="note">บัญชี LINE ที่เชื่อมกับระบบแล้ว</div></div></div>' +
+        '<div class="note">🐶 น้องชาโปรยินดีรับใช้ครับเจ้านาย!</div></div></div>' +
         '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">' +
         '<span class="chip"><span class="dot"></span>เชื่อมบัญชีแล้ว</span>' +
         '<span class="chip"><span class="dot' + (inClient ? '' : ' warn') + '"></span>' +
@@ -1985,14 +1985,14 @@
         '<button class="b-second" style="flex:none;width:auto;padding:9px 16px;font-size:13px;" onclick="toggleTheme();showAccount();">สลับธีม</button>' +
         '</div></div>' +
 
-        '<div class="card"><div style="font-weight:600;margin-bottom:10px;">📂 จัดการเอกสาร</div>' +
-        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showTrash()">🗑️ ถังขยะ</button>' +
-        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showReportCenter()">📄 ศูนย์รายงานผลงาน</button>' +
-        '<button class="b-second" style="width:100%;" onclick="showDash()">📊 สรุปผลงาน</button></div>' +
-
-        '<div class="card"><div style="font-weight:600;margin-bottom:10px;">📖 ช่วยเหลือ</div>' +
-        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showGuide()">📖 คู่มือใช้งาน</button>' +
-        '<button class="b-second" style="width:100%;" onclick="showSendHelp()">📤 วิธีส่งเกียรติบัตร</button></div>' +
+        '<div class="card"><div style="font-weight:600;margin-bottom:10px;">🐶 เมนูน้องชาโปร</div>' +
+        '<div class="act-grid">' +
+        '<button type="button" class="act" onclick="showDash()"><span class="ico">📊</span>สรุปผลงาน</button>' +
+        '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>ศูนย์รายงานผลงาน</button>' +
+        '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
+        '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
+        '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเกียรติบัตร</button>' +
+        '</div></div>' +
 
         quickMsgCardHtml() +
 
