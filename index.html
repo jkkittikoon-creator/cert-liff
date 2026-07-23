@@ -425,6 +425,15 @@
       border: 2px solid; border-color: var(--nx-line-hot); background: var(--nx-surface-2); }
     .hero-av-fb { display: flex; align-items: center; justify-content: center;
       font-family: var(--font-display); font-size: 20px; font-weight: 700; color: var(--nx-blue); }
+    /* มาสคอตน้องชาโปรโผล่มุมการ์ดโปรไฟล์ (หน้าบัญชีของฉัน) */
+    .mascot-corner { position: absolute; right: -8px; top: -10px; width: 86px; height: 86px;
+      object-fit: contain; opacity: .95; pointer-events: none; z-index: 0;
+      filter: drop-shadow(0 5px 12px rgba(0,0,0,.28)); }
+    .mini-stat { flex: 1; text-align: center; padding: 12px 6px; border-radius: 14px;
+      border: 1px solid var(--nx-line); background: var(--nx-surface-2); }
+    .mini-stat .ico { font-size: 20px; line-height: 1; }
+    .mini-stat .n { font-family: var(--font-display); font-size: 21px; font-weight: 800; margin-top: 4px; }
+    .mini-stat .l { font-size: 11.5px; color: var(--text-2); margin-top: 2px; }
     .hero-greet { font-family: var(--font-display); font-size: 19px; font-weight: 700; color: var(--nx-hero-text); line-height: 1.35; }
     .hero-sub { font-size: 12.5px; color: var(--text-2); margin-top: 2px; }
     .hero-clock { margin-top: 10px; font-size: 12.5px; color: var(--nx-hero-text); font-variant-numeric: tabular-nums; opacity: .9; }
@@ -633,6 +642,8 @@
   <script>
     /* ===== ตั้งค่า (แก้ที่นี่ถ้าเปลี่ยน) ===== */
     var LIFF_ID = '2010685002-tqhkzAHP';
+    // รูปมาสคอตน้องชาโปร (วางไฟล์ chapro.png ใน GitHub Pages cert-liff) — ถ้าไม่มีไฟล์ onerror จะซ่อนให้เอง
+    var MASCOT_URL = 'https://jkkittikoon-creator.github.io/cert-liff/chapro.png';
     var EXEC_URL = 'https://script.google.com/macros/s/AKfycbwsqvn_Trx3HLllAmNbWqaFiz0CQ73MNnqZQ51ohyQf1O5k7xzEYz2qvlSq1UZX5V3Mxg/exec';
     /* ======================================= */
 
@@ -1971,13 +1982,18 @@
       var themeLabel = currentTheme() ? (isDarkNow() ? 'มืด (เลือกเอง)' : 'สว่าง (เลือกเอง)') : 'ตามเครื่อง';
 
       app.innerHTML = pageHead('บัญชีของฉัน') +
-        '<div class="card"><div class="hero-top">' + av +
-        '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:16px;">' + esc(name) + '</div>' +
+        '<div class="card" style="position:relative;overflow:hidden;">' +
+        '<img class="mascot-corner" src="' + MASCOT_URL + '" alt="น้องชาโปร" ' +
+        'onerror="this.style.display=\'none\';">' +
+        '<div class="hero-top" style="position:relative;z-index:1;">' + av +
+        '<div style="flex:1;min-width:0;padding-right:64px;"><div style="font-weight:700;font-size:16px;">' + esc(name) + '</div>' +
         '<div class="note">🐶 น้องชาโปรยินดีรับใช้ครับเจ้านาย!</div></div></div>' +
-        '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;">' +
+        '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px;position:relative;z-index:1;">' +
         '<span class="chip"><span class="dot"></span>เชื่อมบัญชีแล้ว</span>' +
         '<span class="chip"><span class="dot' + (inClient ? '' : ' warn') + '"></span>' +
         (inClient ? 'เปิดใน LINE' : 'เปิดในเบราว์เซอร์') + '</span></div></div>' +
+
+        '<div class="card" id="acctSummary">' + acctSummaryHtml(_homeCache) + '</div>' +
 
         '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚙️ การแสดงผล</div>' +
         '<div style="display:flex;align-items:center;gap:10px;">' +
@@ -1997,6 +2013,32 @@
         quickMsgCardHtml() +
 
         '<button class="b-second" style="width:100%;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+
+      // การ์ดสรุปเร็ว: ถ้ายังไม่มี cache ให้โหลดเสริม แล้วเติมทีหลัง (ไม่บล็อกหน้า)
+      if (!_homeCache) {
+        api('dashboard').then(function(s){
+          _homeCache = s;
+          var el = document.getElementById('acctSummary');
+          if (el) el.innerHTML = acctSummaryHtml(s);
+        }).catch(function(){
+          var el = document.getElementById('acctSummary');
+          if (el) el.style.display = 'none';   // โหลดไม่ได้ก็ซ่อนการ์ดไป ไม่ค้างข้อความโหลด
+        });
+      }
+    }
+
+    /* การ์ดสรุปเร็วในหน้าบัญชี — โชว์จำนวนเอกสาร + ชั่วโมงอบรม (ดึงจาก cache หน้าหลัก) */
+    function acctSummaryHtml(s){
+      if (!s) return '<div class="note" style="text-align:center;padding:8px 0;">🐾 น้องชาโปรกำลังนับผลงานให้ครับ...</div>';
+      function stat(ico, n, l){
+        return '<div class="mini-stat"><div class="ico">' + ico + '</div>' +
+          '<div class="n">' + esc(n) + '</div><div class="l">' + esc(l) + '</div></div>';
+      }
+      return '<div style="font-weight:600;margin-bottom:10px;">📌 สรุปเร็วของเจ้านาย</div>' +
+        '<div style="display:flex;gap:10px;">' +
+        stat('📄', (s.total != null ? s.total : 0), 'เอกสารทั้งหมด') +
+        stat('⏱️', (s.hours != null ? s.hours : 0), 'ชั่วโมงอบรม') +
+        '</div>';
     }
 
     /* ---------- แดชบอร์ด (แบบ B): สถิติ + กราฟ Chart.js ---------- */
