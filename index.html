@@ -382,6 +382,48 @@
     .lcal-item .t { font-weight: 600; font-size: 14px; line-height: 1.35; }
     .lcal-item .m { font-size: 12px; color: var(--text-3); margin-top: 3px; }
 
+    /* ---- รายการกิจกรรมใต้ปฏิทิน + ปุ่มจัดการ (ยกมาให้เท่าหน้าเว็บ) ----
+       เดิม LIFF เห็นแค่จุดสีในตาราง แตะได้แต่ทำอะไรต่อไม่ได้ ต้องไปเปิดคอมเสมอ */
+    .lcal-nag { border: 1px solid; border-color: var(--nx-gold); background: var(--lux-gold-soft);
+      border-radius: 12px; padding: 11px 13px; margin-bottom: 10px; }
+    .lcal-nag .h { font-weight: 700; font-size: 14px; color: var(--nx-gold); }
+    .lcal-nag .s { font-size: 12px; color: var(--text-2); margin-top: 3px; line-height: 1.45; }
+    .lcal-sec { margin-top: 14px; }
+    .lcal-sec > h4 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+    .lcal-sec .cnt { font-size: 12px; font-weight: 400; color: var(--text-3); }
+    .lcal-cd { display: inline-block; margin-top: 5px; padding: 2px 9px; border-radius: 999px;
+      font-size: 11.5px; font-weight: 700; background: var(--nx-surface-2); color: var(--text-2); }
+    .lcal-cd.today { background: var(--nx-blue); color: #fff; }
+    .lcal-cd.soon { background: var(--lux-gold-soft); color: var(--nx-gold); }
+    .lcal-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    /* ปุ่มในรายการต้องแตะติดตั้งแต่ครั้งแรกบนมือถือ — 36px คือขั้นต่ำที่นิ้วโป้งไม่พลาด */
+    .lcal-acts button { min-height: 36px; padding: 0 12px; font-size: 12.5px; border-radius: 9px;
+      border: 1px solid; border-color: var(--nx-line); background: var(--nx-surface-2); color: var(--text-1); }
+    .lcal-acts button:active { background: var(--bg-hover); }
+    .lcal-acts button.pri { border-color: var(--nx-line-hot); color: var(--nx-blue); font-weight: 600; }
+    .lcal-acts button.dgr { border-color: var(--nx-danger); color: var(--nx-danger); }
+    .lcal-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px;
+      font-weight: 700; margin-left: 5px; white-space: nowrap; }
+    .lcal-chip.mok { background: var(--nx-surface-2); color: var(--nx-green); }
+    .lcal-chip.mlow { background: var(--lux-gold-soft); color: var(--nx-gold); }
+
+    /* ---- กล่องเลือกเอกสารมาผูก พร้อมคะแนนความตรง ---- */
+    .lmt-item { border: 1px solid; border-color: var(--nx-line); border-radius: 12px;
+      padding: 10px 12px; margin-bottom: 8px; background: var(--nx-surface-2); }
+    .lmt-item.pass { border-color: var(--nx-green); }
+    .lmt-head { display: flex; align-items: flex-start; gap: 9px; }
+    .lmt-name { flex: 1; min-width: 0; font-weight: 600; font-size: 13.5px; line-height: 1.35; }
+    .lmt-sub { font-size: 11.5px; color: var(--text-3); margin-top: 2px; font-weight: 400; }
+    .lmt-score { flex: none; font-weight: 800; font-size: 14px; padding: 2px 9px; border-radius: 999px;
+      background: var(--bg-hover); color: var(--text-2); white-space: nowrap; }
+    .lmt-score.pass { background: var(--nx-green); color: #fff; }
+    .lmt-score.low { background: var(--lux-gold-soft); color: var(--nx-gold); }
+    .lmt-bar { height: 4px; border-radius: 999px; background: var(--bg-hover); margin-top: 7px; overflow: hidden; }
+    .lmt-bar > i { display: block; height: 100%; background: var(--nx-green); }
+    .lmt-bar > i.low { background: var(--nx-gold); }
+    .lmt-why { list-style: none; padding: 0; margin: 6px 0 0; font-size: 11.5px; color: var(--text-2); line-height: 1.5; }
+    .lmt-taken { margin-top: 5px; font-size: 11.5px; color: var(--nx-gold); font-weight: 600; }
+
     /* ---- อัปภาพประชาสัมพันธ์ → ลงปฏิทิน (ชุดเดียวกับหน้าเว็บ) ----
        ทำเป็นพื้นที่แตะใหญ่ ๆ เพราะบนมือถือคนถ่ายรูปโปสเตอร์แล้วอยากส่งทันทีตรงนั้นเลย */
     .tr-drop { position: relative; display: block; width: 100%; border: 1.5px dashed; border-color: var(--nx-line-hot);
@@ -1071,23 +1113,243 @@
       return (b && b[1] !== a[1]) ? (a[1] + ' - ' + b[1] + ' น.') : (a[1] + ' น.');
     }
 
-    /** การ์ดกิจกรรมใต้ปฏิทิน — เพิ่มกิจกรรมทำที่นี่ได้แล้ว ส่วนแก้ไข/ลบยังทำในหน้าเว็บ */
-    function calItemHtml(t, mode){
+    /** ข้อความนับถอยหลังแบบคนอ่านรู้เรื่อง — ชุดเดียวกับหน้าเว็บ (trCountdown) */
+    function calCountdown(days){
+      if (days === null || days === undefined) return null;
+      if (days === 0) return { text:'🔴 วันนี้', cls:'today' };
+      if (days === 1) return { text:'⏰ พรุ่งนี้', cls:'soon' };
+      if (days < 0)   return { text:'ผ่านมา ' + Math.abs(days) + ' วัน', cls:'' };
+      if (days <= 7)  return { text:'อีก ' + days + ' วัน', cls:'soon' };
+      return { text:'อีก ' + days + ' วัน', cls:'' };
+    }
+
+    /** ป้ายความตรงของเอกสารที่ผูกไว้ — ว่าง = ผูกไว้ก่อนมีระบบวัดคะแนน ไม่เดาย้อนหลังให้ */
+    function calMatchChip(t){
+      if (t.matchScore === null || t.matchScore === undefined || t.matchScore === '') return '';
+      var sc = Number(t.matchScore), min = Number(t.matchMinScore || 70);
+      return '<span class="lcal-chip ' + (sc >= min ? 'mok' : 'mlow') + '">' +
+        (sc >= min ? '✅' : '⚠️') + ' ตรง ' + sc + '%</span>';
+    }
+
+    /**
+     * การ์ดกิจกรรม — ใช้ทั้งใต้ปฏิทินและในรายการ 3 กลุ่มด้านล่าง
+     * ปุ่มจัดการชุดเดียวกับหน้าเว็บ (แก้ไข / ลบ / ไม่ต้องติดตาม / ผูกเอกสาร)
+     * showActions = false ตอนอยู่ในกล่องเลือกวัน จะได้ไม่มีปุ่มซ้ำกันสองที่ในจอเดียว
+     */
+    function calItemHtml(t, mode, showActions){
       var meta = [];
       var tm = calTimeText(t);
       if (tm) meta.push(tm);
       if (t.location) meta.push(esc(t.location));
       if (t.hours) meta.push(esc(t.hours) + ' ชม.');
+      if (t.organizer) meta.push(esc(t.organizer));
       var span = (calDateOnly(t.endAt) && calDateOnly(t.endAt) !== calDateOnly(t.startAt))
         ? ('<div class="m">📆 ' + toBE(t.startAt) + ' ถึง ' + toBE(t.endAt) + '</div>') : '';
       var flag = mode === 'needCert'
         ? '<div class="m" style="color:var(--nx-gold);">⚠️ ยังไม่ได้เก็บเกียรติบัตร</div>'
-        : (t.certificateId ? '<div class="m" style="color:var(--nx-green);">✅ เก็บเกียรติบัตรแล้ว</div>' : '');
+        : (t.certificateName
+            ? '<div class="m" style="color:var(--nx-green);">✅ 📎 ' + esc(t.certificateName) + calMatchChip(t) + '</div>'
+            : (t.certificateId ? '<div class="m" style="color:var(--nx-green);">✅ เก็บเกียรติบัตรแล้ว</div>' : ''));
       var link = t.registerUrl
         ? '<div class="m">🔗 <a href="' + esc(t.registerUrl) + '" target="_blank" rel="noopener noreferrer">ลิงก์สมัคร</a></div>' : '';
+
+      var cd = calCountdown(t.daysAway);
+      var cdHtml = cd ? '<div class="lcal-cd ' + cd.cls + '">' + cd.text + '</div>' : '';
+
+      var acts = '';
+      if (showActions){
+        var id = esc(t.trainingId);
+        // ปุ่มแก้ไขมีทุกโหมด — ข้อมูลที่ AI อ่านจากโปสเตอร์ผิดได้ทั้งก่อนและหลังวันอบรม
+        var edit = '<button type="button" onclick="calEdit(\'' + id + '\')">✏️ แก้ไข</button>';
+        if (mode === 'needCert'){
+          acts = '<button type="button" class="pri" onclick="calLinkOpen(\'' + id + '\')">🔗 ผูกเกียรติบัตร</button>' +
+            edit + '<button type="button" onclick="calDelete(\'' + id + '\',\'ไม่ต้องติดตาม\')">ไม่ต้องติดตาม</button>';
+        } else if (mode === 'upcoming'){
+          acts = edit + '<button type="button" class="dgr" onclick="calDelete(\'' + id + '\',\'ลบกิจกรรม\')">ลบ</button>';
+        } else {
+          // ผูกผิดใบเกิดขึ้นได้ ต้องมีทางแก้ตรงจุดที่เห็นปัญหา ไม่ใช่ให้ไปลบทิ้งแล้วสร้างใหม่
+          acts = (t.certificateId
+            ? '<button type="button" onclick="calLinkOpen(\'' + id + '\')">🔗 เปลี่ยนเอกสาร</button>' : '') + edit;
+        }
+        acts = '<div class="lcal-acts">' + acts + '</div>';
+      }
+
       return '<div class="lcal-item"><div class="t">' + esc(t.title || 'กิจกรรม') + '</div>' +
         (meta.length ? '<div class="m">' + meta.join(' • ') + '</div>' : '') +
-        span + flag + link + '</div>';
+        span + flag + link + cdHtml + acts + '</div>';
+    }
+
+    /** สามกลุ่มใต้ปฏิทิน — เรียงตามความเร่งด่วน: ของค้างก่อน แล้วค่อยของที่กำลังจะถึง */
+    function calListsHtml(d){
+      var h = '';
+
+      if ((d.needCert || []).length){
+        h += '<div class="card"><div class="lcal-nag">' +
+          '<div class="h">⚠️ มี ' + d.needCert.length + ' กิจกรรมที่ยังไม่ได้เก็บเอกสาร</div>' +
+          '<div class="s">อบรมผ่านไปแล้วแต่ยังไม่มีเกียรติบัตรผูกอยู่ในระบบ<br>' +
+          'บอทจะทวงทาง LINE ในวันที่ 3, 7 และ 14 หลังอบรมจบ แล้วหยุด — ' +
+          'ถ้าไม่ได้ไปอบรมจริง กด "ไม่ต้องติดตาม" เพื่อหยุดการทวงได้ครับ</div></div>' +
+          d.needCert.map(function(t){ return calItemHtml(t, 'needCert', true); }).join('') +
+          '</div>';
+      }
+
+      h += '<div class="card lcal-sec"><h4>📅 กำลังจะถึง <span class="cnt">' +
+        ((d.upcoming || []).length) + ' รายการ</span></h4>' +
+        ((d.upcoming || []).length
+          ? d.upcoming.map(function(t){ return calItemHtml(t, 'upcoming', true); }).join('')
+          : '<div class="note">ยังไม่มีอบรมที่ลงปฏิทินไว้ — อัปภาพโปสเตอร์ด้านบนได้เลยครับ 🐾</div>') +
+        '</div>';
+
+      if ((d.past || []).length){
+        h += '<div class="card lcal-sec"><h4>📚 ประวัติที่ผ่านมา <span class="cnt">' +
+          d.past.length + ' รายการ</span></h4>' +
+          d.past.map(function(t){ return calItemHtml(t, 'past', true); }).join('') + '</div>';
+      }
+      return h;
+    }
+
+    /* ---------- ปุ่มจัดการกิจกรรมบนมือถือ ---------- */
+
+    /** หากิจกรรมจากแคชที่โหลดมาแล้ว — ไม่ยิงเซิร์ฟเวอร์ซ้ำเพื่อขอสิ่งที่มีอยู่ในมือ */
+    function calFind(id){
+      var found = null;
+      ['upcoming','needCert','past'].forEach(function(k){
+        ((_calCache && _calCache[k]) || []).forEach(function(t){ if (t.trainingId === id) found = t; });
+      });
+      return found;
+    }
+
+    function calEdit(id){
+      var t = calFind(id);
+      if (!t){ liffToast('ไม่พบกิจกรรมนี้ กรุณาเปิดหน้าใหม่', 3000); return; }
+      showTrainingForm(null, t);
+    }
+
+    function calDelete(id, verb){
+      var t = calFind(id);
+      if (!t) return;
+      liffConfirm({
+        title: verb + '?',
+        message: t.title + '\n\n' +
+          (verb === 'ไม่ต้องติดตาม'
+            ? 'กิจกรรมนี้จะถูกเอาออกจากรายการที่ต้องเก็บเอกสาร และบอทจะหยุดทวงทาง LINE'
+            : 'กิจกรรมจะถูกลบออกจาก Google Calendar ด้วย') +
+          '\n\nข้อมูลเกียรติบัตรที่เก็บไว้แล้วไม่ได้รับผลกระทบ',
+        okLabel: verb, cancelLabel: 'ยกเลิก'
+      }, function(){
+        showSaveOverlay('กำลังดำเนินการ...', 'รอสักครู่นะครับ 🐾');
+        api('trainingdelete', { trainingId: id })
+          .then(function(){
+            hideSaveOverlay();
+            liffToast(verb + 'เรียบร้อย ✅', 2400);
+            _calCache = null;                 // บังคับโหลดใหม่ ไม่งั้นรายการที่ลบยังค้างอยู่
+            showCalendar(true);
+          })
+          .catch(function(e){ setSaveOverlayError(e.message, hideSaveOverlay); });
+      });
+    }
+
+    /* ---------- ผูกเกียรติบัตร พร้อมคะแนนความตรง ----------
+       ตัวเลข % มาจากเซิร์ฟเวอร์ชุดเดียวกับหน้าเว็บ (ชื่อ 60 + วันที่ 25 + หน่วยงาน 15)
+       หน้าที่ของหน้านี้คือ "เรียงให้เห็นง่าย + อธิบายเหตุผล" คนกดยืนยันเสมอ */
+    var _lmtData = null, _lmtAll = false;
+
+    function calLinkOpen(id){
+      showSaveOverlay('กำลังค้นหาเอกสารที่ตรงกัน...', 'รอสักครู่นะครับ 🐾');
+      api('trainingsuggest', { trainingId: id })
+        .then(function(res){
+          hideSaveOverlay();
+          if (!res || !(res.suggestions || []).length){
+            liffToast('ยังไม่มีเอกสารที่บันทึกแล้วให้ผูกครับ', 3000);
+            return;
+          }
+          _lmtData = res; _lmtAll = false;
+          renderLinkPicker();
+        })
+        .catch(function(e){ setSaveOverlayError(e.message, hideSaveOverlay); });
+    }
+
+    function lmtItemHtml(s, min){
+      var pass = s.score >= min;
+      return '<div class="lmt-item ' + (pass ? 'pass' : '') + '">' +
+        '<div class="lmt-head"><div class="lmt-name">' + esc(s.activityName) +
+          ((s.receivedDate || s.issuer)
+            ? '<div class="lmt-sub">' + (s.receivedDate ? toBE(s.receivedDate) : '') +
+              (s.receivedDate && s.issuer ? ' · ' : '') + esc(s.issuer || '') + '</div>' : '') +
+        '</div><div class="lmt-score ' + (pass ? 'pass' : 'low') + '">' + s.score + '%</div></div>' +
+        '<div class="lmt-bar"><i class="' + (pass ? '' : 'low') + '" style="width:' + s.score + '%;"></i></div>' +
+        '<ul class="lmt-why">' + (s.reasons || []).map(function(r){ return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>' +
+        (s.linkedToTitle ? '<div class="lmt-taken">⚠️ ใบนี้ผูกอยู่กับ "' + esc(s.linkedToTitle) + '" แล้ว</div>' : '') +
+        '<button type="button" class="' + (pass ? 'b-primary' : 'b-second') + '" style="width:100%;margin-top:9px;" ' +
+          'onclick="calLinkPick(\'' + esc(s.certificateId) + '\')">🔗 ผูกใบนี้</button></div>';
+    }
+
+    function renderLinkPicker(){
+      var d = _lmtData;
+      if (!d) return;
+      var all = d.suggestions;
+      var good = all.filter(function(s){ return s.score >= d.minScore; });
+      var shown = _lmtAll ? all : (good.length ? good : all.slice(0, 3));
+
+      app.innerHTML = pageHead('🔗 ผูกเกียรติบัตร', 'calLinkCancel()') +
+        '<div class="card">' +
+          '<div class="note" style="margin-bottom:10px;">กิจกรรม: <b>' + esc(d.trainingTitle) + '</b><br>' +
+          'ตัวเลข % คือความตรงที่ระบบคำนวณจาก ชื่อกิจกรรม 60% · วันที่ 25% · หน่วยงาน 15% ' +
+          '— เป็นตัวช่วยเรียงลำดับเท่านั้น การตัดสินใจสุดท้ายเป็นของท่านครับ</div>' +
+          (good.length
+            ? '<div class="lcal-nag" style="border-color:var(--nx-green);background:var(--nx-surface-2);">' +
+              '<div class="h" style="color:var(--nx-green);">✅ พบเอกสารที่ตรงกับกิจกรรมนี้ ' + good.length +
+              ' ใบ (ความตรง ' + d.minScore + '% ขึ้นไป)</div></div>'
+            : '<div class="lcal-nag"><div class="h">⚠️ ไม่มีใบไหนตรงถึง ' + d.minScore + '%</div>' +
+              '<div class="s">ด้านล่างคือ 3 ใบที่ใกล้เคียงที่สุด กรุณาตรวจด้วยตาก่อนผูก</div></div>') +
+          shown.map(function(s){ return lmtItemHtml(s, d.minScore); }).join('') +
+          (!_lmtAll && all.length > shown.length
+            ? '<button type="button" class="b-second" style="width:100%;" onclick="calLinkShowAll()">' +
+              '📋 ไม่มีใบไหนใช่? ดูเอกสารทั้งหมด (' + all.length + ' ใบ)</button>' : '') +
+        '</div>' +
+        '<button type="button" class="b-second" style="width:100%;margin-top:6px;" onclick="calLinkCancel()">ยกเลิก</button>';
+      window.scrollTo(0, 0);
+    }
+
+    function calLinkShowAll(){ _lmtAll = true; renderLinkPicker(); }
+    function calLinkCancel(){ _lmtData = null; showCalendar(); }
+
+    /** ต่ำกว่าเกณฑ์ หรือใบที่ถูกจองแล้ว ต้องผ่านกล่องยืนยันอีกชั้น แต่ไม่บล็อก */
+    function calLinkPick(certificateId){
+      var d = _lmtData;
+      if (!d) return;
+      var picked = null;
+      d.suggestions.forEach(function(s){ if (s.certificateId === certificateId) picked = s; });
+      if (!picked) return;
+
+      if (picked.score >= d.minScore && !picked.linkedToTitle){ calLinkGo(certificateId); return; }
+
+      var msg = 'กิจกรรม: ' + d.trainingTitle + '\n' +
+        'เอกสาร: ' + picked.activityName + '\n\n' +
+        'ความตรงที่ระบบคำนวณได้: ' + picked.score + '% (เกณฑ์ ' + d.minScore + '%)\n\n' +
+        (picked.reasons || []).join('\n');
+      if (picked.linkedToTitle){
+        msg += '\n\n⚠️ เอกสารใบนี้ผูกอยู่กับกิจกรรม "' + picked.linkedToTitle + '" แล้ว\n' +
+          'ถ้าผูกต่อ จะกลายเป็นว่าเอกสารใบเดียวถูกใช้เป็นหลักฐานสองกิจกรรม';
+      }
+      msg += '\n\nระบบจะบันทึกคะแนนนี้ไว้ให้ตรวจย้อนหลังได้ ยืนยันผูกไหมครับ';
+
+      liffConfirm({ title: '⚠️ ความตรงต่ำกว่าเกณฑ์', message: msg,
+        okLabel: 'ยืนยันผูก', cancelLabel: 'ยกเลิก' }, function(){ calLinkGo(certificateId); });
+    }
+
+    function calLinkGo(certificateId){
+      var id = _lmtData ? _lmtData.trainingId : '';
+      showSaveOverlay('กำลังผูกเอกสาร...', 'รอสักครู่นะครับ 🐾');
+      api('traininglink', { trainingId: id, certificateId: certificateId })
+        .then(function(r){
+          hideSaveOverlay();
+          liffToast((r && r.message) || 'ผูกเอกสารเรียบร้อย ✅', 3800);
+          _lmtData = null;
+          _calCache = null;                   // ตัวเลขค้างและรายการต้องอัปเดตตามทันที
+          showCalendar(true);
+        })
+        .catch(function(e){ setSaveOverlayError(e.message, hideSaveOverlay); });
     }
 
     /* ---------- อัปภาพประชาสัมพันธ์ → ลงปฏิทินอัตโนมัติ ----------
@@ -1113,6 +1375,7 @@
     var TR_MIME = ['image/jpeg','image/png','image/webp','application/pdf'];
     var TR_MAX_BYTES = 8 * 1024 * 1024;      // ตรงกับ FILE_LIMITS.MAX_IMAGE_BYTES ฝั่งเซิร์ฟเวอร์
     var _trDraft = null;                     // ร่างที่ AI อ่านมา (เก็บ posterFileId/aiResultJson ไว้ส่งกลับตอนยืนยัน)
+    var _trEditing = null;                   // กิจกรรมที่กำลังแก้ไขอยู่ (null = กำลังเพิ่มใหม่)
     var _trBusy = false;                     // กันแตะรัว → อ่าน/ลงปฏิทินซ้ำ
 
     function trPosterCardHtml(){
@@ -1168,29 +1431,54 @@
 
     function trManual(){ showTrainingForm(null); }
 
-    function showTrainingForm(res){
+    /** ค่าตั้งต้นของแต่ละช่องตอน "แก้ไข" — แยกวันกับเวลาออกจาก ISO ให้ input รับได้ */
+    function trEditVal(t, name){
+      var part = function(iso, kind){
+        var m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(String(iso || ''));
+        if (!m) { var d = /^(\d{4}-\d{2}-\d{2})/.exec(String(iso || '')); return (kind === 'date' && d) ? d[1] : ''; }
+        return kind === 'date' ? m[1] : m[2];
+      };
+      switch (name){
+        case 'startDate': return part(t.startAt, 'date');
+        case 'endDate':   return part(t.endAt, 'date');
+        // กิจกรรมทั้งวันต้องคืนเวลาเป็นว่าง ไม่ใช่ 00:00 ไม่งั้นบันทึกกลับแล้วจะกลายเป็น
+        // กิจกรรมที่มีเวลา 00:00-00:00 ซึ่งไม่ใช่สิ่งที่ผู้ใช้ตั้งใจ
+        case 'startTime': return t.allDay ? '' : part(t.startAt, 'time');
+        case 'endTime':   return t.allDay ? '' : part(t.endAt, 'time');
+        default:          return t[name] || '';
+      }
+    }
+
+    /**
+     * ฟอร์มเดียวใช้ 2 งาน: ยืนยันร่างจาก AI (ส่ง res) และแก้ไขกิจกรรมเดิม (ส่ง edit)
+     * แยกฟอร์มสองชุดจะทำให้ต้องแก้ช่องกรอกสองที่ทุกครั้งที่เพิ่มฟิลด์
+     */
+    function showTrainingForm(res, edit){
       _trDraft = res || null;
+      _trEditing = edit || null;
       var ai = (res && res.fields) || {};
 
       var rows = TR_FIELDS.map(function(f){
-        var v = (ai[f.n] && ai[f.n].value) || '';
-        // แถบสี/หมายเหตุความมั่นใจมีเฉพาะค่าที่ AI เพิ่งอ่านมา — ช่องที่กรอกเองไม่ต้องมี
-        var cls = res ? confClass(ai[f.n]) : '';
-        var note = res ? confNote(ai[f.n]) : '';
+        var v = edit ? trEditVal(edit, f.n) : ((ai[f.n] && ai[f.n].value) || '');
+        // แถบสี/หมายเหตุความมั่นใจเป็นเรื่องของข้อมูลที่ AI เพิ่งอ่าน ไม่เกี่ยวกับที่ยืนยันลงปฏิทินแล้ว
+        var cls = (res && !edit) ? confClass(ai[f.n]) : '';
+        var note = (res && !edit) ? confNote(ai[f.n]) : '';
         return '<div class="field ' + cls + (f.full ? ' full' : '') + '" id="trf_' + f.n + '">' +
           '<label>' + esc(f.l) + '</label>' +
           '<input type="' + f.t + '" id="tr_' + f.n + '" value="' + esc(v) + '">' +
           note + '</div>';
       }).join('');
 
-      app.innerHTML = pageHead(res ? 'ตรวจข้อมูลก่อนลงปฏิทิน' : 'เพิ่มกิจกรรมอบรม', 'trCancel()') +
+      app.innerHTML = pageHead(edit ? '✏️ แก้ไขกิจกรรม' : (res ? 'ตรวจข้อมูลก่อนลงปฏิทิน' : 'เพิ่มกิจกรรมอบรม'), 'trCancel()') +
         '<div class="card">' +
         '<div class="note" style="margin-bottom:10px;">' +
-        (res ? 'AI อ่านจากภาพให้แล้ว — <b>กรุณาตรวจวันที่เป็นพิเศษ</b> ช่องแถบเหลือง/แดงคือช่องที่ AI ไม่มั่นใจ แก้ได้เลย'
-             : 'กรอกข้อมูลกิจกรรมที่ต้องการลงปฏิทิน') + '</div>' +
+        (edit ? 'แก้แล้วจะอัปเดตใน Google Calendar ให้ด้วย — <b>เกียรติบัตรที่ผูกไว้กับกิจกรรมนี้ยังอยู่เหมือนเดิม</b>'
+              : (res ? 'AI อ่านจากภาพให้แล้ว — <b>กรุณาตรวจวันที่เป็นพิเศษ</b> ช่องแถบเหลือง/แดงคือช่องที่ AI ไม่มั่นใจ แก้ได้เลย'
+                     : 'กรอกข้อมูลกิจกรรมที่ต้องการลงปฏิทิน')) + '</div>' +
         '<div class="tr-form">' + rows + '</div>' +
         '<div id="trMsg"></div>' +
-        '<button type="button" class="b-primary" id="trSaveBtn" style="width:100%;margin-top:12px;" onclick="trSubmit(this)">📅 ลงปฏิทิน</button>' +
+        '<button type="button" class="b-primary" id="trSaveBtn" style="width:100%;margin-top:12px;" onclick="trSubmit(this)">' +
+          (edit ? '💾 บันทึกการแก้ไข' : '📅 ลงปฏิทิน') + '</button>' +
         '<button type="button" class="b-second" style="width:100%;margin-top:8px;" onclick="trCancel()">ยกเลิก</button>' +
         '</div>';
       window.scrollTo(0, 0);
@@ -1198,6 +1486,7 @@
 
     function trCancel(){
       _trDraft = null;
+      _trEditing = null;
       showCalendar();
     }
 
@@ -1218,17 +1507,26 @@
         return;
       }
 
+      var editing = _trEditing;
       _trBusy = true;
       if (btn) btn.disabled = true;
-      showSaveOverlay('กำลังลงปฏิทิน...', 'กรุณารอสักครู่นะครับ 🐾');
-      api('trainingadd', { data: data })
-        .then(function(){
+      showSaveOverlay(editing ? 'กำลังบันทึกการแก้ไข...' : 'กำลังลงปฏิทิน...', 'กรุณารอสักครู่นะครับ 🐾');
+      var req = editing
+        ? api('trainingupdate', { trainingId: editing.trainingId, data: data })
+        : api('trainingadd', { data: data });
+      req
+        .then(function(r){
           _trBusy = false;
-          setSaveOverlaySuccess('ลงปฏิทินเรียบร้อย ✅', 'ดูได้ใน Google Calendar และหน้าปฏิทินนี้');
+          setSaveOverlaySuccess(
+            editing ? 'บันทึกการแก้ไขแล้ว ✅' : 'ลงปฏิทินเรียบร้อย ✅',
+            (r && r.recreated)
+              ? 'กิจกรรมเดิมไม่อยู่ในปฏิทินแล้ว ระบบสร้างให้ใหม่'
+              : 'ดูได้ใน Google Calendar และหน้าปฏิทินนี้');
           setTimeout(function(){
             hideSaveOverlay();
             _trDraft = null;
-            _calCache = null;                 // บังคับโหลดใหม่ ไม่งั้นกิจกรรมที่เพิ่งเพิ่มจะยังไม่โผล่
+            _trEditing = null;
+            _calCache = null;                 // บังคับโหลดใหม่ ไม่งั้นกิจกรรมที่เพิ่งเพิ่ม/แก้จะยังไม่อัปเดต
             showCalendar(true);
           }, 1100);
         })
@@ -1296,16 +1594,24 @@
         '<span><i style="background:var(--text-3);"></i>ผ่านไปแล้ว</span></div>';
 
       if (_calSel && map[_calSel]){
+        // ในกล่องเลือกวันไม่ใส่ปุ่มจัดการ — กิจกรรมเดียวกันโผล่ทั้งตรงนี้และในรายการข้างล่าง
+        // ถ้าใส่ทั้งสองที่จะมีปุ่ม "ลบ" สองชุดในจอเดียว ซึ่งชวนให้กดผิด
         h += '<div class="lcal-day"><h4>' + toBE(_calSel) + '</h4>' +
           wxLineHtml(_calSel) +
-          map[_calSel].map(function(e){ return calItemHtml(e.t, e.mode); }).join('') + '</div>';
+          map[_calSel].map(function(e){ return calItemHtml(e.t, e.mode, false); }).join('') +
+          '<div class="note" style="margin-top:8px;">จัดการกิจกรรม (แก้ไข / ลบ / ผูกเกียรติบัตร) ได้ในรายการด้านล่างครับ</div>' +
+          '</div>';
       } else if (!Object.keys(map).length){
         h += '<div class="note" style="margin-top:10px;">ยังไม่มีกิจกรรมในระบบ — อัปภาพโปสเตอร์ด้านบนได้เลย</div>';
       } else {
         h += '<div class="note" style="margin-top:10px;">แตะวันที่มีจุดเพื่อดูรายละเอียด</div>';
       }
+      h += '</div>';
 
-      h += '</div><button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+      // สามกลุ่มใต้ปฏิทิน — ยกมาจากหน้าเว็บ เพื่อให้มือถือทำงานได้จบในที่เดียว
+      h += calListsHtml(_calCache);
+
+      h += '<button class="b-second" style="width:100%;margin-top:6px;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
       app.innerHTML = h;
     }
 
