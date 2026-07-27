@@ -713,6 +713,9 @@
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+    /* escJs: ค่าที่จะฝังใน JS string ภายใน HTML attribute เช่น onclick="fn(&quot;...&quot;)"
+       กัน 2 ชั้น — escape backslash/double-quote ให้เป็น JS string ที่ถูกต้อง แล้ว esc เป็น entity กัน attribute แตก */
+    function escJs(s){ return esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/"/g,'\\"')); }
     /* แสดงข้อผิดพลาดแบบเต็มหน้า — รับได้ทั้ง Error และข้อความ
        แยก 2 กรณี: "ยังไม่เชื่อมบัญชี" คือขั้นตอนปกติของผู้ใช้ใหม่ ต้องบอกวิธีทำต่อ ไม่ใช่หน้าจอแดง
        ส่วนที่เหลือคือระบบมีปัญหา ต้องมีปุ่มลองใหม่เสมอ ห้ามปล่อยให้ผู้ใช้ตัน */
@@ -2246,7 +2249,7 @@
       var chips = OPTIONS.academicYear.slice(0, 4).map(function(y){ return { q:y, label:'ปี ' + y }; })
         .concat(RC_DOCTYPES.slice(0, 3).map(function(t){ return { q:t, label:t }; }));
       var chipHtml = chips.map(function(c){
-        return '<button type="button" onclick="runSearch(' + JSON.stringify(c.q) + ')">' + esc(c.label) + '</button>';
+        return '<button type="button" onclick="runSearch(&quot;' + escJs(c.q) + '&quot;)">' + esc(c.label) + '</button>';
       }).join('');
 
       var hist = searchHist();
@@ -2255,7 +2258,7 @@
           '<div style="font-weight:600;flex:1;">🕘 ค้นหาล่าสุด</div>' +
           '<button class="b-second" style="flex:none;width:auto;padding:5px 11px;font-size:12px;" onclick="clearHist()">ล้าง</button></div>' +
           '<div class="chips">' + hist.map(function(q){
-            return '<button type="button" onclick="runSearch(' + JSON.stringify(q) + ')">' + esc(q) + '</button>';
+            return '<button type="button" onclick="runSearch(&quot;' + escJs(q) + '&quot;)">' + esc(q) + '</button>';
           }).join('') + '</div></div>'
         : '';
 
