@@ -1168,8 +1168,11 @@
           acts = edit + '<button type="button" class="dgr" onclick="calDelete(\'' + id + '\',\'ลบกิจกรรม\')">ลบ</button>';
         } else {
           // ผูกผิดใบเกิดขึ้นได้ ต้องมีทางแก้ตรงจุดที่เห็นปัญหา ไม่ใช่ให้ไปลบทิ้งแล้วสร้างใหม่
+          var unlink = t.certificateId
+            ? '<button type="button" onclick="calUnlink(\'' + id + '\')">✂️ ยกเลิกการผูก</button>' : '';
           acts = (t.certificateId
-            ? '<button type="button" onclick="calLinkOpen(\'' + id + '\')">🔗 เปลี่ยนเอกสาร</button>' : '') + edit;
+            ? '<button type="button" onclick="calLinkOpen(\'' + id + '\')">🔗 เปลี่ยนเอกสาร</button>' : '') + unlink + edit +
+            '<button type="button" class="dgr" onclick="calDelete(\'' + id + '\',\'ลบกิจกรรม\')">ลบ</button>';
         }
         acts = '<div class="lcal-acts">' + acts + '</div>';
       }
@@ -1243,6 +1246,29 @@
             hideSaveOverlay();
             liffToast(verb + 'เรียบร้อย ✅', 2400);
             _calCache = null;                 // บังคับโหลดใหม่ ไม่งั้นรายการที่ลบยังค้างอยู่
+            showCalendar(true);
+          })
+          .catch(function(e){ setSaveOverlayError(e.message, hideSaveOverlay); });
+      });
+    }
+
+    /** ยกเลิกการผูกเอกสาร — ล้างเฉพาะการเชื่อม กิจกรรมและเกียรติบัตรยังอยู่ครบ
+        cancelLabel ใช้ "ปิด" ไม่ใช้ "ยกเลิก" กันสับสนกับคำว่า "ยกเลิกการผูก" */
+    function calUnlink(id){
+      var t = calFind(id);
+      if (!t) return;
+      liffConfirm({
+        title: 'ยกเลิกการผูกเอกสาร?',
+        message: t.title + '\n\nกิจกรรมจะกลับไปอยู่ในรายการ "ยังไม่ได้เก็บเอกสาร"\n' +
+          'เกียรติบัตรที่ผูกไว้ยังอยู่ในระบบครบ ผูกใหม่ได้ทุกเมื่อ',
+        okLabel: 'ยกเลิกการผูก', cancelLabel: 'ปิด'
+      }, function(){
+        showSaveOverlay('กำลังยกเลิกการผูก...', 'รอสักครู่นะครับ 🐾');
+        api('trainingunlink', { trainingId: id })
+          .then(function(){
+            hideSaveOverlay();
+            liffToast('ยกเลิกการผูกแล้ว ✅', 2400);
+            _calCache = null;                 // บังคับโหลดใหม่ ให้รายการย้ายกลับกลุ่มที่ถูกต้อง
             showCalendar(true);
           })
           .catch(function(e){ setSaveOverlayError(e.message, hideSaveOverlay); });
