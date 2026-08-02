@@ -2173,6 +2173,81 @@
     }
     function gLine_(html){ return '<div style="margin-bottom:4px;">' + html + '</div>'; }
 
+    /* ---------- คู่มือ MCP สำหรับผู้ดูแลระบบ (ก้อนที่ 76) ----------
+       **ฝั่งเซิร์ฟเวอร์เป็นคนตัดสินว่าใครเห็น** — ครูทั่วไปได้ { visible:false } กลับมา
+       ไม่ตัดสินที่หน้านี้ เพราะไฟล์นี้เป็น static บน GitHub Pages ใครก็แก้ในเครื่องตัวเองได้
+       เนื้อหาก็มาจากเซิร์ฟเวอร์ด้วย จะได้แก้คู่มือที่เดียวโดยไม่ต้องอัป GitHub ใหม่ทุกครั้ง */
+    var _mcpGuide = null;          // null = ยังไม่เคยถามเซิร์ฟเวอร์
+
+    function ensureMcpGuide(cb){
+      if (_mcpGuide) { cb(_mcpGuide); return; }
+      api('mcpguide', {}).then(function(d){
+        _mcpGuide = d || { visible:false };
+        cb(_mcpGuide);
+      }).catch(function(){
+        // ถามไม่ได้ = ไม่ขึ้นเมนู ดีกว่าขึ้นแล้วกดไม่ได้
+        _mcpGuide = { visible:false };
+        cb(_mcpGuide);
+      });
+    }
+
+    function mcpGuideBlockHtml(b){
+      if (b.type === 'p')    return '<p style="margin:6px 0;">' + esc(b.text) + '</p>';
+      if (b.type === 'ok')   return '<div class="note" style="color:var(--nx-green);margin:8px 0;">✅ ' + esc(b.text) + '</div>';
+      if (b.type === 'warn') return '<div class="note" style="color:var(--nx-gold);margin:8px 0;">⚠️ ' + esc(b.text) + '</div>';
+      if (b.type === 'ul') {
+        return '<ul style="margin:6px 0;padding-left:18px;">' +
+          (b.items||[]).map(function(x){ return '<li style="margin-bottom:4px;">' + esc(x) + '</li>'; }).join('') +
+          '</ul>';
+      }
+      if (b.type === 'table') {
+        // ตารางกว้างกว่าจอมือถือได้ ให้เลื่อนในกรอบของตัวเอง ไม่ดันทั้งหน้าเลื่อนแนวนอน
+        return '<div style="overflow-x:auto;margin:8px 0;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+          '<thead><tr>' + (b.head||[]).map(function(h){
+            return '<th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--nx-line);white-space:nowrap;">' + esc(h) + '</th>';
+          }).join('') + '</tr></thead><tbody>' +
+          (b.rows||[]).map(function(r){
+            return '<tr>' + r.map(function(c){
+              return '<td style="padding:6px 8px;border-bottom:1px solid var(--nx-line);vertical-align:top;">' + esc(c) + '</td>';
+            }).join('') + '</tr>';
+          }).join('') + '</tbody></table></div>';
+      }
+      return '';
+    }
+
+    function showMcpGuide(){
+      setNav('account');
+      app.innerHTML = pageHead('คู่มือ MCP', 'goTab(\'account\')') +
+        '<div class="card"><div class="note">กำลังโหลด...</div></div>';
+
+      ensureMcpGuide(function(g){
+        if (!g.visible) {
+          app.innerHTML = pageHead('คู่มือ MCP', 'goTab(\'account\')') +
+            '<div class="card"><div class="note">คู่มือนี้สำหรับผู้ดูแลระบบเท่านั้นครับ 🐶</div></div>' +
+            '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+          return;
+        }
+
+        var triage = '<div class="card" style="border-color:var(--nx-danger);">' +
+          '<div style="font-weight:700;font-size:15px;color:var(--nx-danger);">ถ้ากำลังรีบ อ่าน 3 ข้อนี้พอ</div>' +
+          '<ol style="margin:8px 0 0;padding-left:20px;">' +
+          (g.triage||[]).map(function(t){ return '<li style="margin-bottom:6px;">' + esc(t) + '</li>'; }).join('') +
+          '</ol></div>';
+
+        var body = (g.sections||[]).map(function(s){
+          return '<div class="card">' +
+            '<div style="font-weight:700;font-size:15px;margin-bottom:4px;">' + esc(s.title) + '</div>' +
+            (s.blocks||[]).map(mcpGuideBlockHtml).join('') +
+            '</div>';
+        }).join('');
+
+        app.innerHTML = pageHead('คู่มือ MCP', 'goTab(\'account\')') + triage + body +
+          '<div class="note" style="text-align:center;margin-bottom:10px;">ปรับปรุง ' + esc(g.updatedAt || '-') +
+          ' · การสั่งงานจริงทำที่เว็บระบบเท่านั้น</div>' +
+          '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+      });
+    }
+
     function showGuide(){
       setNav('account');
       app.innerHTML = pageHead('คู่มือใช้งาน', 'goTab(\'account\')') +
@@ -2345,9 +2420,24 @@
         '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเกียรติบัตร</button>' +
         '</div></div>' +
 
+        // ช่องว่างสำหรับการ์ดคู่มือ MCP — เติมทีหลังเมื่อเซิร์ฟเวอร์ตอบว่าเป็นผู้ดูแลระบบ
+        '<div id="acctMcpGuide"></div>' +
+
         quickMsgCardHtml() +
 
         '<button class="b-second" style="width:100%;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
+
+      /* การ์ดคู่มือ MCP ขึ้นเฉพาะผู้ดูแลระบบ — ถามเซิร์ฟเวอร์ทีหลังไม่ให้หน่วงการแสดงหน้าบัญชี
+         ครูทั่วไปจะไม่เห็นอะไรเลย ไม่มีข้อความบอกด้วยว่ามีเมนูนี้อยู่ */
+      ensureMcpGuide(function(g){
+        var slot = document.getElementById('acctMcpGuide');
+        if (!slot || !g.visible) return;
+        slot.innerHTML =
+          '<div class="card"><div style="font-weight:600;margin-bottom:10px;">🔌 สำหรับผู้ดูแลระบบ</div>' +
+          '<div class="act-grid">' +
+          '<button type="button" class="act" onclick="showMcpGuide()"><span class="ico">📘</span>คู่มือ MCP</button>' +
+          '</div></div>';
+      });
 
       // การ์ดสรุปเร็ว: ถ้ายังไม่มี cache ให้โหลดเสริม แล้วเติมทีหลัง (ไม่บล็อกหน้า)
       if (!_homeCache) {
