@@ -2248,6 +2248,106 @@
       });
     }
 
+    /* ---------- โปรไฟล์ของฉัน (ก้อนที่ 80) ----------
+       แก้ชื่อ-สกุลกับตำแหน่งของตัวเองได้จากมือถือ — เดิมไม่มีที่ไหนแก้ได้เลย
+       ทั้งที่หน้าตรวจเอกสารเขียนว่า "หากไม่ถูกต้องแก้ที่โปรไฟล์" */
+    function showMyProfile(){
+      setNav('account');
+      app.innerHTML = pageHead('โปรไฟล์ของฉัน', 'goTab(\'account\')') +
+        '<div class="card"><div class="note">กำลังโหลด...</div></div>';
+
+      api('myprofile', {}).then(function(p){
+        app.innerHTML = pageHead('โปรไฟล์ของฉัน', 'goTab(\'account\')') +
+          '<div class="card">' +
+            '<div class="note" style="margin-bottom:10px;">' + esc(p.email) + ' · ' + esc(p.role || '-') + '</div>' +
+
+            '<label class="note" for="pfName">ชื่อ-สกุล *</label>' +
+            '<input type="text" id="pfName" maxlength="120" value="' + esc(p.displayName) + '" ' +
+              'placeholder="เช่น นายกิตติคุณ จันทะคุณ" style="width:100%;box-sizing:border-box;margin:4px 0 12px;">' +
+
+            '<label class="note" for="pfPos">ตำแหน่ง / วิทยฐานะ</label>' +
+            '<input type="text" id="pfPos" maxlength="80" value="' + esc(p.position) + '" ' +
+              'placeholder="เช่น ครู คศ.1" style="width:100%;box-sizing:border-box;margin:4px 0 6px;">' +
+            '<div class="note">ใช้เป็นค่าตั้งต้นของเอกสารใบถัดไป — ใบที่บันทึกไปแล้วไม่เปลี่ยนย้อนหลัง</div>' +
+
+            '<div id="pfMsg" class="note" style="margin-top:8px;"></div>' +
+          '</div>' +
+          '<button class="b-primary" style="width:100%;" onclick="saveMyProfileLiff(this)">บันทึกโปรไฟล์</button>' +
+          '<button class="b-second" style="width:100%;margin-top:8px;" onclick="goTab(\'account\')">กลับ</button>';
+      }).catch(function(e){
+        showErr(e, showMyProfile);
+      });
+    }
+
+    function saveMyProfileLiff(btn){
+      var nameEl = document.getElementById('pfName');
+      var posEl  = document.getElementById('pfPos');
+      var msg    = document.getElementById('pfMsg');
+      if (!nameEl) return;
+
+      if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+      if (msg) { msg.textContent = ''; msg.style.color = ''; }
+
+      api('saveprofile', { data: { displayName: nameEl.value, position: posEl ? posEl.value : '' } })
+        .then(function(){
+          if (btn) { btn.disabled = false; btn.textContent = 'บันทึกโปรไฟล์'; }
+          if (msg) { msg.textContent = '✅ บันทึกแล้วครับเจ้านาย'; msg.style.color = 'var(--nx-green)'; }
+        })
+        .catch(function(e){
+          if (btn) { btn.disabled = false; btn.textContent = 'บันทึกโปรไฟล์'; }
+          if (msg) { msg.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ'; msg.style.color = 'var(--nx-danger)'; }
+        });
+    }
+
+    /* ---------- คู่มือแอดมิน (ก้อนที่ 79) ----------
+       ใช้ mcpGuideBlockHtml ตัวเดียวกับคู่มือ MCP เพราะโครงสร้างบล็อกที่เซิร์ฟเวอร์ส่งมาเหมือนกันเป๊ะ
+       ({type:'p'|'ul'|'ok'|'warn'|'table'}) — ไม่มีเหตุผลต้องเขียนตัวเรนเดอร์ซ้ำ */
+    var _adminGuide = null;
+
+    function ensureAdminGuide(cb){
+      if (_adminGuide) { cb(_adminGuide); return; }
+      api('adminguide', {}).then(function(d){
+        _adminGuide = d || { visible:false };
+        cb(_adminGuide);
+      }).catch(function(){
+        _adminGuide = { visible:false };
+        cb(_adminGuide);
+      });
+    }
+
+    function showAdminGuide(){
+      setNav('account');
+      app.innerHTML = pageHead('คู่มือแอดมิน', 'goTab(\'account\')') +
+        '<div class="card"><div class="note">กำลังโหลด...</div></div>';
+
+      ensureAdminGuide(function(g){
+        if (!g.visible) {
+          app.innerHTML = pageHead('คู่มือแอดมิน', 'goTab(\'account\')') +
+            '<div class="card"><div class="note">คู่มือนี้สำหรับผู้ดูแลระบบเท่านั้นครับ 🐶</div></div>' +
+            '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+          return;
+        }
+
+        var triage = '<div class="card" style="border-color:var(--nx-danger);">' +
+          '<div style="font-weight:700;font-size:15px;color:var(--nx-danger);">3 ข้อที่ผิดแล้วกระทบทั้งโรงเรียน</div>' +
+          '<ol style="margin:8px 0 0;padding-left:20px;">' +
+          (g.triage||[]).map(function(t){ return '<li style="margin-bottom:6px;">' + esc(t) + '</li>'; }).join('') +
+          '</ol></div>';
+
+        var body = (g.sections||[]).map(function(s){
+          return '<div class="card">' +
+            '<div style="font-weight:700;font-size:15px;margin-bottom:4px;">' + esc(s.title) + '</div>' +
+            (s.blocks||[]).map(mcpGuideBlockHtml).join('') +
+            '</div>';
+        }).join('');
+
+        app.innerHTML = pageHead('คู่มือแอดมิน', 'goTab(\'account\')') + triage + body +
+          '<div class="note" style="text-align:center;margin-bottom:10px;">ปรับปรุง ' + esc(g.updatedAt || '-') +
+          ' · ฉบับเต็มอยู่ที่ docs/ADMIN_GUIDE.md</div>' +
+          '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+      });
+    }
+
     function showGuide(){
       setNav('account');
       app.innerHTML = pageHead('คู่มือใช้งาน', 'goTab(\'account\')') +
@@ -2416,6 +2516,7 @@
         '<button type="button" class="act" onclick="showDash()"><span class="ico">📊</span>สรุปผลงาน</button>' +
         '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>ศูนย์รายงานผลงาน</button>' +
         '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
+        '<button type="button" class="act" onclick="showMyProfile()"><span class="ico">👤</span>โปรไฟล์ของฉัน</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเกียรติบัตร</button>' +
         '</div></div>' +
@@ -2435,6 +2536,7 @@
         slot.innerHTML =
           '<div class="card"><div style="font-weight:600;margin-bottom:10px;">🔌 สำหรับผู้ดูแลระบบ</div>' +
           '<div class="act-grid">' +
+          '<button type="button" class="act" onclick="showAdminGuide()"><span class="ico">📕</span>คู่มือแอดมิน</button>' +
           '<button type="button" class="act" onclick="showMcpGuide()"><span class="ico">📘</span>คู่มือ MCP</button>' +
           '</div></div>';
       });
