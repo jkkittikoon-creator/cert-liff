@@ -2299,6 +2299,77 @@
         });
     }
 
+    /* ---------- โรงเรียนของฉัน บนมือถือ (ก้อนที่ 85) ----------
+       เว้นช่องว่าง = ใช้ค่าเริ่มต้นของระบบ จึงต้องบอกให้ชัดว่าช่องไหนเป็นของตัวเอง
+       ตราไม่ให้อัปจากมือถือในรอบนี้ — ให้ไปทำที่เว็บ (เขียนบอกไว้ท้ายหน้า) */
+    var MY_ORG_FIELDS_LIFF = [
+      { key: 'schoolName',    label: 'ชื่อโรงเรียน/หน่วยงาน' },
+      { key: 'schoolAddress', label: 'ที่อยู่' },
+      { key: 'reportTitle',   label: 'ชื่อหัวรายงาน' },
+      { key: 'directorName',  label: 'ชื่อผู้อำนวยการ' },
+      { key: 'directorTitle', label: 'ตำแหน่งผู้อำนวยการ' },
+      { key: 'teacherName',   label: 'ชื่อผู้รายงาน (ค่าตั้งต้น)' },
+      { key: 'teacherTitle',  label: 'ตำแหน่งผู้รายงาน (ค่าตั้งต้น)' }
+    ];
+
+    function showMyOrg(){
+      setNav('account');
+      app.innerHTML = pageHead('โรงเรียนของฉัน', 'goTab(\'account\')') +
+        '<div class="card"><div class="note">กำลังโหลด...</div></div>';
+
+      api('myorg', {}).then(function(res){
+        var mine = res.mine || {};
+        var def = res.systemDefault || {};
+        var src = mine._source || {};
+        var ownCount = MY_ORG_FIELDS_LIFF.filter(function(f){ return src[f.key] === 'user'; }).length;
+
+        var fields = MY_ORG_FIELDS_LIFF.map(function(f){
+          var isOwn = (src[f.key] === 'user');
+          var value = isOwn ? String(mine[f.key] || '') : '';
+          var ph = String(def[f.key] || '') || '(ยังไม่ได้ตั้งค่าเริ่มต้น)';
+          return '<div style="margin-bottom:12px;">' +
+            '<label class="note" for="mo_' + f.key + '">' + esc(f.label) +
+              (isOwn ? ' · ของฉัน' : ' · ค่าเริ่มต้น') + '</label>' +
+            '<input type="text" id="mo_' + f.key + '" maxlength="200" value="' + esc(value) + '" ' +
+              'placeholder="' + esc(ph) + '" style="width:100%;box-sizing:border-box;margin-top:4px;">' +
+            '</div>';
+        }).join('');
+
+        app.innerHTML = pageHead('โรงเรียนของฉัน', 'goTab(\'account\')') +
+          '<div class="card">' +
+            '<div class="note" style="margin-bottom:10px;">' +
+              (ownCount ? 'ตั้งเองแล้ว ' + ownCount + ' ช่อง · ช่องที่เว้นว่างใช้ค่าเริ่มต้นของระบบ'
+                        : 'ยังใช้ค่าเริ่มต้นของระบบทั้งหมด · กรอกเฉพาะช่องที่ต่างก็พอ') +
+            '</div>' +
+            fields +
+            '<div id="moMsg" class="note" style="margin-top:6px;"></div>' +
+          '</div>' +
+          '<button class="b-primary" style="width:100%;" onclick="saveMyOrgLiff(this)">บันทึก</button>' +
+          '<div class="note" style="text-align:center;margin:10px 0;">ตราโรงเรียนเปลี่ยนได้ที่เว็บระบบ · เมนูโปรไฟล์ของฉัน</div>' +
+          '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+      }).catch(function(e){ showErr(e, showMyOrg); });
+    }
+
+    function saveMyOrgLiff(btn){
+      var payload = {};
+      MY_ORG_FIELDS_LIFF.forEach(function(f){
+        var el = document.getElementById('mo_' + f.key);
+        payload[f.key] = el ? el.value : '';
+      });
+      var msg = document.getElementById('moMsg');
+      if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+
+      api('savemyorg', { data: payload }).then(function(){
+        if (btn) { btn.disabled = false; btn.textContent = 'บันทึก'; }
+        if (msg) { msg.textContent = '✅ บันทึกแล้ว — รายงานฉบับถัดไปจะใช้ค่านี้'; msg.style.color = 'var(--nx-green)'; }
+        ORG_BRANDING = null;      // ให้โหลดตรา/ชื่อใหม่รอบหน้า ไม่ค้างของเก่า
+        loadOrgBranding_();
+      }).catch(function(e){
+        if (btn) { btn.disabled = false; btn.textContent = 'บันทึก'; }
+        if (msg) { msg.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ'; msg.style.color = 'var(--nx-danger)'; }
+      });
+    }
+
     /* ---------- คู่มือแอดมิน (ก้อนที่ 79) ----------
        ใช้ mcpGuideBlockHtml ตัวเดียวกับคู่มือ MCP เพราะโครงสร้างบล็อกที่เซิร์ฟเวอร์ส่งมาเหมือนกันเป๊ะ
        ({type:'p'|'ul'|'ok'|'warn'|'table'}) — ไม่มีเหตุผลต้องเขียนตัวเรนเดอร์ซ้ำ */
@@ -2517,6 +2588,7 @@
         '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>ศูนย์รายงานผลงาน</button>' +
         '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
         '<button type="button" class="act" onclick="showMyProfile()"><span class="ico">👤</span>โปรไฟล์ของฉัน</button>' +
+        '<button type="button" class="act" onclick="showMyOrg()"><span class="ico">🏫</span>โรงเรียนของฉัน</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเกียรติบัตร</button>' +
         '</div></div>' +
