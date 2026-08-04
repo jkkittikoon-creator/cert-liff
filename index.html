@@ -755,13 +755,62 @@
     }
     function retryLast(){ if(_lastRetry) _lastRetry(); }
 
-    function api(action, payload){
+    // action ที่ "อ่านอย่างเดียว + ไม่ใช้ AI" — ปลอดภัยที่จะลองซ้ำอัตโนมัติเมื่อเน็ตสะดุด (ลองซ้ำแล้วไม่ทำข้อมูลซ้ำ)
+    // ไม่รวมคำสั่งเขียน (ลบ/บันทึก/ยืนยัน/สร้างรายงาน/exportzip) และคำสั่ง AI (semanticsearch/posterread/trainingsuggest)
+    // เพื่อกันข้อมูลซ้ำ + เปลือง AI quota · action ใหม่ที่ไม่อยู่ในรายการ = ไม่ retry (ตกไปพฤติกรรมเดิม ไม่พังเงียบ)
+    var API_RETRY_SAFE = {
+      orgconfig:1, list:1, dashboard:1, search:1, fileqr:1, listsaved:1, qr:1, get:1,
+      reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
+      adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
+      expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1
+    };
+    var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
+    var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
+    var API_TIMEOUT_MS = 20000;            // กันคำขอค้างแขวนบนเน็ตแย่ ๆ (เฉพาะ action ที่ retry ได้ — คำสั่งเขียนไม่มี timeout เหมือนเดิม)
+
+    // idToken ของ LINE หมดอายุเป็นราย ชม. และ LIFF ไม่ต่ออายุให้เอง — เช็กวันหมดอายุจริงจาก payload
+    // ถ้าไม่มี getDecodedIDToken (SDK เก่า/สภาพแวดล้อมแปลก) คืน false = พฤติกรรมเดิมทุกอย่าง (fallback ปลอดภัย)
+    function liffIdTokenExpiring_(){
+      try {
+        if (typeof liff === 'undefined' || !liff.getDecodedIDToken) return false;
+        var dec = liff.getDecodedIDToken();
+        if (!dec || !dec.exp) return false;
+        return (dec.exp * 1000) < (Date.now() + 120000);  // เหลือ < 2 นาที = ถือว่าใกล้หมด ต้องต่ออายุ
+      } catch(_) { return false; }
+    }
+    // ต่ออายุ token: ในแอป LINE ต้อง reload (liff.init จะขอ token ใหม่) — liff.login() ในแอปเป็น no-op
+    // นอกแอป (เบราว์เซอร์ปกติ) ใช้ liff.login() ขอ token ใหม่พร้อม redirect กลับหน้าเดิม
+    function liffReauth_(){
+      try {
+        if (liff.isInClient && liff.isInClient()) { location.reload(); return; }
+        liff.login({ redirectUri: location.href });
+      } catch(_) { try { location.reload(); } catch(__){} }
+    }
+
+    function api(action, payload, _attempt){
+      _attempt = _attempt || 0;
+      // token ใกล้หมดอายุ → ต่ออายุเงียบ ๆ ก่อนยิงคำขอ (ผู้ใช้ไม่เห็นหน้า error)
+      // กัน loop: ต่ออายุครั้งเดียวต่อการโหลดหน้า — ถ้า refresh แล้วยังไม่หาย จะปล่อยให้ error เดิมโชว์ครั้งเดียวแทนการ reload วน
+      if (_attempt === 0 && liffIdTokenExpiring_()) {
+        var reauthed;
+        try { reauthed = sessionStorage.getItem('liffReauth'); } catch(_) { reauthed = null; }
+        if (!reauthed) {
+          try { sessionStorage.setItem('liffReauth', '1'); } catch(_){}
+          liffReauth_();
+          return new Promise(function(){});  // ค้างไว้ระหว่าง redirect/reload ไม่โยน error ให้หน้าจอ
+        }
+      }
       var body = Object.assign({ action: action, idToken: liff.getIDToken() }, payload||{});
+      // timeout ใส่เฉพาะ action อ่านที่ retry ได้ — คำสั่งเขียนคงพฤติกรรมเดิมทุกไบต์ (ไม่ abort คำขอที่อาจสำเร็จแล้วฝั่งเซิร์ฟเวอร์)
+      var canRetry = !!API_RETRY_SAFE[action];
+      var ctrl = (canRetry && typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, API_TIMEOUT_MS) : null;
       return fetch(EXEC_URL + '?liff=api', {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(body)
-      }).then(function(r){ return r.json(); }).then(function(j){
+        body: JSON.stringify(body),
+        signal: ctrl ? ctrl.signal : undefined
+      }).then(function(r){ if (timer){ clearTimeout(timer); timer = null; } return r.json(); }).then(function(j){
         if (!j.ok) {
           var err = new Error(j.error || 'เกิดข้อผิดพลาด');
           // ต่อธง notLinked จากเซิร์ฟเวอร์ไว้ ให้หน้าจอแยกได้ว่า "ยังไม่เชื่อมบัญชี" (flow ปกติของผู้ใช้ใหม่)
@@ -770,11 +819,20 @@
           err.fromServer = true;
           throw err;
         }
+        // คำขอสำเร็จ = token ใช้ได้ → ล้าง guard เพื่อให้ต่ออายุได้อีกเมื่อหมดอายุรอบหน้า
+        try { sessionStorage.removeItem('liffReauth'); } catch(_){}
         return j.data;
       }).catch(function(e){
-        // ทุกอย่างที่ไม่ได้มาจากเซิร์ฟเวอร์ = ต่อไม่ติด/ตอบไม่เป็น JSON — แปลงเป็นข้อความที่ผู้ใช้เข้าใจ
-        // ไม่เช็ก instanceof TypeError เพราะ error ที่ข้ามเฟรม/ข้าม realm มาจะไม่ผ่านการเช็กนั้น
+        if (timer){ clearTimeout(timer); timer = null; }
+        // error จากเซิร์ฟเวอร์ (ตอบ JSON แต่ ok=false) = คำตอบจริง ห้าม retry — โยนต่อให้หน้าจอจัดการ
         if (e && e.fromServer) throw e;
+        // ที่เหลือ = ต่อไม่ติด/ตอบไม่เป็น JSON/timeout — ถ้าเป็น action อ่านและยังไม่เกินเพดาน ลองซ้ำเงียบ ๆ ก่อน
+        // (ไม่เช็ก instanceof TypeError เพราะ error ที่ข้ามเฟรม/ข้าม realm มาจะไม่ผ่านการเช็กนั้น)
+        if (canRetry && _attempt < API_RETRY_MAX) {
+          var delay = API_RETRY_DELAYS[_attempt] || 1500;
+          return new Promise(function(res){ setTimeout(res, delay); })
+            .then(function(){ return api(action, payload, _attempt + 1); });
+        }
         throw new Error('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
       });
     }
