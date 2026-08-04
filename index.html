@@ -3035,7 +3035,11 @@
       var btn = document.getElementById('exZipBtn');
       var msg = document.getElementById('exZipMsg');
       if (btn) btn.disabled = true;
-      if (msg) msg.innerHTML = '🐾 น้องชาโปรกำลังรวมไฟล์เป็น ZIP... อาจใช้เวลาสักครู่';
+      if (msg) msg.innerHTML = '<div class="ai-think">' +
+        '<img class="ai-think-av" src="' + MASCOT_URL + '" alt="น้องชาโปร" onerror="this.style.display=\'none\';">' +
+        '<div class="ai-think-tx"><b>น้องชาโปรกำลังรวมไฟล์เป็น ZIP...</b>' +
+        '<div class="note">มัดรวมเอกสารให้อยู่ครับ อาจใช้เวลาสักครู่</div>' +
+        '<div class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></div></div></div>';
       api('exportzip', { year: year })
         .then(function(d){
           liffOpen(d.url);
