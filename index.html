@@ -2798,7 +2798,7 @@
             '<div class="note">' + esc(data.answer || '-') + '</div>' +
             (data.truncatedScan ? '<div class="note" style="margin-top:4px;opacity:.7;">* ดูจากเอกสารล่าสุด ' + data.scanned + ' ฉบับ อาจไม่ครบ</div>' : '') + '</div>';
           var list = (data.results && data.results.length)
-            ? '<div class="card" style="margin-top:8px;"><div class="note" style="margin-bottom:6px;">พบ ' + data.results.length + ' รายการที่เกี่ยวข้อง</div>' + dashDocsHtml(data.results, '') + '</div>'
+            ? '<div class="card" style="margin-top:8px;"><div class="note" style="margin-bottom:6px;">พบ ' + data.results.length + ' รายการที่เกี่ยวข้อง</div>' + aiResultsHtml(data.results) + '</div>'
             : '';
           box.innerHTML = head + list;
         })
@@ -2807,6 +2807,28 @@
             '<div class="ttl">ถาม AI ไม่สำเร็จ</div><div class="txt">' + esc(e.message) + '</div>' +
             '<button class="b-primary" onclick="runAiSearch()">ลองใหม่</button></div></div>';
         });
+    }
+
+    /* ก้อนที่ 101 (B4): วาดผลลัพธ์ AI แยกจาก dashDocsHtml เพราะ semantic search
+       ส่งฟิลด์คนละชุด (activityName/documentType/recipientName ไม่มี name/status/hasFile)
+       ปุ่ม "เปิดดู" เรียก openDoc(certId) ซึ่งดึงเอกสารเต็มด้วย certificateId อย่างเดียว */
+    function aiResultsHtml(docs){
+      var h = '';
+      docs.forEach(function(d){
+        var title = d.activityName || d.documentType || 'เอกสาร';
+        var sub = [];
+        if (d.documentType) sub.push(d.documentType);
+        if (d.issuer) sub.push(d.issuer);
+        if (d.academicYear) sub.push('ปี ' + d.academicYear);
+        h += '<div class="doc-item">' +
+          '<div class="dash-name">' + esc(title) + '</div>' +
+          '<div class="note">' + esc(sub.join(' • ') || '-') + '</div>' +
+          (d.reason ? '<div class="note" style="margin-top:2px;opacity:.75;">🔎 ' + esc(d.reason) + '</div>' : '') +
+          '<div class="dash-btns" style="margin-top:6px;">' +
+          '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="openDoc(\'' + d.certificateId + '\')">👁️ เปิดดู</button>' +
+          '</div></div>';
+      });
+      return h;
     }
 
     /* ================= บัญชีของฉัน ================= */
