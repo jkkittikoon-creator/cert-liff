@@ -811,12 +811,28 @@
 
     /* ---------- หน้ารายการเอกสาร (แท็บ: รอตรวจ/แก้ไข | บันทึกแล้ว) ---------- */
     var lastList = 'pending';
+    var _docsCache = [];        // เก็บรายการล่าสุดไว้สลับ "เฉพาะของฉัน/ทั้งหมด" โดยไม่เรียกเซิร์ฟเวอร์ซ้ำ
+    var docsMineOnly = true;    // ค่าเริ่มต้น: แสดงเฉพาะของฉัน (ให้ตรงกับชื่อหน้า "เอกสารของฉัน")
     function showList(which){
       lastList = which || 'pending';
       app.innerHTML = '<div class="center">กำลังโหลด...</div>';
       api(lastList==='saved' ? 'listsaved' : 'list')
-        .then(function(docs){ renderDocs(docs, lastList); })
+        .then(function(docs){ _docsCache = docs || []; renderDocs(_docsCache, lastList); })
         .catch(function(e){ showErr(e, function(){ showList(lastList); }); });
+    }
+    /* ปุ่มสลับมุมมอง ADMIN/REVIEWER — โผล่เฉพาะเมื่อมีเอกสารของครูท่านอื่นในรายการ
+       (ครูทั่วไปเห็นแต่ของตัวเอง isMine=true ทุกใบ ปุ่มจึงไม่ขึ้น) กรองจาก _docsCache ไม่เรียกเซิร์ฟเวอร์ */
+    function setDocsScope(mine){ docsMineOnly = !!mine; renderDocs(_docsCache, lastList); }
+    function docsScopeBar(mineCount, allCount){
+      function seg(on, label, arg){
+        return '<button type="button" onclick="setDocsScope('+arg+')" style="flex:1;padding:7px 4px;border:0;border-radius:8px;font-size:13px;font-weight:bold;cursor:pointer;'
+          + (on ? 'background:var(--nx-green,#2e7d32);color:#fff;' : 'background:transparent;color:inherit;') + '">' + label + '</button>';
+      }
+      return '<div class="msg" style="font-size:12px;opacity:.75;margin-bottom:4px;">👑 มุมมองผู้ดูแล — เลือกดูเฉพาะของท่าน หรือของครูทุกคน</div>'
+        + '<div style="margin:0 0 10px;padding:3px;border:1px solid var(--nx-border,#d0d0d0);border-radius:10px;display:flex;gap:3px;">'
+        + seg(docsMineOnly, 'เฉพาะของฉัน ('+mineCount+')', true)
+        + seg(!docsMineOnly, 'ทั้งหมด ('+allCount+')', false)
+        + '</div>';
     }
     /* เดิมฟังก์ชันนี้วาดแถบปุ่ม 4 อันไว้บนสุด — ย้ายการนำทางไปที่ Bottom Navigation แล้ว
        จึงเหลือหน้าที่ "วาดหัวข้อหน้า + ไฮไลต์เมนูล่างให้ตรงหน้า" แทน (ชื่อฟังก์ชันคงเดิม
@@ -967,8 +983,23 @@
         SAVED:'<span class="badge b-saved">บันทึกแล้ว</span>',
         QUEUED:'<span class="badge b-draft">🤖 อยู่ในคิว</span>',
         AI_PROCESSING:'<span class="badge b-draft">🤖 กำลังอ่าน</span>' };
-      var html = tabs + '<div class="msg">'+(which==='saved'?'เลือกเอกสารที่ต้องการแก้ไข':'เลือกเอกสารที่ต้องการตรวจและยืนยัน')+'</div><div class="card">';
-      docs.forEach(function(d){
+      // ADMIN/REVIEWER เห็นของทุกคน (มีใบที่ isMine=false) → ให้ปุ่มสลับ + กรองตามที่เลือก
+      var hasOthers = docs.some(function(d){ return d.isMine === false; });
+      var shown = (hasOthers && docsMineOnly) ? docs.filter(function(d){ return d.isMine; }) : docs;
+      var mineCount = docs.filter(function(d){ return d.isMine; }).length;
+
+      var intro = (which==='saved'?'เลือกเอกสารที่ต้องการแก้ไข':'เลือกเอกสารที่ต้องการตรวจและยืนยัน');
+      var html = tabs + '<div class="msg">'+intro+'</div>';
+      if (hasOthers) html += docsScopeBar(mineCount, docs.length);
+
+      if (!shown.length){
+        // มีของครูท่านอื่น แต่กรอง "เฉพาะของฉัน" แล้วของเราไม่มีในหมวดนี้
+        app.innerHTML = html + '<div class="msg">คุณยังไม่มีเอกสารในหมวดนี้ครับ กด “ทั้งหมด” ด้านบนเพื่อดูของครูท่านอื่น 🐶</div>' + closeBtn;
+        return;
+      }
+
+      html += '<div class="card">';
+      shown.forEach(function(d){
         // ชื่อกิจกรรมมาก่อน — ชื่อผู้รับคือเจ้าของบัญชีเองทุกใบ ขึ้นเป็นหัวแถวแล้วทุกแถวจะเหมือนกันหมด
         // เอกสารที่ AI ยังอ่านไม่เสร็จจะยังไม่มีชื่อกิจกรรม จึงถอยไปใช้ชื่อไฟล์
         var title = d.activityName || d.fileName || d.recipientName || 'เอกสาร';
@@ -980,10 +1011,12 @@
            ครูจะกรอกจนเสร็จแล้วค่อยโดนปฏิเสธตอนกดบันทึก = เสียเวลากรอกฟรี */
         var busy = (d.status === 'QUEUED' || d.status === 'AI_PROCESSING');
         var note = busy ? 'น้องชาโปรกำลังอ่านให้อยู่ รอสักครู่นะครับ' : esc(meta.join(' • '));
+        // ตอนดู "ทั้งหมด" (ผู้ดูแล) ติดป้ายบอกใบที่ไม่ใช่ของเรา จะได้ไม่สับสนว่าใบไหนของใคร
+        var otherTag = (d.isMine === false) ? ' <span style="font-size:11px;color:#b26a00;">· ของครูท่านอื่น</span>' : '';
         html += '<div class="doc-item' + (busy ? ' is-busy' : '') + '"' +
           (busy ? '' : ' onclick="openDoc(\''+d.certificateId+'\')"') + '>'+
           '<div class="doc-main"><div class="doc-title">'+esc(title)+expiryBadgeHtml(d.expiryDate)+'</div>'+
-          '<div class="note">'+note+'</div></div>'+
+          '<div class="note">'+note+otherTag+'</div></div>'+
           (badge[d.status]||'')+'</div>';
       });
       html += '</div>' + closeBtn;
