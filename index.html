@@ -2462,6 +2462,19 @@
       api('career', {}).then(renderCareerInfoLiff).catch(function(e){ showErr(e, showCareerInfo); });
     }
 
+    /* ก้อนที่ 97: บันทึกตั้งค่าแจ้งเตือนเชิงรุกจากการ์ดในหน้าบัญชี — ใช้แกนกลางเดียวกับหน้าเว็บ */
+    function saveAlertPrefsLiff(){
+      var msg = document.getElementById('apMsg');
+      var cb = document.getElementById('apEnabled');
+      if (!cb) return;
+      if (msg) msg.textContent = '⏳ กำลังบันทึก...';
+      api('savealertprefs', { prefs: { enabled: cb.checked } }).then(function(r){
+        if (msg) msg.textContent = r.enabled ? '✅ เปิดแล้ว' : '✅ ปิดแล้ว';
+      }).catch(function(e){
+        if (msg) msg.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ';
+      });
+    }
+
     /** ช่องลิงก์ 1 รายการ checklist — มีลิงก์แล้วโชว์ "เปิดลิงก์/แก้ไข/ลบ", ยังไม่มีโชว์ช่องกรอก (คู่กับ Index.html ฝั่งเว็บ) */
     function paLinkRowHtml_(i, link){
       var btnStyle = 'width:auto;padding:4px 10px;font-size:12px;margin-right:6px;';
@@ -2710,6 +2723,9 @@
         // ช่องว่างสำหรับการ์ดคู่มือ MCP — เติมทีหลังเมื่อเซิร์ฟเวอร์ตอบว่าเป็นผู้ดูแลระบบ
         '<div id="acctMcpGuide"></div>' +
 
+        // ช่องว่างสำหรับการ์ดตั้งค่าแจ้งเตือนเชิงรุก (ก้อนที่ 97) — เติมทีหลังถ้าระบบเปิดไว้
+        '<div id="acctAlertPrefs"></div>' +
+
         quickMsgCardHtml() +
 
         '<button class="b-second" style="width:100%;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
@@ -2727,6 +2743,23 @@
           '<button type="button" class="act" onclick="showCareerInfo()"><span class="ico">🎖️</span>ประวัติราชการ / PA</button>' +
           '</div></div>';
       });
+
+      /* การ์ดตั้งค่าแจ้งเตือนเชิงรุก (ก้อนที่ 97) — โหลดทีหลังไม่ให้หน่วงหน้าบัญชี
+         ใช้แกนกลางเดียวกับหน้าเว็บผ่าน action alertprefs/savealertprefs
+         โชว์ทุกบทบาทที่ระบบเปิดไว้ (ตรงกับเว็บ) · server เก่า/ระบบปิด → การ์ดหายเงียบ ไม่ทำหน้าพัง */
+      api('alertprefs', {}).then(function(p){
+        var slot = document.getElementById('acctAlertPrefs');
+        if (!slot || !p.systemEnabled) return;
+        slot.innerHTML =
+          '<div class="card"><div style="font-weight:600;margin-bottom:8px;">🔔 แจ้งเตือนเชิงรุก</div>' +
+          '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">' +
+          '<input type="checkbox" id="apEnabled"' + (p.enabled ? ' checked' : '') + '> ' +
+          'ให้น้องชาโปรทักเตือนทาง LINE</label>' +
+          '<div class="note" style="margin:6px 0 10px;">เอกสารค้างเกิน ' + esc(p.staleDays) + ' วัน · ' +
+          'ไม่มีเอกสารใหม่เกิน ' + esc(p.idleDays) + ' วัน · เรื่องเดิมทักซ้ำทุก ' + esc(p.cooldownDays) + ' วัน</div>' +
+          '<button class="b-second" style="width:auto;padding:6px 14px;font-size:13px;" onclick="saveAlertPrefsLiff()">💾 บันทึก</button>' +
+          '<span class="note" id="apMsg" style="margin-left:8px;"></span></div>';
+      }).catch(function(){ /* server เก่า/ไม่มีสิทธิ์ → ไม่โชว์การ์ด */ });
 
       // การ์ดสรุปเร็ว: ถ้ายังไม่มี cache ให้โหลดเสริม แล้วเติมทีหลัง (ไม่บล็อกหน้า)
       if (!_homeCache) {
