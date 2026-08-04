@@ -2452,6 +2452,87 @@
       });
     }
 
+    /* ---------- ก้อนที่ 96: ประวัติราชการ/วิทยฐานะ/PA บนมือถือ (ADMIN เท่านั้น) ----------
+       ใช้ endpoint 'career'/'careerlink' ที่ตรวจ isPaAdminUser_ ฝั่งเซิร์ฟเวอร์เอง (ดู LiffService.gs)
+       โครงข้อมูลที่ได้เหมือนหน้าเว็บทุกประการ (paBuildCareerInfoResponse_ ตัวเดียวกัน) */
+    function showCareerInfo(){
+      setNav('account');
+      app.innerHTML = pageHead('ประวัติราชการ / PA', 'goTab(\'account\')') +
+        '<div class="card"><div class="note">กำลังโหลด...</div></div>';
+      api('career', {}).then(renderCareerInfoLiff).catch(function(e){ showErr(e, showCareerInfo); });
+    }
+
+    /** ช่องลิงก์ 1 รายการ checklist — มีลิงก์แล้วโชว์ "เปิดลิงก์/แก้ไข/ลบ", ยังไม่มีโชว์ช่องกรอก (คู่กับ Index.html ฝั่งเว็บ) */
+    function paLinkRowHtml_(i, link){
+      var btnStyle = 'width:auto;padding:4px 10px;font-size:12px;margin-right:6px;';
+      if (link && link.url) {
+        return '🔗 <a href="' + esc(link.url) + '" target="_blank" rel="noopener">เปิดลิงก์</a><br>' +
+          '<button type="button" class="b-second" style="' + btnStyle + '" onclick="paEditLink_(' + i + ')">แก้ไข</button>' +
+          '<button type="button" class="b-second" style="' + btnStyle + '" onclick="paClearLink_(' + i + ')">ลบ</button>';
+      }
+      return '<input type="url" id="paLinkInput_' + i + '" placeholder="วางลิงก์ https://..." ' +
+        'style="width:100%;box-sizing:border-box;margin:4px 0;">' +
+        '<button type="button" class="b-second" style="' + btnStyle + '" onclick="paSaveLink_(' + i + ')">บันทึกลิงก์</button>' +
+        '<span class="note" id="paLinkErr_' + i + '" style="color:var(--nx-danger);"></span>';
+    }
+
+    function paEditLink_(i){
+      var row = document.getElementById('paLinkRow_' + i);
+      if (!row) return;
+      row.innerHTML = '<input type="url" id="paLinkInput_' + i + '" placeholder="วางลิงก์ https://..." ' +
+        'style="width:100%;box-sizing:border-box;margin:4px 0;">' +
+        '<button type="button" class="b-second" style="width:auto;padding:4px 10px;font-size:12px;" onclick="paSaveLink_(' + i + ')">บันทึก</button>' +
+        '<span class="note" id="paLinkErr_' + i + '" style="color:var(--nx-danger);"></span>';
+    }
+
+    function paSaveLink_(i){
+      var input = document.getElementById('paLinkInput_' + i);
+      var url = input ? input.value.trim() : '';
+      api('careerlink', { itemIndex: i, url: url }).then(function(){
+        showCareerInfo();
+      }).catch(function(e){
+        var errEl = document.getElementById('paLinkErr_' + i);
+        if (errEl) errEl.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ';
+      });
+    }
+
+    function paClearLink_(i){
+      api('careerlink', { itemIndex: i, url: '' }).then(function(){
+        showCareerInfo();
+      }).catch(function(e){
+        var errEl = document.getElementById('paLinkErr_' + i);
+        if (errEl) errEl.textContent = (e && e.message) ? e.message : 'ลบไม่สำเร็จ';
+      });
+    }
+
+    function renderCareerInfoLiff(d){
+      var p = d.profile || {};
+      var links = d.checklistLinks || {};
+      var docs = (d.docChecklist || []).map(function(x, i){
+        return '<li style="margin-bottom:10px;">' + esc(x) +
+          '<div class="note" id="paLinkRow_' + i + '" style="margin-top:4px;">' + paLinkRowHtml_(i, links[String(i)]) + '</div></li>';
+      }).join('');
+      var ds = d.myDocsSummary || { total: 0, byType: [] };
+      var dsTypeText = (ds.byType || []).map(function(t){ return esc(t.type) + ' ' + t.count + ' ใบ'; }).join(', ');
+      var dsNote = ds.total
+        ? ('ปัจจุบันมีเอกสารที่บันทึกแล้ว <b>' + ds.total + ' ใบ</b>' + (dsTypeText ? ' (' + dsTypeText + ')' : ''))
+        : 'ยังไม่มีเอกสารที่บันทึกแล้วในระบบเลย';
+
+      app.innerHTML = pageHead('ประวัติราชการ / PA', 'goTab(\'account\')') +
+        '<div class="card"><b>' + esc(p.name || '') + '</b><br>' + esc(p.status || '') +
+        '<br>ตำแหน่ง: ' + esc(p.position || '') + '<br>โรงเรียน: ' + esc(p.school || '') + '</div>' +
+        '<div class="card"><div style="font-weight:600;margin-bottom:4px;">สถานะวิทยฐานะ</div>' +
+        '<div class="note">' + esc(d.appointmentStatement || '') + '</div></div>' +
+        '<div class="card"><div style="font-weight:600;margin-bottom:4px;">แผน คศ.2</div>' +
+        '<div class="note">ดำรงตำแหน่งครู คศ.1 มาแล้วประมาณ ' + esc(d.durationText || '') +
+        '<br>วันเป้าหมายเบื้องต้น: ' + esc(d.cs2TargetThai || '') + '</div></div>' +
+        '<div class="card"><div style="font-weight:600;margin-bottom:6px;">📎 รายการเอกสาร คศ.2</div>' +
+        '<div class="note" style="margin-bottom:8px;">' + dsNote + '</div>' +
+        '<ul style="padding-left:18px;margin:0;">' + docs + '</ul></div>' +
+        '<div class="card"><div class="note">' + esc(d.disclaimer || '') + '</div></div>' +
+        '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+    }
+
     function showGuide(){
       setNav('account');
       app.innerHTML = pageHead('คู่มือใช้งาน', 'goTab(\'account\')') +
@@ -2643,6 +2724,7 @@
           '<div class="act-grid">' +
           '<button type="button" class="act" onclick="showAdminGuide()"><span class="ico">📕</span>คู่มือแอดมิน</button>' +
           '<button type="button" class="act" onclick="showMcpGuide()"><span class="ico">📘</span>คู่มือ MCP</button>' +
+          '<button type="button" class="act" onclick="showCareerInfo()"><span class="ico">🎖️</span>ประวัติราชการ / PA</button>' +
           '</div></div>';
       });
 
