@@ -618,6 +618,19 @@
     .sk { border-radius: 12px; background: var(--nx-line); opacity: .55; animation: sk-pulse 1.2s ease-in-out infinite; }
     .sk + .sk { margin-top: 8px; }
     @keyframes sk-pulse { 50% { opacity: .25; } }
+    /* ก้อน 101 (B5): แอนิเมชัน "น้องชาโปรกำลังอ่าน" ตอนถาม AI — มาสคอตขยับ + จุดเด้ง
+       ปิดอัตโนมัติเมื่อผู้ใช้ตั้งค่าลดการเคลื่อนไหว (มี * animation-duration:0.001ms ท้ายไฟล์) */
+    .ai-think { display: flex; align-items: center; gap: 11px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--nx-line); }
+    .ai-think-av { width: 36px; height: 36px; border-radius: 50%; flex: none; object-fit: cover; animation: ai-bob 1.5s ease-in-out infinite; }
+    .ai-think-tx { flex: 1; min-width: 0; }
+    .ai-think-tx b { display: block; font-size: 14px; }
+    .ai-think-tx .note { margin-top: 1px; }
+    .ai-dots { display: inline-flex; gap: 4px; margin-top: 5px; }
+    .ai-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); display: inline-block; animation: ai-dot 1.25s ease-in-out infinite; }
+    .ai-dots i:nth-child(2) { animation-delay: .18s; }
+    .ai-dots i:nth-child(3) { animation-delay: .36s; }
+    @keyframes ai-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
+    @keyframes ai-dot { 0%, 65%, 100% { transform: translateY(0); opacity: .3; } 30% { transform: translateY(-5px); opacity: 1; } }
     .state { text-align: center; padding: 26px 16px; }
     .state .em { font-size: 34px; line-height: 1; }
     .state .ttl { font-family: var(--font-display); font-weight: 600; margin-top: 8px; }
@@ -2791,7 +2804,11 @@
       var box = document.getElementById('aires');
       if (!box) return;
       if (q.length < 3){ box.innerHTML = '<div class="note" style="margin-top:8px;">พิมพ์คำถามอย่างน้อย 3 ตัวอักษรครับ 🐶</div>'; return; }
-      box.innerHTML = '<div class="note" style="margin-top:10px;">🤖 น้องชาโปรกำลังอ่านเอกสารและคิดคำตอบ... อาจใช้เวลา 5–15 วินาที</div>';
+      box.innerHTML = '<div class="ai-think">' +
+        '<img class="ai-think-av" src="' + MASCOT_URL + '" alt="น้องชาโปร" onerror="this.style.display=\'none\';">' +
+        '<div class="ai-think-tx"><b>น้องชาโปรกำลังอ่านเอกสาร...</b>' +
+        '<div class="note">คิดคำตอบให้อยู่ครับ อาจใช้เวลา 5–15 วินาที</div>' +
+        '<div class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></div></div></div>';
       api('semanticsearch', { query: q })
         .then(function(data){
           var head = '<div class="card" style="margin-top:10px;"><div style="font-weight:600;margin-bottom:6px;">🤖 คำตอบ</div>' +
