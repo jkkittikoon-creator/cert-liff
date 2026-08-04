@@ -2740,6 +2740,14 @@
         '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runSearch()">ค้นหา</button>' +
         '</div><div class="chips">' + chipHtml + '</div></div>' +
         histHtml +
+        // ก้อนที่ 101: ถาม AI (semantic search) — แยกการ์ดจาก keyword search ด้านบน ไม่แตะของเดิม
+        '<div class="card"><div style="font-weight:600;margin-bottom:6px;">🤖 ถาม AI เกี่ยวกับเอกสาร</div>' +
+        '<div class="note" style="margin-bottom:8px;">พิมพ์เป็นคำถามได้เลย เช่น "อบรมเกี่ยวกับ AI มีใบไหนบ้าง" — น้องชาโปรจะอ่านเอกสารแล้วตอบให้</div>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<input type="search" id="aiq" class="in-txt" style="flex:1;" placeholder="พิมพ์คำถาม..." ' +
+        'onkeydown="if(event.key===\'Enter\')runAiSearch()">' +
+        '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runAiSearch()">ถาม</button>' +
+        '</div><div id="aires"></div></div>' +
         '<div id="sres"></div>';
       var el = document.getElementById('sq');
       if (el) el.focus();
@@ -2773,6 +2781,31 @@
           box.innerHTML = '<div class="card"><div class="state"><div class="em">⚠️</div>' +
             '<div class="ttl">ค้นหาไม่สำเร็จ</div><div class="txt">' + esc(e.message) + '</div>' +
             '<button class="b-primary" onclick="runSearch()">ลองใหม่</button></div></div>';
+        });
+    }
+
+    /* ก้อนที่ 101: ถาม AI (semantic search) บนมือถือ — เรียก action 'semanticsearch' (แกน semanticSearchForUser_) */
+    function runAiSearch(){
+      var el = document.getElementById('aiq');
+      var q = ((el && el.value) || '').trim();
+      var box = document.getElementById('aires');
+      if (!box) return;
+      if (q.length < 3){ box.innerHTML = '<div class="note" style="margin-top:8px;">พิมพ์คำถามอย่างน้อย 3 ตัวอักษรครับ 🐶</div>'; return; }
+      box.innerHTML = '<div class="note" style="margin-top:10px;">🤖 น้องชาโปรกำลังอ่านเอกสารและคิดคำตอบ... อาจใช้เวลา 5–15 วินาที</div>';
+      api('semanticsearch', { query: q })
+        .then(function(data){
+          var head = '<div class="card" style="margin-top:10px;"><div style="font-weight:600;margin-bottom:6px;">🤖 คำตอบ</div>' +
+            '<div class="note">' + esc(data.answer || '-') + '</div>' +
+            (data.truncatedScan ? '<div class="note" style="margin-top:4px;opacity:.7;">* ดูจากเอกสารล่าสุด ' + data.scanned + ' ฉบับ อาจไม่ครบ</div>' : '') + '</div>';
+          var list = (data.results && data.results.length)
+            ? '<div class="card" style="margin-top:8px;"><div class="note" style="margin-bottom:6px;">พบ ' + data.results.length + ' รายการที่เกี่ยวข้อง</div>' + dashDocsHtml(data.results, '') + '</div>'
+            : '';
+          box.innerHTML = head + list;
+        })
+        .catch(function(e){
+          box.innerHTML = '<div class="card" style="margin-top:10px;"><div class="state"><div class="em">⚠️</div>' +
+            '<div class="ttl">ถาม AI ไม่สำเร็จ</div><div class="txt">' + esc(e.message) + '</div>' +
+            '<button class="b-primary" onclick="runAiSearch()">ลองใหม่</button></div></div>';
         });
     }
 
