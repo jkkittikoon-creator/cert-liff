@@ -813,6 +813,8 @@
     var lastList = 'pending';
     var _docsCache = [];        // เก็บรายการล่าสุดไว้สลับ "เฉพาะของฉัน/ทั้งหมด" โดยไม่เรียกเซิร์ฟเวอร์ซ้ำ
     var docsMineOnly = true;    // ค่าเริ่มต้น: แสดงเฉพาะของฉัน (ให้ตรงกับชื่อหน้า "เอกสารของฉัน")
+    var _docsSelectMode = false; // ก้อนที่ 100: โหมดเลือกลบหลายใบ (เฉพาะแท็บรอตรวจ)
+    var _docsSelected = {};      // certificateId ที่ติ๊กเลือกไว้
     function showList(which){
       lastList = which || 'pending';
       app.innerHTML = '<div class="center">กำลังโหลด...</div>';
@@ -992,6 +994,14 @@
       var html = tabs + '<div class="msg">'+intro+'</div>';
       if (hasOthers) html += docsScopeBar(mineCount, docs.length);
 
+      // ก้อนที่ 100: ปุ่มสลับ "โหมดเลือกลบหลายใบ" — เฉพาะแท็บรอตรวจ (ตรงกับ bulk delete ฝั่งเว็บ)
+      var selMode = _docsSelectMode && which === 'pending';
+      if (which === 'pending' && shown.length) {
+        html += '<div style="margin-bottom:8px;"><button type="button" class="b-second" ' +
+          'style="width:auto;padding:6px 14px;font-size:13px;" onclick="toggleDocsSelectMode()">' +
+          (selMode ? '✕ ยกเลิกการเลือก' : '🗑️ เลือกลบหลายใบ') + '</button></div>';
+      }
+
       if (!shown.length){
         // มีของครูท่านอื่น แต่กรอง "เฉพาะของฉัน" แล้วของเราไม่มีในหมวดนี้
         app.innerHTML = html + '<div class="msg">คุณยังไม่มีเอกสารในหมวดนี้ครับ กด “ทั้งหมด” ด้านบนเพื่อดูของครูท่านอื่น 🐶</div>' + closeBtn;
@@ -1013,14 +1023,65 @@
         var note = busy ? 'น้องชาโปรกำลังอ่านให้อยู่ รอสักครู่นะครับ' : esc(meta.join(' • '));
         // ตอนดู "ทั้งหมด" (ผู้ดูแล) ติดป้ายบอกใบที่ไม่ใช่ของเรา จะได้ไม่สับสนว่าใบไหนของใคร
         var otherTag = (d.isMine === false) ? ' <span style="font-size:11px;color:#b26a00;">· ของครูท่านอื่น</span>' : '';
-        html += '<div class="doc-item' + (busy ? ' is-busy' : '') + '"' +
-          (busy ? '' : ' onclick="openDoc(\''+d.certificateId+'\')"') + '>'+
-          '<div class="doc-main"><div class="doc-title">'+esc(title)+expiryBadgeHtml(d.expiryDate)+'</div>'+
-          '<div class="note">'+note+otherTag+'</div></div>'+
-          (badge[d.status]||'')+'</div>';
+        if (selMode) {
+          // ก้อนที่ 100: โหมดเลือกลบ — แถวกลายเป็นติ๊กเลือกแทนการกดเปิด
+          var checked = !!_docsSelected[d.certificateId];
+          html += '<div class="doc-item" id="docrow_'+d.certificateId+'" ' +
+            'onclick="toggleDocSelect(\''+d.certificateId+'\')" ' +
+            'style="display:flex;align-items:center;gap:8px;' + (checked?'background:rgba(46,125,50,.12);':'') + '">' +
+            '<span id="cb_'+d.certificateId+'" style="font-size:20px;">'+(checked?'☑':'☐')+'</span>' +
+            '<div class="doc-main" style="flex:1;"><div class="doc-title">'+esc(title)+'</div>' +
+            '<div class="note">'+note+otherTag+'</div></div>'+(badge[d.status]||'')+'</div>';
+        } else {
+          html += '<div class="doc-item' + (busy ? ' is-busy' : '') + '"' +
+            (busy ? '' : ' onclick="openDoc(\''+d.certificateId+'\')"') + '>'+
+            '<div class="doc-main"><div class="doc-title">'+esc(title)+expiryBadgeHtml(d.expiryDate)+'</div>'+
+            '<div class="note">'+note+otherTag+'</div></div>'+
+            (badge[d.status]||'')+'</div>';
+        }
       });
-      html += '</div>' + closeBtn;
+      html += '</div>';
+      if (selMode) {
+        var n = Object.keys(_docsSelected).length;
+        html += '<button type="button" class="b-primary" id="bulkDelBtn" ' +
+          'style="width:100%;margin-top:8px;background:var(--nx-danger,#c62828);"' + (n?'':' disabled') +
+          ' onclick="confirmBulkDelete()">🗑️ ลบที่เลือก'+(n?' ('+n+')':'')+'</button>' +
+          '<div class="note" style="text-align:center;margin-top:4px;">ลบแล้วย้ายไปถังขยะ กู้คืนได้ · ครั้งละไม่เกิน 50 ฉบับ</div>';
+      }
+      html += closeBtn;
       app.innerHTML = html;
+    }
+
+    /* ก้อนที่ 100: โหมดเลือกลบหลายใบบนมือถือ — เรียก action 'discard' (แกนกลาง discardCertificatesForUser_) */
+    function toggleDocsSelectMode(){
+      _docsSelectMode = !_docsSelectMode;
+      _docsSelected = {};
+      renderDocs(_docsCache, lastList);
+    }
+    function toggleDocSelect(id){
+      if (_docsSelected[id]) delete _docsSelected[id]; else _docsSelected[id] = true;
+      var checked = !!_docsSelected[id];
+      var cb = document.getElementById('cb_'+id);
+      if (cb) cb.textContent = checked ? '☑' : '☐';
+      var row = document.getElementById('docrow_'+id);
+      if (row) row.style.background = checked ? 'rgba(46,125,50,.12)' : '';
+      var n = Object.keys(_docsSelected).length;
+      var btn = document.getElementById('bulkDelBtn');
+      if (btn){ btn.disabled = n===0; btn.textContent = n ? '🗑️ ลบที่เลือก ('+n+')' : '🗑️ ลบที่เลือก'; }
+    }
+    function confirmBulkDelete(){
+      var ids = Object.keys(_docsSelected);
+      if (!ids.length) return;
+      liffConfirm({
+        title: '🗑️ ลบเอกสารที่เลือก',
+        message: 'ลบ '+ids.length+' ฉบับ ย้ายไปถังขยะ (กู้คืนได้ภายหลัง) ยืนยันไหมครับ',
+        okLabel: 'ลบที่เลือก', cancelLabel: 'ยกเลิก'
+      }, function(){
+        api('discard', { certificateIds: ids }).then(function(){
+          _docsSelectMode = false; _docsSelected = {};
+          showList('pending');
+        }).catch(function(e){ showErr(e, function(){ showList('pending'); }); });
+      });
     }
 
     /* ================= ปฏิทินอบรม =================
