@@ -3026,21 +3026,21 @@
       if (n >= 1024) return (n / 1024).toFixed(0) + ' KB';
       return n + ' B';
     }
-    /* ขอ "ตั๋ว" อายุสั้นจาก server แล้วเปิด ?mydocs=ตั๋ว ในเบราว์เซอร์จริง (นอก LINE)
-       เพื่อให้หน้าเว็บ stream ไฟล์ zip ให้ — เลี่ยงปัญหา blob/<a download> ไม่ทำงานใน in-app browser ของ LINE
-       (เดิมส่ง base64 มาแปลงในหน้า LIFF แล้วเซฟไม่ได้บน LINE iOS/Android) */
+    /* เซฟ zip ลง Drive ฝั่ง server แล้วเปิด "ลิงก์ดาวน์โหลด Drive" ในเบราว์เซอร์จริง
+       ใช้แพทเทิร์นเดียวกับ openDrive (เปิดไฟล์เดี่ยว) ที่ทำงานได้อยู่แล้ว — ลิงก์ Drive เปิดได้เสมอ
+       ต่างจากหน้า Apps Script ที่ติดปัญหา Google หลายบัญชี (/u/1/) และ blob ที่ LINE เซฟไม่ได้ */
     function runExportZip(){
       var sel = document.getElementById('exZipYear');
       var year = (sel && sel.value) || 'ALL';
       var btn = document.getElementById('exZipBtn');
       var msg = document.getElementById('exZipMsg');
       if (btn) btn.disabled = true;
-      if (msg) msg.innerHTML = '🐾 น้องชาโปรกำลังเตรียมไฟล์... จะเปิดหน้าดาวน์โหลดในเบราว์เซอร์';
-      api('exportticket', { year: year })
+      if (msg) msg.innerHTML = '🐾 น้องชาโปรกำลังรวมไฟล์เป็น ZIP... อาจใช้เวลาสักครู่';
+      api('exportzip', { year: year })
         .then(function(d){
-          liffOpen(EXEC_URL + '?mydocs=' + encodeURIComponent(d.ticket));
-          if (msg) msg.innerHTML = '✅ เปิดหน้าดาวน์โหลดแล้ว — ไฟล์จะเซฟลงเครื่องในเบราว์เซอร์ที่เปิดขึ้นมา' +
-            '<div style="margin-top:4px;opacity:.75;">ถ้าไม่มีหน้าเปิดขึ้น ลองกดใหม่อีกครั้ง (ตั๋วมีอายุ 2 นาที)</div>';
+          liffOpen(d.url);
+          if (msg) msg.innerHTML = '✅ รวม ' + esc(d.count) + ' ไฟล์ (' + fmtBytes_(d.bytes) + ') แล้ว — เปิดหน้าดาวน์โหลดให้อัตโนมัติ' +
+            '<div style="margin-top:4px;">ถ้าไม่มีหน้าเปิดขึ้น แตะ <a href="' + esc(d.url) + '" target="_blank" style="color:#1a73e8;">ที่นี่เพื่อดาวน์โหลด</a></div>';
           if (btn) btn.disabled = false;
         })
         .catch(function(e){
