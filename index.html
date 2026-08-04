@@ -3026,35 +3026,21 @@
       if (n >= 1024) return (n / 1024).toFixed(0) + ' KB';
       return n + ' B';
     }
-    /* base64 → Blob (ให้เบราว์เซอร์เซฟเป็นไฟล์ได้) */
-    function b64ToBlob_(b64, mime){
-      var bin = atob(b64);
-      var len = bin.length;
-      var bytes = new Uint8Array(len);
-      for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-      return new Blob([bytes], { type: mime || 'application/zip' });
-    }
-    /* เรียก action exportzip (บังคับ DOWNLOAD ฝั่ง server) → รับ base64 → เซฟไฟล์
-       บน LINE in-app browser การ <a download> อาจไม่เซฟตรง จึงแนบลิงก์สำรองให้แตะเองด้วย */
+    /* ขอ "ตั๋ว" อายุสั้นจาก server แล้วเปิด ?mydocs=ตั๋ว ในเบราว์เซอร์จริง (นอก LINE)
+       เพื่อให้หน้าเว็บ stream ไฟล์ zip ให้ — เลี่ยงปัญหา blob/<a download> ไม่ทำงานใน in-app browser ของ LINE
+       (เดิมส่ง base64 มาแปลงในหน้า LIFF แล้วเซฟไม่ได้บน LINE iOS/Android) */
     function runExportZip(){
       var sel = document.getElementById('exZipYear');
       var year = (sel && sel.value) || 'ALL';
       var btn = document.getElementById('exZipBtn');
       var msg = document.getElementById('exZipMsg');
       if (btn) btn.disabled = true;
-      if (msg) msg.innerHTML = '🐾 น้องชาโปรกำลังรวมไฟล์เป็น ZIP... อาจใช้เวลาสักครู่';
-      api('exportzip', { year: year })
+      if (msg) msg.innerHTML = '🐾 น้องชาโปรกำลังเตรียมไฟล์... จะเปิดหน้าดาวน์โหลดในเบราว์เซอร์';
+      api('exportticket', { year: year })
         .then(function(d){
-          var blob = b64ToBlob_(d.base64, d.mimeType);
-          var url = URL.createObjectURL(blob);
-          var fname = d.fileName || 'เอกสารของฉัน.zip';
-          var a = document.createElement('a');
-          a.href = url; a.download = fname;
-          document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(function(){ URL.revokeObjectURL(url); }, 120000);
-          if (msg) msg.innerHTML = '✅ รวม ' + esc(d.count) + ' ไฟล์ (' + fmtBytes_(d.bytes) + ') แล้ว' +
-            '<div style="margin-top:4px;">ถ้ายังไม่เริ่มเซฟ แตะ ' +
-            '<a href="' + url + '" download="' + esc(fname) + '" style="color:#1a73e8;">ที่นี่เพื่อดาวน์โหลด</a></div>';
+          liffOpen(EXEC_URL + '?mydocs=' + encodeURIComponent(d.ticket));
+          if (msg) msg.innerHTML = '✅ เปิดหน้าดาวน์โหลดแล้ว — ไฟล์จะเซฟลงเครื่องในเบราว์เซอร์ที่เปิดขึ้นมา' +
+            '<div style="margin-top:4px;opacity:.75;">ถ้าไม่มีหน้าเปิดขึ้น ลองกดใหม่อีกครั้ง (ตั๋วมีอายุ 2 นาที)</div>';
           if (btn) btn.disabled = false;
         })
         .catch(function(e){
