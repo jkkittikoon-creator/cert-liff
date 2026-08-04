@@ -2488,6 +2488,29 @@
       });
     }
 
+    /* ก้อนที่ 99: ชุดช่วงเตือนสำเร็จรูป — ยกชุดเดียวกับหน้าเว็บ (Index.html UI_EXPIRY_PRESETS)
+       เป็นค่าคงที่ UI ไม่ใช่ตรรกะ ถ้าเว็บแก้ชุดนี้ต้องแก้ที่นี่ด้วย */
+    var UI_EXPIRY_PRESETS = [
+      { v: '90,30,7,0', t: 'ล่วงหน้า 90 / 30 / 7 วัน และวันหมดอายุ (แนะนำ)' },
+      { v: '30,7,0', t: 'ล่วงหน้า 30 / 7 วัน และวันหมดอายุ' },
+      { v: '60,30,14,7,0', t: 'ถี่หน่อย — 60 / 30 / 14 / 7 วัน และวันหมดอายุ' },
+      { v: '7,0', t: 'เตือนใกล้ ๆ เท่านั้น — 7 วัน และวันหมดอายุ' }
+    ];
+
+    /* ก้อนที่ 99: บันทึกตั้งค่าเตือนใกล้หมดอายุจากการ์ดในหน้าบัญชี — ใช้แกนกลางเดียวกับหน้าเว็บ */
+    function saveExpiryPrefsLiff(){
+      var msg = document.getElementById('exMsg');
+      var cb = document.getElementById('exEnabled');
+      var sel = document.getElementById('exDays');
+      if (!cb || !sel) return;
+      if (msg) msg.textContent = '⏳ กำลังบันทึก...';
+      api('saveexpiryprefs', { prefs: { enabled: cb.checked, daysBefore: sel.value } }).then(function(r){
+        if (msg) msg.textContent = r.enabled ? '✅ เปิดแล้ว' : '✅ ปิดแล้ว';
+      }).catch(function(e){
+        if (msg) msg.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ';
+      });
+    }
+
     /** ช่องลิงก์ 1 รายการ checklist — มีลิงก์แล้วโชว์ "เปิดลิงก์/แก้ไข/ลบ", ยังไม่มีโชว์ช่องกรอก (คู่กับ Index.html ฝั่งเว็บ) */
     function paLinkRowHtml_(i, link){
       var btnStyle = 'width:auto;padding:4px 10px;font-size:12px;margin-right:6px;';
@@ -2740,6 +2763,8 @@
         '<div id="acctAlertPrefs"></div>' +
         // ช่องว่างสำหรับการ์ดตั้งค่าสรุปความคืบหน้าอัตโนมัติ (ก้อนที่ 98)
         '<div id="acctDigestPrefs"></div>' +
+        // ช่องว่างสำหรับการ์ดตั้งค่าเตือนเอกสารใกล้หมดอายุ (ก้อนที่ 99)
+        '<div id="acctExpiryPrefs"></div>' +
 
         quickMsgCardHtml() +
 
@@ -2788,6 +2813,28 @@
           'รับสรุปความคืบหน้าทาง LINE</label>' +
           '<button class="b-second" style="width:auto;padding:6px 14px;font-size:13px;margin-top:10px;" onclick="saveDigestPrefsLiff()">💾 บันทึก</button>' +
           '<span class="note" id="dgMsg" style="margin-left:8px;"></span></div>';
+      }).catch(function(){ /* server เก่า/ระบบปิด/ไม่มีสิทธิ์ → ไม่โชว์การ์ด */ });
+
+      /* การ์ดตั้งค่าเตือนเอกสารใกล้หมดอายุ (ก้อนที่ 99) — มี dropdown ช่วงวัน (ยกชุด preset เดียวกับเว็บ)
+         รองรับ fallback "ค่าตั้งเอง" ถ้าค่าที่บันทึกไว้ไม่ตรงชุดสำเร็จรูปใด (ตรงกับเว็บ) */
+      api('expiryprefs', {}).then(function(p){
+        var slot = document.getElementById('acctExpiryPrefs');
+        if (!slot || !p.systemEnabled) return;
+        var opts = UI_EXPIRY_PRESETS.map(function(o){
+          return '<option value="' + o.v + '"' + (o.v === p.daysBefore ? ' selected' : '') + '>' + esc(o.t) + '</option>';
+        }).join('');
+        if (!UI_EXPIRY_PRESETS.some(function(o){ return o.v === p.daysBefore; })) {
+          opts = '<option value="' + esc(p.daysBefore) + '" selected>ตั้งเอง: ' + esc(p.daysBefore) + ' วัน</option>' + opts;
+        }
+        slot.innerHTML =
+          '<div class="card"><div style="font-weight:600;margin-bottom:8px;">⏰ เตือนเอกสารใกล้หมดอายุ</div>' +
+          '<label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">' +
+          '<input type="checkbox" id="exEnabled"' + (p.enabled ? ' checked' : '') + '> ' +
+          'เปิดรับการเตือนทาง LINE</label>' +
+          '<div class="note" style="margin:8px 0 4px;">ช่วงเวลาที่ต้องการให้เตือน</div>' +
+          '<select id="exDays" style="width:100%;padding:6px;margin-bottom:10px;">' + opts + '</select>' +
+          '<button class="b-second" style="width:auto;padding:6px 14px;font-size:13px;" onclick="saveExpiryPrefsLiff()">💾 บันทึก</button>' +
+          '<span class="note" id="exMsg" style="margin-left:8px;"></span></div>';
       }).catch(function(){ /* server เก่า/ระบบปิด/ไม่มีสิทธิ์ → ไม่โชว์การ์ด */ });
 
       // การ์ดสรุปเร็ว: ถ้ายังไม่มี cache ให้โหลดเสริม แล้วเติมทีหลัง (ไม่บล็อกหน้า)
