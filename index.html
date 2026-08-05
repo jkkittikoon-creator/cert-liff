@@ -3442,7 +3442,9 @@
       all:     { label: 'ทั้งหมด',   color: '#1a73e8' },
       year:    { label: 'รายปี',     color: '#06c755' },
       doctype: { label: 'ตามประเภท', color: '#8e24aa' },
-      pa:      { label: 'ว.PA',      color: '#c62828' }
+      daterange:{ label: 'ช่วงวันที่', color: '#ef6c00' },
+      pa:      { label: 'ว.PA',      color: '#c62828' },
+      school:  { label: 'ภาพรวมโรงเรียน', color: '#00897b' }
     };
     var RC_DOCTYPES = ['เกียรติบัตร','วุฒิบัตร','ใบประกาศนียบัตร','อื่นๆ'];
 
@@ -3491,12 +3493,19 @@
         '<option value="all">📚 รวมเกียรติบัตรทั้งหมด</option>'+
         '<option value="year">📅 แยกตามปีการศึกษา</option>'+
         '<option value="doctype">🏷️ แยกตามประเภทเอกสาร</option>'+
+        '<option value="daterange">📆 ตามช่วงวันที่ที่กำหนดเอง</option>'+
         '<option value="pa">🎯 สำหรับยื่น ว.PA (รอบ 1 ต.ค. – 30 ก.ย.)</option>'+
+        (_rcTargets.length ? '<option value="school">🏫 สรุปภาพรวมโรงเรียน (ทุกคน)</option>' : '')+
         '</select></div>'+
         rcStepH('② กำหนดเงื่อนไข') +
         '<div class="note" style="margin-bottom:4px;">แบบ "รวมทั้งหมด" ไม่ต้องกรอกเงื่อนไข · แบบอื่นจะมีช่องให้เลือกด้านล่าง</div>'+
         '<div class="field" id="rc_year_box" style="display:none;"><label>ปีการศึกษา</label><select id="rc_year">'+yearOpts+'</select></div>'+
         '<div class="field" id="rc_doctype_box" style="display:none;"><label>ประเภทเอกสาร</label><select id="rc_doctype">'+typeOpts+'</select></div>'+
+        '<div class="field" id="rc_range_box" style="display:none;"><label>ช่วงวันที่ (วันที่ได้รับเอกสาร)</label>'+
+        '<div style="display:flex;gap:6px;">'+
+        '<input type="date" id="rc_datefrom" style="flex:1;min-width:0;">'+
+        '<input type="date" id="rc_dateto" style="flex:1;min-width:0;"></div>'+
+        '<div class="note">เว้นช่องใดช่องหนึ่งได้ = เปิดปลายด้านนั้น</div></div>'+
         '<div class="field" id="rc_pa_box" style="display:none;"><label>ปีงบประมาณที่ประเมิน (พ.ศ.)</label><select id="rc_payear" onchange="rcPaNote()">'+paOpts+'</select>'+
         '<div class="note" id="rc_pa_note"></div></div>'+
         rcStepH('③ รูปแบบเอกสาร') +
@@ -3528,6 +3537,7 @@
       var k = document.getElementById('rc_kind').value;
       document.getElementById('rc_year_box').style.display = (k==='year') ? '' : 'none';
       document.getElementById('rc_doctype_box').style.display = (k==='doctype') ? '' : 'none';
+      document.getElementById('rc_range_box').style.display = (k==='daterange') ? '' : 'none';
       document.getElementById('rc_pa_box').style.display = (k==='pa') ? '' : 'none';
       if(k==='pa') rcPaNote();
     }
@@ -3682,18 +3692,30 @@
         if(!t){ liffToast('กรุณาเลือกประเภทเอกสารก่อนครับ 🐶', 'warn'); return; }
         filters.documentType = t;
         filters.reportLabel = 'รายงาน'+t;
+      } else if(kind==='daterange'){
+        var df = document.getElementById('rc_datefrom').value, dt = document.getElementById('rc_dateto').value;
+        if(!df && !dt){ liffToast('กรุณาเลือกช่วงวันที่อย่างน้อยหนึ่งช่องครับ 🐶', 'warn'); return; }
+        if(df) filters.dateFrom = df;
+        if(dt) filters.dateTo = dt;
+        var lb = (df ? rcThaiDate(df) : 'เริ่มต้น')+' – '+(dt ? rcThaiDate(dt) : 'ล่าสุด');
+        filters.reportLabel = 'รายงานช่วงวันที่ '+lb;
       } else if(kind==='pa'){
         var py = document.getElementById('rc_payear').value;
         if(!py){ liffToast('กรุณาเลือกปีที่ประเมินก่อนครับ 🐶', 'warn'); return; }
         var rng = rcPaRange(py);
         filters.dateFrom = rng.from; filters.dateTo = rng.to;
         filters.reportLabel = 'รายงาน ว.PA ปี '+py+' ('+rng.label+')';
+      } else if(kind==='school'){
+        filters.reportLabel = 'รายงานสรุปภาพรวมโรงเรียน';
       } else {
         filters.reportLabel = 'รายงานรวมเอกสารทั้งหมด';
       }
 
-      var tgt = document.getElementById('rc_target');
-      if(tgt && tgt.value) filters.targetOwnerId = tgt.value;   // แอดมินสร้างแทน (backend กันสิทธิ์)
+      // ภาพรวมโรงเรียน = ทุกคนเสมอ จึงไม่ผูก targetOwnerId (backend F2-C กันเฉพาะ ADMIN)
+      if(kind!=='school'){
+        var tgt = document.getElementById('rc_target');
+        if(tgt && tgt.value) filters.targetOwnerId = tgt.value;   // แอดมินสร้างแทน (backend กันสิทธิ์)
+      }
 
       var go = document.getElementById('rc_go'), prog = document.getElementById('rc_progress');
       go.disabled = true;
