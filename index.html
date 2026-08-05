@@ -3436,6 +3436,7 @@
        การเปิดดูใช้ "ลิงก์หน้ารายงาน" โทเคนลับ HMAC เปิดในเบราว์เซอร์ภายนอก (พรีวิว PDF + ปุ่มดาวน์โหลด
        PDF/Word อยู่ในหน้านั้น) — ไม่ใช้ลิงก์ Drive ตรง เพราะกติกา "Drive ห้าม Public" */
     var _reports = [];        // คลังรายงานที่โหลดมาแล้ว (ใช้กรอง/ลบโดยไม่ต้องโหลดใหม่)
+    var _rcTargets = [];      // รายชื่อผู้ใช้สำหรับ dropdown "รายงานของ" (แอดมินเท่านั้น)
     var _rcTimer = null;      // ตัวเดินขั้นตอน progress ระหว่างรอเซิร์ฟเวอร์สร้างรายงาน
     var RC_KINDS = {
       all:     { label: 'ทั้งหมด',   color: '#1a73e8' },
@@ -3447,8 +3448,12 @@
 
     function showReportCenter(){
       app.innerHTML = '<div class="center">📄 กำลังเปิดศูนย์รายงานผลงาน...</div>';
-      api('reportlist')
-        .then(function(list){ _reports = list || []; renderReportCenter(); })
+      Promise.all([ api('reportlist'), api('reporttargets').catch(function(){ return { users: [] }; }) ])
+        .then(function(res){
+          _reports = res[0] || [];
+          _rcTargets = (res[1] && res[1].users) || [];
+          renderReportCenter();
+        })
         .catch(function(e){ showErr(e, showReportCenter); });
     }
 
@@ -3463,8 +3468,16 @@
       var typeOpts = rcOptions(RC_DOCTYPES, '-- เลือกประเภทเอกสาร --');
       var paOpts = rcOptions(OPTIONS.academicYear, '-- เลือกปีที่ประเมิน --');
 
+      var targetField = _rcTargets.length ?
+        ('<div class="field"><label>รายงานของ (แอดมินสร้างแทนได้)</label>'+
+         '<select id="rc_target"><option value="">— รายงานของฉัน —</option>'+
+         _rcTargets.filter(function(u){ return !u.isSelf; }).map(function(u){
+           return '<option value="'+esc(u.userId)+'">'+esc((u.displayName||u.email)+' ('+u.email+')')+'</option>';
+         }).join('')+'</select></div>') : '';
+
       var createCard = '<div class="card">'+
         '<div style="font-weight:bold;font-size:14px;margin-bottom:8px;">✨ สร้างรายงานใหม่</div>'+
+        targetField +
         '<div class="field"><label>ประเภทรายงาน</label>'+
         '<select id="rc_kind" onchange="rcKindChange()">'+
         '<option value="all">📚 รวมเกียรติบัตรทั้งหมด</option>'+
@@ -3659,6 +3672,9 @@
       } else {
         filters.reportLabel = 'รายงานรวมเอกสารทั้งหมด';
       }
+
+      var tgt = document.getElementById('rc_target');
+      if(tgt && tgt.value) filters.targetOwnerId = tgt.value;   // แอดมินสร้างแทน (backend กันสิทธิ์)
 
       var go = document.getElementById('rc_go'), prog = document.getElementById('rc_progress');
       go.disabled = true;
