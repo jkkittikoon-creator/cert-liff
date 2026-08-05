@@ -3475,8 +3475,16 @@
            return '<option value="'+esc(u.userId)+'">'+esc((u.displayName||u.email)+' ('+u.email+')')+'</option>';
          }).join('')+'</select></div>') : '';
 
+      var rcStepH = function(t){ return '<div style="font-weight:700;font-size:13px;margin:12px 0 6px;border-left:3px solid var(--nx-primary,#1a73e8);padding-left:8px;">'+t+'</div>'; };
+      var rcChips = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;font-size:11px;">'+
+        ['① รูปแบบ','② เงื่อนไข','③ เอกสาร','④ สร้าง & ดูตัวอย่าง'].map(function(c){
+          return '<span style="background:var(--nx-surface-2,#eef);border-radius:999px;padding:2px 9px;color:var(--text-3,#667);">'+c+'</span>';
+        }).join('')+'</div>';
+
       var createCard = '<div class="card">'+
         '<div style="font-weight:bold;font-size:14px;margin-bottom:8px;">✨ สร้างรายงานใหม่</div>'+
+        rcChips +
+        rcStepH('① เลือกรูปแบบรายงาน') +
         targetField +
         '<div class="field"><label>ประเภทรายงาน</label>'+
         '<select id="rc_kind" onchange="rcKindChange()">'+
@@ -3485,10 +3493,15 @@
         '<option value="doctype">🏷️ แยกตามประเภทเอกสาร</option>'+
         '<option value="pa">🎯 สำหรับยื่น ว.PA (รอบ 1 ต.ค. – 30 ก.ย.)</option>'+
         '</select></div>'+
+        rcStepH('② กำหนดเงื่อนไข') +
+        '<div class="note" style="margin-bottom:4px;">แบบ "รวมทั้งหมด" ไม่ต้องกรอกเงื่อนไข · แบบอื่นจะมีช่องให้เลือกด้านล่าง</div>'+
         '<div class="field" id="rc_year_box" style="display:none;"><label>ปีการศึกษา</label><select id="rc_year">'+yearOpts+'</select></div>'+
         '<div class="field" id="rc_doctype_box" style="display:none;"><label>ประเภทเอกสาร</label><select id="rc_doctype">'+typeOpts+'</select></div>'+
         '<div class="field" id="rc_pa_box" style="display:none;"><label>ปีงบประมาณที่ประเมิน (พ.ศ.)</label><select id="rc_payear" onchange="rcPaNote()">'+paOpts+'</select>'+
         '<div class="note" id="rc_pa_note"></div></div>'+
+        rcStepH('③ รูปแบบเอกสาร') +
+        '<div class="note">ได้ทั้ง Word (แก้ไขต่อได้) และ PDF (พร้อมพิมพ์) — เลือกไฟล์ตอนดาวน์โหลดจากคลังด้านล่าง</div>'+
+        rcStepH('④ สร้าง & ดูตัวอย่าง') +
         '<div id="rc_progress"></div>'+
         '<button class="b-primary" id="rc_go" style="width:100%;" onclick="rcCreate()">🚀 สร้างรายงาน</button></div>';
 
@@ -3550,6 +3563,11 @@
     function rcRowInner(r){
       var isToday = String(r.createdAt||'').slice(0,10) === rcTodayIso();
       var todayBadge = isToday ? '<span class="badge b-new" style="margin-left:6px;">🆕 ล่าสุด</span>' : '';
+      var owner = r.ownerEmail || r.requestedBy || '';
+      var creator = r.createdByEmail || r.requestedBy || '';
+      // แสดง "โดย ผู้สร้าง" เฉพาะเมื่อผู้สร้าง ≠ เจ้าของ (แอดมินสร้างแทน)
+      var byLine = (creator && creator !== owner)
+        ? '<div class="note">👤 ของ '+esc(owner)+' • โดย '+esc(creator)+'</div>' : '';
       // ขนาดไฟล์ (รายงานเก่าไม่มี = ไม่แสดง)
       var sizes = [];
       if(r.pdfSize) sizes.push('PDF '+r.pdfSize);
@@ -3558,6 +3576,7 @@
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">'+
         '<div class="dash-name" style="flex:1;">'+esc(r.label)+todayBadge+'</div>'+rcBadge(r.kind)+'</div>'+
         '<div class="note">สร้างเมื่อ '+esc(rcThaiDate(r.createdAt))+(r.total!=='' ? ' • '+esc(r.total)+' รายการ' : '')+sizeText+' • ✅ พร้อมใช้งาน</div>'+
+        byLine +
         // แถวปุ่มหลัก 3 ปุ่ม: 🔳 QR (สแกนเปิดรายงานจาก Drive + บันทึกรูปได้) · ⬇️ PDF (แดง) · ⬇️ Word (น้ำเงิน)
         '<div class="dash-btns">'+
         '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#5f6368;" onclick="rcQr(\''+r.reportId+'\')">🔳 QR Code</button>'+
