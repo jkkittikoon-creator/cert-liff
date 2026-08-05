@@ -726,6 +726,9 @@
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+    /* คืน URL เฉพาะเมื่อเป็นลิงก์เว็บจริง (http/https) — กัน javascript: และโปรโตคอลอันตราย
+       ตรงกับ trSafeUrl_ ฝั่งเว็บ · registerUrl มาจาก AI อ่านโปสเตอร์/นำเข้าปฏิทิน/พิมพ์เอง จึงไม่เชื่อดิบ ๆ */
+    function safeUrl(u){ var s = String(u==null?'':u).trim(); return /^https?:\/\//i.test(s) ? s : ''; }
     /* escJs: ค่าที่จะฝังใน JS string ภายใน HTML attribute เช่น onclick="fn(&quot;...&quot;)"
        กัน 2 ชั้น — escape backslash/double-quote ให้เป็น JS string ที่ถูกต้อง แล้ว esc เป็น entity กัน attribute แตก */
     function escJs(s){ return esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/"/g,'\\"')); }
@@ -1204,7 +1207,9 @@
       }
       add(data.upcoming, 'upcoming');
       add(data.needCert, 'needCert');
-      add(data.past, 'past');
+      // ตารางเดือนใช้ชุดเต็ม (pastAll) ไม่ใช่ past ที่ถูกตัดเหลือ 20 สำหรับ "รายการ"
+      // fallback เป็น past เผื่อ backend รุ่นเก่ายังไม่ส่ง pastAll
+      add(data.pastAll || data.past, 'past');
       return map;
     }
 
@@ -1318,8 +1323,9 @@
         : (t.certificateName
             ? '<div class="m" style="color:var(--nx-green);">✅ 📎 ' + esc(t.certificateName) + calMatchChip(t) + '</div>'
             : (t.certificateId ? '<div class="m" style="color:var(--nx-green);">✅ เก็บเกียรติบัตรแล้ว</div>' : ''));
-      var link = t.registerUrl
-        ? '<div class="m">🔗 <a href="' + esc(t.registerUrl) + '" target="_blank" rel="noopener noreferrer">ลิงก์สมัคร</a></div>' : '';
+      var _regUrl = safeUrl(t.registerUrl);
+      var link = _regUrl
+        ? '<div class="m">🔗 <a href="' + esc(_regUrl) + '" target="_blank" rel="noopener noreferrer">ลิงก์สมัคร</a></div>' : '';
 
       var cd = calCountdown(t.daysAway);
       var cdHtml = cd ? '<div class="lcal-cd ' + cd.cls + '">' + cd.text + '</div>' : '';
