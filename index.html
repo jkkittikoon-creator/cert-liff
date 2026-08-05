@@ -3442,11 +3442,14 @@
       all:     { label: 'ทั้งหมด',   color: '#1a73e8' },
       year:    { label: 'รายปี',     color: '#06c755' },
       doctype: { label: 'ตามประเภท', color: '#8e24aa' },
+      devrole: { label: 'หมวดพัฒนา', color: '#5e35b1' },
       daterange:{ label: 'ช่วงวันที่', color: '#ef6c00' },
       pa:      { label: 'ว.PA',      color: '#c62828' },
       school:  { label: 'ภาพรวมโรงเรียน', color: '#00897b' }
     };
     var RC_DOCTYPES = ['เกียรติบัตร','วุฒิบัตร','ใบประกาศนียบัตร','อื่นๆ'];
+    // หมวดการพัฒนา = บทบาท (ให้ตรงกับ VF_OPTIONS.participationRole ฝั่งเว็บ)
+    var RC_DEVROLES = ['ผู้เข้าร่วม','ผู้เข้าแข่งขัน','ผู้เข้ารับการอบรม','วิทยากร','คณะกรรมการ','ครูผู้ควบคุม/ผู้ฝึกสอน','ผู้จัดกิจกรรม'];
 
     function showReportCenter(){
       app.innerHTML = '<div class="center">📄 กำลังเปิดศูนย์รายงานผลงาน...</div>';
@@ -3468,11 +3471,14 @@
     function renderReportCenter(){
       var yearOpts = rcOptions(OPTIONS.academicYear, '-- เลือกปีการศึกษา --');
       var typeOpts = rcOptions(RC_DOCTYPES, '-- เลือกประเภทเอกสาร --');
+      var devOpts = rcOptions(RC_DEVROLES, '-- ทุกหมวด (ทุกบทบาท) --');
       var paOpts = rcOptions(OPTIONS.academicYear, '-- เลือกปีที่ประเมิน --');
 
+      var _rcSelf = _rcTargets.filter(function(u){ return u.isSelf; })[0];
       var targetField = _rcTargets.length ?
         ('<div class="field"><label>รายงานของ (แอดมินสร้างแทนได้)</label>'+
-         '<select id="rc_target"><option value="">— รายงานของฉัน —</option>'+
+         '<select id="rc_target"><option value="">— ทุกคน (ทั้งระบบ) —</option>'+
+         (_rcSelf ? '<option value="'+esc(_rcSelf.userId)+'">👤 เฉพาะของฉัน</option>' : '')+
          _rcTargets.filter(function(u){ return !u.isSelf; }).map(function(u){
            return '<option value="'+esc(u.userId)+'">'+esc((u.displayName||u.email)+' ('+u.email+')')+'</option>';
          }).join('')+'</select></div>') : '';
@@ -3493,6 +3499,7 @@
         '<option value="all">📚 รวมทั้งหมด / แฟ้มสะสมผลงาน</option>'+
         '<option value="year">📅 แยกตามปีการศึกษา</option>'+
         '<option value="doctype">🏷️ แยกตามประเภทเอกสาร</option>'+
+        '<option value="devrole">🧩 แยกตามหมวดการพัฒนา (บทบาท)</option>'+
         '<option value="daterange">📆 ตามช่วงวันที่ที่กำหนดเอง</option>'+
         '<option value="pa">🎯 สำหรับยื่น ว.PA (รอบ 1 ต.ค. – 30 ก.ย.)</option>'+
         (_rcTargets.length ? '<option value="school">🏫 สรุปภาพรวมโรงเรียน (ทุกคน)</option>' : '')+
@@ -3501,6 +3508,7 @@
         '<div class="note" style="margin-bottom:4px;">แบบ "รวมทั้งหมด" ไม่ต้องกรอกเงื่อนไข · แบบอื่นจะมีช่องให้เลือกด้านล่าง</div>'+
         '<div class="field" id="rc_year_box" style="display:none;"><label>ปีการศึกษา</label><select id="rc_year">'+yearOpts+'</select></div>'+
         '<div class="field" id="rc_doctype_box" style="display:none;"><label>ประเภทเอกสาร</label><select id="rc_doctype">'+typeOpts+'</select></div>'+
+        '<div class="field" id="rc_devrole_box" style="display:none;"><label>หมวดการพัฒนา (บทบาท)</label><select id="rc_devrole">'+devOpts+'</select></div>'+
         '<div class="field" id="rc_range_box" style="display:none;"><label>ช่วงวันที่ (วันที่ได้รับเอกสาร)</label>'+
         '<div style="display:flex;gap:6px;">'+
         '<input type="date" id="rc_datefrom" style="flex:1;min-width:0;">'+
@@ -3537,6 +3545,7 @@
       var k = document.getElementById('rc_kind').value;
       document.getElementById('rc_year_box').style.display = (k==='year') ? '' : 'none';
       document.getElementById('rc_doctype_box').style.display = (k==='doctype') ? '' : 'none';
+      document.getElementById('rc_devrole_box').style.display = (k==='devrole') ? '' : 'none';
       document.getElementById('rc_range_box').style.display = (k==='daterange') ? '' : 'none';
       document.getElementById('rc_pa_box').style.display = (k==='pa') ? '' : 'none';
       if(k==='pa') rcPaNote();
@@ -3692,6 +3701,10 @@
         if(!t){ liffToast('กรุณาเลือกประเภทเอกสารก่อนครับ 🐶', 'warn'); return; }
         filters.documentType = t;
         filters.reportLabel = 'รายงาน'+t;
+      } else if(kind==='devrole'){
+        var pr = document.getElementById('rc_devrole').value;
+        if(pr) filters.participationRole = pr;   // เว้นว่าง = ทุกบทบาท (ไม่กรอง)
+        filters.reportLabel = 'รายงานตามหมวดการพัฒนา'+(pr ? ' — '+pr : ' (ทุกหมวด)');
       } else if(kind==='daterange'){
         var df = document.getElementById('rc_datefrom').value, dt = document.getElementById('rc_dateto').value;
         if(!df && !dt){ liffToast('กรุณาเลือกช่วงวันที่อย่างน้อยหนึ่งช่องครับ 🐶', 'warn'); return; }
