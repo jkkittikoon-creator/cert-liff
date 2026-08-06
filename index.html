@@ -765,7 +765,8 @@
       orgconfig:1, list:1, dashboard:1, search:1, fileqr:1, listsaved:1, qr:1, get:1,
       reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
-      expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1
+      expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
+      dropdownoptions:1
     };
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
@@ -3447,16 +3448,23 @@
       pa:      { label: 'ว.PA',      color: '#c62828' },
       school:  { label: 'ภาพรวมโรงเรียน', color: '#00897b' }
     };
-    var RC_DOCTYPES = ['เกียรติบัตร','วุฒิบัตร','ใบประกาศนียบัตร','อื่นๆ'];
+    var RC_DOCTYPES = ['เกียรติบัตร','วุฒิบัตร','ใบประกาศนียบัตร','อื่นๆ'];  // ชุดสำรอง ถ้าดึงค่าจริงจากชีตไม่ได้
+    var _rcDoctypes = RC_DOCTYPES;   // ค่าประเภทเอกสารที่ใช้จริง (แทนที่ด้วยค่าจากชีตเมื่อเปิดศูนย์รายงาน)
     // หมวดการพัฒนา = บทบาท (ให้ตรงกับ VF_OPTIONS.participationRole ฝั่งเว็บ)
     var RC_DEVROLES = ['ผู้เข้าร่วม','ผู้เข้าแข่งขัน','ผู้เข้ารับการอบรม','วิทยากร','คณะกรรมการ','ครูผู้ควบคุม/ผู้ฝึกสอน','ผู้จัดกิจกรรม'];
 
     function showReportCenter(){
       app.innerHTML = '<div class="center">📄 กำลังเปิดศูนย์รายงานผลงาน...</div>';
-      Promise.all([ api('reportlist'), api('reporttargets').catch(function(){ return { users: [] }; }) ])
+      Promise.all([
+        api('reportlist'),
+        api('reporttargets').catch(function(){ return { users: [] }; }),
+        api('dropdownoptions', { category: 'documentType' }).catch(function(){ return { data: null }; })
+      ])
         .then(function(res){
           _reports = res[0] || [];
           _rcTargets = (res[1] && res[1].users) || [];
+          var dt = res[2] && res[2].data;   // ค่าประเภทเอกสารจากชีตจริง — ล้ม/ว่างให้คงชุดสำรอง
+          if (dt && dt.length) _rcDoctypes = dt;
           renderReportCenter();
         })
         .catch(function(e){ showErr(e, showReportCenter); });
@@ -3470,7 +3478,7 @@
 
     function renderReportCenter(){
       var yearOpts = rcOptions(OPTIONS.academicYear, '-- เลือกปีการศึกษา --');
-      var typeOpts = rcOptions(RC_DOCTYPES, '-- เลือกประเภทเอกสาร --');
+      var typeOpts = rcOptions(_rcDoctypes, '-- เลือกประเภทเอกสาร --');
       var devOpts = rcOptions(RC_DEVROLES, '-- ทุกหมวด (ทุกบทบาท) --');
       var paOpts = rcOptions(OPTIONS.academicYear, '-- เลือกปีที่ประเมิน --');
 
