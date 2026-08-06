@@ -1097,7 +1097,9 @@
         var busy = (d.status === 'QUEUED' || d.status === 'AI_PROCESSING');
         var note = busy ? 'น้องชาโปรกำลังอ่านให้อยู่ รอสักครู่นะครับ' : esc(meta.join(' • '));
         // ตอนดู "ทั้งหมด" (ผู้ดูแล) ติดป้ายบอกใบที่ไม่ใช่ของเรา จะได้ไม่สับสนว่าใบไหนของใคร
-        var otherTag = (d.isMine === false) ? ' <span style="font-size:11px;color:#b26a00;">· ของครูท่านอื่น</span>' : '';
+        var otherTag = (d.isMine === false)
+          ? ' <span style="font-size:11px;color:#b26a00;">· ' + esc(d.ownerName ? '👤 ' + d.ownerName : 'ของครูท่านอื่น') + '</span>'
+          : '';
         if (selMode) {
           // ก้อนที่ 100: โหมดเลือกลบ — แถวกลายเป็นติ๊กเลือกแทนการกดเปิด
           var checked = !!_docsSelected[d.certificateId];
@@ -3353,8 +3355,10 @@
         btns = extra + '<div class="dash-btns">'+act+
           '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="deleteDoc(\''+d.certificateId+'\')" title="ลบไปถังขยะ">🗑️</button></div>';
       }
+      // ชื่อเจ้าของเอกสาร — ให้รู้ว่าใบไหนของใคร (ผู้ดูแลเห็นของหลายคน)
+      var owner = d.ownerName ? ' • 👤 '+esc(d.ownerName) : '';
       return '<div class="dash-name">'+esc(d.name)+'</div>'+
-        '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+'</div>'+btns;
+        '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+owner+'</div>'+btns;
     }
 
     function dashDocsHtml(docs, caption){
