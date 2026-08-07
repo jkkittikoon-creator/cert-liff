@@ -2197,6 +2197,7 @@
        ถ้าส่งแทนไม่ได้ (เปิดในเบราว์เซอร์ / ไม่ได้เปิดจากห้องแชต / ผู้ใช้ไม่ได้ให้สิทธิ์
        chat_message.write) จะ "คัดลอกข้อความให้" แล้วบอกให้วางในแชตแทน — ไม่ปล่อยให้กดแล้วเงียบ */
     var QUICK_MSGS = [
+      { t: 'สวัสดี',         ico: '🐶', d: 'เริ่มพูดคุยกับน้องชาโปร' },
       { t: 'งานค้าง',       ico: '📌', d: 'เหลืออะไรต้องทำบ้าง' },
       { t: 'สรุปปีนี้',      ico: '📈', d: 'จำนวนใบ + ชั่วโมงของปีการศึกษานี้' },
       { t: 'อบรม',          ico: '📅', d: 'กิจกรรมที่จะถึง + ที่ยังไม่เก็บเอกสาร' },
@@ -2329,8 +2330,8 @@
       }).join('');
       return '<div class="card"><div style="font-weight:600;margin-bottom:4px;">💬 ข้อความด่วน</div>' +
         '<div class="note" style="margin-bottom:10px;">' +
-        (canSend ? 'กดแล้วน้องชาโปรตอบในแชตทันที ไม่ต้องพิมพ์เอง'
-                 : 'เปิดจากแชต LINE จะกดส่งได้ทันที ตอนนี้กดแล้วระบบจะคัดลอกข้อความให้ไปวางในแชต') +
+        (canSend ? 'ผู้ใช้ที่เชื่อมบัญชีแล้วทุกบทบาทคุยกับน้องชาโปรได้เหมือนแอดมิน · กดแล้วตอบในแชตทันที'
+                 : 'ผู้ใช้ทุกบทบาทคุยกับน้องชาโปรได้ · เปิดจากแชต LINE จะกดส่งได้ทันที ตอนนี้ระบบจะคัดลอกข้อความให้ไปวางในแชต') +
         '</div>' + rows + '</div>';
     }
 
@@ -2440,6 +2441,19 @@
         '<div class="card"><div class="note">กำลังตรวจสิทธิ์และโหลดรายชื่อผู้รับ...</div></div>';
       api('mcpsendrecipients', {}).then(function(r){
         var recipients = (r && r.recipients) || [];
+        var q = r && r.quota;
+        var quotaCard = '';
+        if (q) {
+          quotaCard = q.limited
+            ? '<div class="card"><div class="note">โควตาข้อความ LINE เดือนนี้</div>' +
+                '<div style="font-size:26px;font-weight:800;color:var(--nx-green);margin:3px 0;">คงเหลือ ' + esc(q.quotaRemaining) + ' ข้อความ</div>' +
+                '<div class="note">ใช้แล้ว ' + esc(q.quotaUsed) + ' จาก ' + esc(q.quotaLimit) +
+                  ' ข้อความ (' + esc(q.usedPercent) + '%) · ระบบหยุดส่งที่ ' + esc(q.stopPercent) + '%</div></div>'
+            : '<div class="card"><div style="font-weight:700;color:var(--nx-green);">โควตา LINE: ไม่จำกัดจำนวน</div>' +
+                '<div class="note">เดือนนี้ใช้แล้ว ' + esc(q.quotaUsed) + ' ข้อความ</div></div>';
+        } else if (r && r.quotaError) {
+          quotaCard = '<div class="card"><div class="note" style="color:var(--nx-gold);">ดูโควตาไม่ได้: ' + esc(r.quotaError) + '</div></div>';
+        }
         var options = '<option value="">— เลือกผู้รับ —</option>' + recipients.map(function(u){
           var label = (u.displayName || u.email || 'ไม่ระบุชื่อ') +
             (u.email && u.displayName ? ' (' + u.email + ')' : '') +
@@ -2448,6 +2462,7 @@
         }).join('');
 
         app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
+          quotaCard +
           '<div class="card" style="border-color:var(--nx-danger);">' +
             '<div style="font-weight:700;color:var(--nx-danger);margin-bottom:6px;">📨 ส่งจริงผ่าน LINE Bot</div>' +
             '<div class="note">ส่งเฉพาะกิจได้ครั้งละ 1 คนเท่านั้น ใช้โควตาจริง และต้องตรวจพร้อมยืนยัน 2 ขั้น · ไม่ใช่ Broadcast</div>' +
@@ -2506,9 +2521,10 @@
         };
         if (key) key.value = r.messageKey;
         if (message) message.value = r.messageText;
-        var quota = (r.quotaLimit === '' || r.quotaLimit === null || r.quotaLimit === undefined)
+        var quota = (r.quotaLimit === '' || r.quotaLimit === null || r.quotaLimit === undefined || r.quotaRemainingBefore === null)
           ? 'ระบบไม่จำกัดโควตารายเดือน'
-          : 'หลังส่งจะใช้ ' + esc(r.projectedUsed) + ' จาก ' + esc(r.quotaLimit) + ' ข้อความ';
+          : 'ใช้แล้ว ' + esc(r.quotaUsed) + ' · คงเหลือก่อนส่ง ' + esc(r.quotaRemainingBefore) +
+            ' · หลังส่งคงเหลือ ' + esc(r.quotaRemainingAfter) + ' จากเพดาน ' + esc(r.quotaLimit) + ' ข้อความ';
         if (box) box.innerHTML =
           '<div class="msg" style="margin-top:12px;border-color:var(--nx-gold);">' +
             '<b>ขั้นที่ 2 — ตรวจสรุปก่อนส่งจริง</b>' +
@@ -2547,9 +2563,12 @@
         messageText: a.messageText,
         approvalToken: a.token
       }).then(function(r){
+        var remaining = r.quotaLimited
+          ? '<br>โควตาคงเหลือ ' + esc(r.quotaRemaining) + ' ข้อความ'
+          : '<br>โควตารายเดือนไม่จำกัดจำนวน';
         app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
           '<div class="card"><div class="state"><div class="em">✅</div><div class="ttl">ส่งข้อความแล้ว</div>' +
-            '<div class="txt">ส่งถึง ' + esc(r.recipientName) + ' จำนวน 1 ข้อความ<br>รหัส ' + esc(r.messageKey) + '</div></div></div>' +
+            '<div class="txt">ส่งถึง ' + esc(r.recipientName) + ' จำนวน 1 ข้อความ<br>รหัส ' + esc(r.messageKey) + remaining + '</div></div></div>' +
           '<button class="b-primary" style="width:100%;" onclick="showMcpSend()">ส่งข้อความอื่น</button>' +
           '<button class="b-second" style="width:100%;margin-top:8px;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
         liffToast('ส่งข้อความสำเร็จ', 'ok');
