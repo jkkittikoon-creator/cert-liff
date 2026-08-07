@@ -766,7 +766,7 @@
       reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
       expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
-      dropdownoptions:1
+      dropdownoptions:1, mcpsendrecipients:1
     };
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
@@ -2417,8 +2417,145 @@
 
         app.innerHTML = pageHead('คู่มือ MCP', 'goTab(\'account\')') + triage + body +
           '<div class="note" style="text-align:center;margin-bottom:10px;">ปรับปรุง ' + esc(g.updatedAt || '-') +
-          ' · การสั่งงานจริงทำที่เว็บระบบเท่านั้น</div>' +
+          ' · การส่งข้อความรายบุคคลใช้ได้จากเมนู “ส่งข้อความ MCP” ของผู้ดูแลระบบ</div>' +
           '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+      });
+    }
+
+    /* ---------- ส่งข้อความ MCP ถึงผู้ใช้อื่น (ADMIN เท่านั้น) ----------
+       หน้า static ไม่ตัดสินสิทธิ์เอง: ทั้งรายชื่อ เตรียมอนุมัติ และส่งจริงตรวจ user จาก LINE idToken
+       ที่ฝั่ง Apps Script ทุกครั้ง · ส่งได้ทีละคนและใช้แกน MCP เดียวกับหน้าเว็บ ไม่ Broadcast */
+    var _mcpLiffApproval = null;
+
+    function mcpLiffDefaultKey_(){
+      var d = new Date(), p = function(n){ return String(n).padStart(2, '0'); };
+      return 'ADMIN_MSG_' + d.getFullYear() + p(d.getMonth()+1) + p(d.getDate()) + '_' +
+        p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+    }
+
+    function showMcpSend(){
+      setNav('account');
+      _mcpLiffApproval = null;
+      app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
+        '<div class="card"><div class="note">กำลังตรวจสิทธิ์และโหลดรายชื่อผู้รับ...</div></div>';
+      api('mcpsendrecipients', {}).then(function(r){
+        var recipients = (r && r.recipients) || [];
+        var options = '<option value="">— เลือกผู้รับ —</option>' + recipients.map(function(u){
+          var label = (u.displayName || u.email || 'ไม่ระบุชื่อ') +
+            (u.email && u.displayName ? ' (' + u.email + ')' : '') +
+            (u.lineLinked ? '' : ' — ยังไม่ผูก LINE');
+          return '<option value="' + esc(u.userId) + '"' + (u.lineLinked ? '' : ' disabled') + '>' + esc(label) + '</option>';
+        }).join('');
+
+        app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
+          '<div class="card" style="border-color:var(--nx-danger);">' +
+            '<div style="font-weight:700;color:var(--nx-danger);margin-bottom:6px;">📨 ส่งจริงผ่าน LINE Bot</div>' +
+            '<div class="note">ส่งเฉพาะกิจได้ครั้งละ 1 คนเท่านั้น ใช้โควตาจริง และต้องตรวจพร้อมยืนยัน 2 ขั้น · ไม่ใช่ Broadcast</div>' +
+          '</div>' +
+          '<div class="card">' +
+            '<div class="field"><label for="mlsRecipient">ผู้รับ *</label>' +
+              '<select id="mlsRecipient" onchange="mcpLiffResetApproval_()">' + options + '</select></div>' +
+            '<div class="field"><label for="mlsKey">รหัสกันส่งซ้ำ *</label>' +
+              '<input id="mlsKey" type="text" maxlength="60" value="' + esc(mcpLiffDefaultKey_()) + '" ' +
+                'oninput="mcpLiffResetApproval_()" autocomplete="off"></div>' +
+            '<div class="field"><label for="mlsText">ข้อความ *</label>' +
+              '<textarea id="mlsText" maxlength="1000" rows="5" oninput="mcpLiffResetApproval_()" ' +
+                'style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;" placeholder="พิมพ์ข้อความที่จะส่ง"></textarea>' +
+              '<div class="note">สูงสุด 1,000 ตัวอักษร · ระบบบันทึกเฉพาะข้อความย่อในประวัติ ไม่เก็บข้อความเต็ม</div></div>' +
+            '<button type="button" class="b-primary" id="mlsPrepare" style="width:100%;" onclick="mcpLiffPrepare()">🔎 ตรวจและขออนุมัติ</button>' +
+            '<div id="mlsResult"></div>' +
+          '</div>' +
+          '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+      }).catch(function(e){
+        app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
+          '<div class="card"><div class="state"><div class="em">🔒</div><div class="ttl">เปิดเมนูไม่ได้</div>' +
+          '<div class="txt">' + esc(e.message) + '</div></div></div>' +
+          '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+      });
+    }
+
+    function mcpLiffResetApproval_(){
+      _mcpLiffApproval = null;
+      var box = document.getElementById('mlsResult');
+      if (box) box.innerHTML = '';
+    }
+
+    function mcpLiffPrepare(){
+      var recipient = document.getElementById('mlsRecipient');
+      var key = document.getElementById('mlsKey');
+      var message = document.getElementById('mlsText');
+      var btn = document.getElementById('mlsPrepare');
+      var box = document.getElementById('mlsResult');
+      var uid = recipient ? recipient.value : '';
+      var text = message ? message.value.trim() : '';
+      if (!uid) { liffToast('กรุณาเลือกผู้รับก่อน', 'warn'); return; }
+      if (!text) { liffToast('กรุณาพิมพ์ข้อความก่อน', 'warn'); return; }
+      _mcpLiffApproval = null;
+      if (btn) { btn.disabled = true; btn.textContent = 'กำลังตรวจ...'; }
+      if (box) box.innerHTML = '<div class="note" style="margin-top:10px;">กำลังตรวจโควตาและการส่งซ้ำ...</div>';
+
+      api('mcpsendprepare', {
+        targetUserId: uid,
+        messageKey: key ? key.value : '',
+        messageText: text
+      }).then(function(r){
+        if (btn) { btn.disabled = false; btn.textContent = '🔎 ตรวจและขออนุมัติ'; }
+        _mcpLiffApproval = {
+          token: r.approvalToken, targetUserId: uid, messageKey: r.messageKey,
+          messageText: r.messageText, recipientName: r.recipientName
+        };
+        if (key) key.value = r.messageKey;
+        if (message) message.value = r.messageText;
+        var quota = (r.quotaLimit === '' || r.quotaLimit === null || r.quotaLimit === undefined)
+          ? 'ระบบไม่จำกัดโควตารายเดือน'
+          : 'หลังส่งจะใช้ ' + esc(r.projectedUsed) + ' จาก ' + esc(r.quotaLimit) + ' ข้อความ';
+        if (box) box.innerHTML =
+          '<div class="msg" style="margin-top:12px;border-color:var(--nx-gold);">' +
+            '<b>ขั้นที่ 2 — ตรวจสรุปก่อนส่งจริง</b>' +
+            '<div style="margin-top:8px;">ผู้รับ: <b>' + esc(r.recipientName) + '</b></div>' +
+            '<div class="note">รหัส: ' + esc(r.messageKey) + ' · ' + esc(r.messageLength) + ' ตัวอักษร · ' + quota + '</div>' +
+            '<div style="margin-top:8px;padding:9px;border-radius:8px;background:var(--nx-surface-2);white-space:pre-wrap;word-break:break-word;">' + esc(r.messageText) + '</div>' +
+            '<div class="note" style="margin-top:8px;">คำอนุมัติมีอายุ ' + Math.round((r.expiresInSeconds || 300)/60) + ' นาที และใช้ได้ครั้งเดียว</div>' +
+            '<button type="button" class="b-primary" id="mlsSend" style="width:100%;margin-top:10px;" onclick="mcpLiffConfirmSend()">✅ ยืนยันส่งจริง</button>' +
+          '</div>';
+      }).catch(function(e){
+        if (btn) { btn.disabled = false; btn.textContent = '🔎 ตรวจและขออนุมัติ'; }
+        if (box) box.innerHTML = '<div class="msg err" style="margin-top:10px;">' + esc(e.message) + '</div>';
+      });
+    }
+
+    function mcpLiffConfirmSend(){
+      if (!_mcpLiffApproval) { liffToast('คำอนุมัติไม่พร้อม กรุณาตรวจใหม่', 'warn'); return; }
+      var a = _mcpLiffApproval;
+      liffConfirm({
+        title: 'ยืนยันส่งข้อความจริง?',
+        message: 'LINE Bot จะส่งถึง “' + a.recipientName + '” จำนวน 1 ข้อความ และใช้โควตาจริง',
+        okLabel: '📨 ส่งข้อความ'
+      }, doMcpLiffSend_);
+    }
+
+    function doMcpLiffSend_(){
+      var a = _mcpLiffApproval;
+      if (!a) return;
+      _mcpLiffApproval = null; // กันแตะซ้ำระหว่างรอ และ token ใช้ได้ครั้งเดียวอยู่แล้ว
+      var btn = document.getElementById('mlsSend');
+      var box = document.getElementById('mlsResult');
+      if (btn) { btn.disabled = true; btn.textContent = 'กำลังส่ง...'; }
+      api('mcpsend', {
+        targetUserId: a.targetUserId,
+        messageKey: a.messageKey,
+        messageText: a.messageText,
+        approvalToken: a.token
+      }).then(function(r){
+        app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
+          '<div class="card"><div class="state"><div class="em">✅</div><div class="ttl">ส่งข้อความแล้ว</div>' +
+            '<div class="txt">ส่งถึง ' + esc(r.recipientName) + ' จำนวน 1 ข้อความ<br>รหัส ' + esc(r.messageKey) + '</div></div></div>' +
+          '<button class="b-primary" style="width:100%;" onclick="showMcpSend()">ส่งข้อความอื่น</button>' +
+          '<button class="b-second" style="width:100%;margin-top:8px;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
+        liffToast('ส่งข้อความสำเร็จ', 'ok');
+      }).catch(function(e){
+        if (box) box.innerHTML = '<div class="msg err" style="margin-top:10px;">ส่งไม่สำเร็จ: ' + esc(e.message) +
+          '<br><span class="note">กรุณากดตรวจใหม่ก่อนลองอีกครั้ง ระบบจะกันรหัสซ้ำหากข้อความถูกส่งไปแล้ว</span></div>';
       });
     }
 
@@ -2982,6 +3119,7 @@
           '<div class="act-grid">' +
           '<button type="button" class="act" onclick="showAdminGuide()"><span class="ico">📕</span>คู่มือแอดมิน</button>' +
           '<button type="button" class="act" onclick="showMcpGuide()"><span class="ico">📘</span>คู่มือ MCP</button>' +
+          '<button type="button" class="act" onclick="showMcpSend()"><span class="ico">📨</span>ส่งข้อความ MCP</button>' +
           '<button type="button" class="act" onclick="showCareerInfo()"><span class="ico">🎖️</span>ประวัติราชการ / PA</button>' +
           '</div></div>';
       });
@@ -4787,6 +4925,7 @@
       else if(tab==='sendhelp'){ showHome(); showSendHelp(); } // Rich Menu ปุ่ม "ส่งเอกสาร" — เปิดหน้าหลักไว้ข้างหลัง + การ์ดวิธีส่งลอยด้านบน
       else if(tab==='pending'){ showList('pending'); }
       else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
+      else if(tab==='mcpsend'){ showMcpSend(); }        // ลิงก์ตรงสำหรับผู้ดูแลระบบ (server ยังตรวจสิทธิ์ทุกครั้ง)
       else { showHome(); }                              // Rich Menu ปุ่ม "เอกสารล่าสุด" (ไม่มี tab) — หน้าหลักมีการ์ดเอกสารล่าสุดอยู่แล้ว
     }
 
