@@ -792,7 +792,7 @@
       reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
       expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
-      dropdownoptions:1, mcpsendrecipients:1, aicenter:1
+      dropdownoptions:1, mcpsendrecipients:1, aicenter:1, health:1
     };
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
@@ -3299,6 +3299,59 @@
       api('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
 
+    /* ================= สุขภาพระบบและผู้ช่วยดูแล (ADMIN) ================= */
+    var LIFF_HEALTH_BADGE = { OK:'ปกติ', WARN:'ต้องดูแล', FAIL:'มีปัญหา' };
+    function showSystemCare(){
+      setNav('account'); liffBackFn_ = "goTab('account')";
+      app.innerHTML = pageHead('🩺 ดูแลสุขภาพระบบ', "goTab('account')") + '<div class="center">กำลังตรวจสุขภาพระบบ...</div>';
+      api('health', {}).then(renderSystemCareLiff_).catch(function(e){ showErr(e, showSystemCare); });
+    }
+    function liffHealthBadge_(status){
+      var color = status === 'OK' ? 'var(--nx-green)' : (status === 'FAIL' ? 'var(--nx-danger)' : 'var(--nx-gold)');
+      return '<span class="chip" style="color:'+color+'"><span class="dot"></span>'+esc(LIFF_HEALTH_BADGE[status]||status)+'</span>';
+    }
+    function renderSystemCareLiff_(data, result){
+      var h = (data && data.health) || data || {};
+      var plan = (data && data.carePlan) || [];
+      var rows = (h.checks || []).map(function(c){
+        return '<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">' +
+          '<div style="font-weight:700;">'+esc(c.component)+'</div>'+liffHealthBadge_(c.status)+'</div>'+
+          '<div class="note" style="margin-top:7px;">'+esc(c.message)+'</div></div>';
+      }).join('');
+      var guide = plan.map(function(p){
+        return '<div class="card"><div style="font-weight:700;">🧭 '+esc(p.component)+'</div>'+
+          '<div class="note" style="margin:6px 0;">'+esc(p.message||'')+'</div>'+
+          '<ol>'+(p.steps||[]).map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></div>';
+      }).join('');
+      var actions = result && result.actions && result.actions.length
+        ? '<div class="card"><div style="font-weight:700;margin-bottom:8px;">ผลการดูแลอัตโนมัติ</div>'+
+          result.actions.map(function(a){return '<div class="note" style="margin:5px 0;">'+(a.ok?'✅ ':'⚠️ ')+esc(a.component)+' — '+esc(a.message)+'</div>';}).join('')+'</div>' : '';
+      app.innerHTML = pageHead('🩺 ดูแลสุขภาพระบบ', "goTab('account')") +
+        '<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'+
+        '<div><div style="font-weight:700;font-size:17px;">สถานะรวม</div><div class="note">ตรวจเมื่อ '+esc(h.checkedAt||'–')+'</div></div>'+liffHealthBadge_(h.overall)+'</div>'+
+        (h.overall !== 'OK' ? '<button class="b-primary" style="width:100%;margin-top:12px;" onclick="runSystemCareLiff()">🪄 ดูแลให้กลับปกติ</button>' : '<div class="msg" style="margin-top:12px;">✅ ระบบปกติ ไม่ต้องดำเนินการเพิ่ม</div>')+
+        '<div class="note" style="margin-top:8px;">แก้เฉพาะรายการที่ปลอดภัย ไม่ลบไฟล์ ไม่ส่ง LINE ระหว่างการแก้ และไม่เปลี่ยนค่าลับ · trigger อาจแจ้ง ADMIN ภายหลังเมื่อพบปัญหารอบใหม่</div></div>'+actions+rows+
+        (guide ? '<div style="font-weight:700;margin:14px 2px 8px;">ขั้นตอนที่ต้องทำต่อ</div>'+guide : '')+
+        '<button class="b-second" style="width:100%;" onclick="showSystemCare()">🔄 ตรวจใหม่</button>'+
+        '<button class="b-second" style="width:100%;margin-top:8px;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
+    }
+    function runSystemCareLiff(){
+      liffConfirm({
+        title:'🪄 ดูแลสุขภาพระบบ',
+        message:'ระบบจะซ่อมโครงสร้างที่ขาด สำรองข้อมูล ตั้ง trigger และปิดเหตุการณ์ที่หยุดเกิดเกิน 60 นาที\n\nการกดครั้งนี้จะไม่ลบไฟล์ ไม่ส่ง LINE ไม่ลองงานซ้ำ และไม่เปลี่ยนค่าลับ (trigger อาจแจ้ง ADMIN ภายหลังเมื่อพบปัญหารอบใหม่)',
+        okLabel:'เริ่มดูแล', cancelLabel:'ยกเลิก'
+      }, function(){
+        showSaveOverlay('กำลังตรวจและดูแลระบบ...', 'เมื่อเสร็จแล้วระบบจะตรวจซ้ำให้ทันที');
+        api('healthcare', {}).then(function(r){
+          hideSaveOverlay();
+          renderSystemCareLiff_({health:r.health, carePlan:r.carePlan}, r);
+          if(r.ok) liffAlert('ตรวจและดูแลครบแล้ว ไม่พบรายการที่ต้องทำเพิ่ม', {title:'✅ ระบบกลับเป็นปกติ'});
+        }).catch(function(e){
+          setSaveOverlayError((e&&e.message)||String(e), runSystemCareLiff);
+        });
+      });
+    }
+
     /* ================= บัญชีของฉัน ================= */
     function showAccount(){
       setNav('account');
@@ -3368,6 +3421,7 @@
           '<button type="button" class="act" onclick="showAdminGuide()"><span class="ico">📕</span>คู่มือแอดมิน</button>' +
           '<button type="button" class="act" onclick="showMcpGuide()"><span class="ico">📘</span>คู่มือ MCP</button>' +
           '<button type="button" class="act" onclick="showMcpSend()"><span class="ico">📨</span>ส่งข้อความ MCP</button>' +
+          '<button type="button" class="act" onclick="showSystemCare()"><span class="ico">🩺</span>ดูแลสุขภาพระบบ</button>' +
           '<button type="button" class="act" onclick="showCareerInfo()"><span class="ico">🎖️</span>ประวัติราชการ / PA</button>' +
           '</div></div>';
       });
@@ -5200,6 +5254,7 @@
       else if(tab==='pending'){ showList('pending'); }
       else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
       else if(tab==='mcpsend'){ showMcpSend(); }        // ลิงก์ตรงสำหรับผู้ดูแลระบบ (server ยังตรวจสิทธิ์ทุกครั้ง)
+      else if(tab==='health'){ showSystemCare(); }      // ศูนย์ดูแลสุขภาพระบบสำหรับ ADMIN
       else { showHome(); }                              // Rich Menu ปุ่ม "เอกสารล่าสุด" (ไม่มี tab) — หน้าหลักมีการ์ดเอกสารล่าสุดอยู่แล้ว
     }
 
