@@ -138,7 +138,7 @@
 
     * { box-sizing: border-box; }
     body {
-      font-family: var(--font-body); margin: 0; color: var(--text-1); background: var(--bg-page);
+      font-family: var(--font-body); margin: 0; color: var(--text-1); background: var(--bg-page); overflow-x: hidden;
       /* ตาราง retro แบบเดียวกับฝั่งเว็บ — โหมดสว่าง --lux-grid เป็น transparent จึงหายไปเอง
          ไม่ใช้ background-attachment: fixed เพราะ LIFF รันใน WebView ของ LINE บน iOS
          ซึ่งเรนเดอร์ fixed ผิดตำแหน่งเวลาแป้นพิมพ์เด้งขึ้น */
@@ -268,8 +268,10 @@
     .ai-draft { margin-top: 10px; padding: 12px; border: 1px solid var(--lux-hairline);
       border-radius: 14px; background: var(--nx-surface-2); min-width: 0; }
     .ai-draft-title { font-weight: 800; line-height: 1.45; }
-    .ai-tone-scroll { display: flex; gap: 7px; overflow-x: auto; max-width: 100%; padding: 9px 1px 7px;
-      scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+    .ai-tone-scroll { display: flex; gap: 7px; overflow-x: auto; overflow-y: hidden;
+      width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; padding: 9px 6px 7px;
+      scrollbar-width: thin; -webkit-overflow-scrolling: touch; touch-action: pan-x;
+      overscroll-behavior-inline: contain; scroll-padding-inline: 6px; }
     .ai-tone-chip { flex: 0 0 auto; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border-strong);
       border-radius: 999px; background: var(--bg-card); color: var(--text-2); font-size: 13px; box-shadow: none; }
     .ai-tone-chip.on { color: var(--nx-hero-text); border-color: var(--nx-purple);
@@ -2459,7 +2461,7 @@
       return {
         originalText: '', aiText: '', finalText: '', aiMode: 'auto', aiTone: 'auto',
         aiDetectedTone: '', aiIntent: '', aiUsed: false, aiGeneratedAt: '', busy: false,
-        generation: 0, styleProfile: 'default'
+        generation: 0, activeRequest: 0, timeoutId: 0, styleProfile: 'default'
       };
     }
 
@@ -2473,7 +2475,7 @@
           '<button type="button" class="ai-tone-chip" data-tone="polite" aria-pressed="false" onclick="mcpLiffSelectTone_(\'polite\',this)">🙏 สุภาพ</button>' +
           '<button type="button" class="ai-tone-chip" data-tone="concise" aria-pressed="false" onclick="mcpLiffSelectTone_(\'concise\',this)">⚡ กระชับ</button>' +
           '<button type="button" class="ai-tone-chip" data-tone="playful" aria-pressed="false" onclick="mcpLiffSelectTone_(\'playful\',this)">😜 กวน</button>' +
-          '<button type="button" class="ai-tone-chip" data-tone="encouraging" aria-pressed="false" onclick="mcpLiffSelectTone_(\'encouraging\',this)">💖 ให้กำลังใจ</button>' +
+          '<button type="button" class="ai-tone-chip" data-tone="encourage" aria-pressed="false" onclick="mcpLiffSelectTone_(\'encourage\',this)">💖 ให้กำลังใจ</button>' +
           '<button type="button" class="ai-tone-chip" data-tone="formal" aria-pressed="false" onclick="mcpLiffSelectTone_(\'formal\',this)">👔 เป็นทางการ</button>' +
         '</div>' +
         '<button type="button" class="b-second ai-draft-main" id="mlsAiRewrite" onclick="mcpLiffRewrite(false)">✨ AI ปรับข้อความ</button>' +
@@ -2530,7 +2532,7 @@
             '<div class="field"><label for="mlsText">ข้อความ *</label>' +
               '<textarea id="mlsText" maxlength="1000" rows="5" oninput="mcpLiffMainTextChanged_()" ' +
                 'style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;" placeholder="พิมพ์ข้อความที่จะส่ง"></textarea>' +
-              '<div class="note">สูงสุด 1,000 ตัวอักษร · ระบบบันทึกเฉพาะข้อความย่อในประวัติ ไม่เก็บข้อความเต็ม</div>' +
+              '<div class="note"><span id="mlsCount">0 / 1000</span> · ข้อความล่าสุดในช่องนี้คือข้อความที่จะส่งจริง</div>' +
               mcpLiffAiMarkup_() + '</div>' +
             '<button type="button" class="b-primary" id="mlsPrepare" style="width:100%;" onclick="mcpLiffPrepare()">🔎 ตรวจและขออนุมัติ</button>' +
             '<div id="mlsResult"></div>' +
@@ -2554,7 +2556,14 @@
       if (!_mcpLiffAi) _mcpLiffAi = mcpLiffAiNewState_();
       var message = document.getElementById('mlsText');
       _mcpLiffAi.finalText = message ? message.value : '';
+      mcpLiffUpdateCount_();
       mcpLiffResetApproval_();
+    }
+
+    function mcpLiffUpdateCount_(){
+      var message = document.getElementById('mlsText');
+      var count = document.getElementById('mlsCount');
+      if (count) count.textContent = String(message ? message.value.length : 0) + ' / 1000';
     }
 
     function mcpLiffSelectTone_(tone, clicked){
@@ -2587,17 +2596,24 @@
       if (_mcpLiffAi.busy) return;
       var message = document.getElementById('mlsText');
       var current = message ? message.value.trim() : '';
-      var source = regenerate ? _mcpLiffAi.originalText : current;
+      var source = current;
       if (!source) { liffToast('กรุณาพิมพ์ข้อความก่อนใช้ AI', 'warn'); return; }
 
-      if (!regenerate) {
-        _mcpLiffAi.originalText = current;
-        _mcpLiffAi.finalText = current;
-      }
+      _mcpLiffAi.originalText = current;
+      _mcpLiffAi.finalText = current;
       var state = _mcpLiffAi;
       state.busy = true;
       state.generation += 1;
+      var requestId = state.generation;
+      state.activeRequest = requestId;
       mcpLiffSetAiBusy_(true);
+      state.timeoutId = window.setTimeout(function(){
+        if (state.activeRequest !== requestId) return;
+        state.activeRequest = 0;
+        state.busy = false;
+        mcpLiffSetAiBusy_(false);
+        liffToast('AI ใช้เวลานานเกินไป ข้อความเดิมยังอยู่ กรุณาลองใหม่', 'warn');
+      }, 45000);
 
       api('airewrite', {
         text: source,
@@ -2605,19 +2621,33 @@
         tone: state.aiTone,
         styleProfile: state.styleProfile
       }).then(function(r){
-        if (_mcpLiffAi !== state) return;
+        if (_mcpLiffAi !== state || state.activeRequest !== requestId) return;
+        window.clearTimeout(state.timeoutId);
+        state.activeRequest = 0;
         state.busy = false;
+        if (!r || r.success !== true || typeof r.text !== 'string' || !r.text.trim()) {
+          mcpLiffSetAiBusy_(false);
+          liffToast((r && r.message) || 'AI ตอบกลับไม่สมบูรณ์ โดยข้อความเดิมยังอยู่', 'warn');
+          return;
+        }
         state.aiText = r.text || '';
         state.aiDetectedTone = r.tone || '';
         state.aiIntent = r.intent || '';
         state.aiGeneratedAt = r.generatedAt || '';
+        if (message) message.value = state.aiText;
+        state.finalText = state.aiText;
+        state.aiUsed = true;
+        mcpLiffUpdateCount_();
+        mcpLiffResetApproval_();
         mcpLiffSetAiBusy_(false);
         mcpLiffRenderAiPreview_(r);
-      }).catch(function(){
-        if (_mcpLiffAi !== state) return;
+      }).catch(function(e){
+        if (_mcpLiffAi !== state || state.activeRequest !== requestId) return;
+        window.clearTimeout(state.timeoutId);
+        state.activeRequest = 0;
         state.busy = false;
         mcpLiffSetAiBusy_(false);
-        liffToast('⚠️ AI ยังไม่สามารถปรับข้อความได้ กรุณาลองใหม่', 'warn');
+        liffToast('AI ให้บริการชั่วคราวไม่ได้ ข้อความเดิมยังอยู่: ' + (e && e.message ? e.message : ''), 'warn');
       });
     }
 
@@ -2631,20 +2661,12 @@
         : '<div class="ai-preview-meta"><span class="ai-badge">โทนที่เลือก</span>' +
           '<span class="note" style="margin:0;">' + esc(result.toneLabel || '') + '</span></div>';
       box.innerHTML = '<div class="ai-preview">' +
-        '<div class="ai-draft-title">✨ ข้อความที่ AI แนะนำ</div>' + analysis +
-        '<label class="note" for="mlsAiText">แก้ข้อความแนะนำได้ก่อนเลือกใช้</label>' +
-        '<textarea id="mlsAiText" maxlength="1000" oninput="mcpLiffAiPreviewChanged_()">' + esc(_mcpLiffAi.aiText) + '</textarea>' +
+        '<div class="ai-draft-title">✅ ปรับข้อความในช่องด้านบนแล้ว</div>' + analysis +
+        '<div class="note">ตรวจหรือแก้ข้อความต่อได้ทันที ข้อความในช่องหลักคือค่าที่จะขออนุมัติ</div>' +
         '<div class="ai-preview-actions">' +
-          '<button type="button" class="b-second" onclick="mcpLiffRestoreOriginal_()">↩️ ข้อความเดิม</button>' +
+          '<button type="button" class="b-second" onclick="mcpLiffRestoreOriginal_()">↩️ คืนข้อความเดิม</button>' +
           '<button type="button" class="b-second" id="mlsAiRegenerate" onclick="mcpLiffRewrite(true)">🔄 สร้างใหม่</button>' +
-          '<button type="button" class="b-primary ai-use" onclick="mcpLiffUseAi_()">✅ ใช้ข้อความนี้</button>' +
         '</div></div>';
-    }
-
-    function mcpLiffAiPreviewChanged_(){
-      if (!_mcpLiffAi) return;
-      var preview = document.getElementById('mlsAiText');
-      _mcpLiffAi.aiText = preview ? preview.value : _mcpLiffAi.aiText;
     }
 
     function mcpLiffRestoreOriginal_(){
@@ -2653,22 +2675,9 @@
       if (message) message.value = _mcpLiffAi.originalText;
       _mcpLiffAi.finalText = _mcpLiffAi.originalText;
       _mcpLiffAi.aiUsed = false;
+      mcpLiffUpdateCount_();
       mcpLiffResetApproval_();
       liffToast('นำข้อความเดิมกลับมาแล้ว', 'ok');
-    }
-
-    function mcpLiffUseAi_(){
-      if (!_mcpLiffAi) return;
-      var preview = document.getElementById('mlsAiText');
-      var selected = preview ? preview.value.trim() : _mcpLiffAi.aiText.trim();
-      if (!selected) { liffToast('ข้อความที่ AI แนะนำว่างเปล่า', 'warn'); return; }
-      var message = document.getElementById('mlsText');
-      if (message) message.value = selected;
-      _mcpLiffAi.aiText = selected;
-      _mcpLiffAi.finalText = selected;
-      _mcpLiffAi.aiUsed = true;
-      mcpLiffResetApproval_();
-      liffToast('✅ ใช้ข้อความที่ AI ปรับแล้ว', 'ok');
     }
 
     function mcpLiffPrepare(){
@@ -2699,6 +2708,7 @@
         };
         if (key) key.value = r.messageKey;
         if (message) message.value = r.messageText;
+        mcpLiffUpdateCount_();
         if (_mcpLiffAi) _mcpLiffAi.finalText = r.messageText;
         var quota = (r.quotaLimit === '' || r.quotaLimit === null || r.quotaLimit === undefined || r.quotaRemainingBefore === null)
           ? 'ระบบไม่จำกัดโควตารายเดือน'
