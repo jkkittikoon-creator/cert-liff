@@ -264,6 +264,32 @@
       .lf-modal-backdrop, .lf-modal-box, .lft, .lft.out { animation: none; }
       button:active { transform: none; }
     }
+    /* AI Draft Assistant เป็นเพียงตัวช่วยร่างข้อความก่อนเข้า MCP — ไม่ถือ approval token และส่ง LINE เองไม่ได้ */
+    .ai-draft { margin-top: 10px; padding: 12px; border: 1px solid var(--lux-hairline);
+      border-radius: 14px; background: var(--nx-surface-2); min-width: 0; }
+    .ai-draft-title { font-weight: 800; line-height: 1.45; }
+    .ai-tone-scroll { display: flex; gap: 7px; overflow-x: auto; max-width: 100%; padding: 9px 1px 7px;
+      scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+    .ai-tone-chip { flex: 0 0 auto; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border-strong);
+      border-radius: 999px; background: var(--bg-card); color: var(--text-2); font-size: 13px; box-shadow: none; }
+    .ai-tone-chip.on { color: var(--nx-hero-text); border-color: var(--nx-purple);
+      background: linear-gradient(135deg, var(--nx-blue), var(--nx-purple)); }
+    .ai-draft-main { width: 100%; min-height: 44px; }
+    .ai-preview { margin-top: 10px; padding: 11px; border-radius: 12px;
+      border: 1px solid var(--nx-purple); background: var(--bg-card); min-width: 0; }
+    .ai-preview-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0 8px; }
+    .ai-preview textarea { width: 100%; max-width: 100%; min-height: 132px; resize: vertical; padding: 10px;
+      border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg-card);
+      color: var(--text-1); font: 15px/1.55 var(--font-body); }
+    .ai-preview-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+    .ai-preview-actions button { min-width: 0; min-height: 44px; padding: 9px 6px; font-size: 13px; }
+    .ai-preview-actions .ai-use { grid-column: 1 / -1; }
+    .ai-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 800;
+      color: var(--info-text); background: var(--info-soft); border: 1px solid var(--nx-blue); }
+    @media (min-width: 480px) {
+      .ai-preview-actions { grid-template-columns: repeat(3, 1fr); }
+      .ai-preview-actions .ai-use { grid-column: auto; }
+    }
     .btns { display: flex; gap: 10px; margin-top: 8px; }
     button {
       position: relative; overflow: hidden;   /* ตัดวง ripple ให้อยู่ในทรงปุ่ม */
@@ -766,7 +792,7 @@
       reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
       expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
-      dropdownoptions:1, mcpsendrecipients:1
+      dropdownoptions:1, mcpsendrecipients:1, aicenter:1
     };
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
@@ -2427,6 +2453,33 @@
        หน้า static ไม่ตัดสินสิทธิ์เอง: ทั้งรายชื่อ เตรียมอนุมัติ และส่งจริงตรวจ user จาก LINE idToken
        ที่ฝั่ง Apps Script ทุกครั้ง · ส่งได้ทีละคนและใช้แกน MCP เดียวกับหน้าเว็บ ไม่ Broadcast */
     var _mcpLiffApproval = null;
+    var _mcpLiffAi = null;
+
+    function mcpLiffAiNewState_(){
+      return {
+        originalText: '', aiText: '', finalText: '', aiMode: 'auto', aiTone: 'auto',
+        aiDetectedTone: '', aiIntent: '', aiUsed: false, aiGeneratedAt: '', busy: false,
+        generation: 0, styleProfile: 'default'
+      };
+    }
+
+    function mcpLiffAiMarkup_(){
+      return '<div class="ai-draft" aria-labelledby="mlsAiTitle">' +
+        '<div class="ai-draft-title" id="mlsAiTitle">✨ AI ช่วยปรับข้อความ</div>' +
+        '<div class="note">AI จะช่วยปรับภาษาเท่านั้น คุณยังแก้ไข ตรวจ และยืนยันส่งเองทุกครั้ง</div>' +
+        '<div class="ai-tone-scroll" role="group" aria-label="เลือกโทนข้อความ">' +
+          '<button type="button" class="ai-tone-chip on" data-tone="auto" aria-pressed="true" onclick="mcpLiffSelectTone_(\'auto\',this)">🤖 อัตโนมัติ ✨แนะนำ</button>' +
+          '<button type="button" class="ai-tone-chip" data-tone="cute" aria-pressed="false" onclick="mcpLiffSelectTone_(\'cute\',this)">🥰 น่ารัก</button>' +
+          '<button type="button" class="ai-tone-chip" data-tone="polite" aria-pressed="false" onclick="mcpLiffSelectTone_(\'polite\',this)">🙏 สุภาพ</button>' +
+          '<button type="button" class="ai-tone-chip" data-tone="concise" aria-pressed="false" onclick="mcpLiffSelectTone_(\'concise\',this)">⚡ กระชับ</button>' +
+          '<button type="button" class="ai-tone-chip" data-tone="playful" aria-pressed="false" onclick="mcpLiffSelectTone_(\'playful\',this)">😜 กวน</button>' +
+          '<button type="button" class="ai-tone-chip" data-tone="encouraging" aria-pressed="false" onclick="mcpLiffSelectTone_(\'encouraging\',this)">💖 ให้กำลังใจ</button>' +
+          '<button type="button" class="ai-tone-chip" data-tone="formal" aria-pressed="false" onclick="mcpLiffSelectTone_(\'formal\',this)">👔 เป็นทางการ</button>' +
+        '</div>' +
+        '<button type="button" class="b-second ai-draft-main" id="mlsAiRewrite" onclick="mcpLiffRewrite(false)">✨ AI ปรับข้อความ</button>' +
+        '<div id="mlsAiPreview" aria-live="polite"></div>' +
+      '</div>';
+    }
 
     function mcpLiffDefaultKey_(){
       var d = new Date(), p = function(n){ return String(n).padStart(2, '0'); };
@@ -2437,6 +2490,7 @@
     function showMcpSend(){
       setNav('account');
       _mcpLiffApproval = null;
+      _mcpLiffAi = mcpLiffAiNewState_();
       app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
         '<div class="card"><div class="note">กำลังตรวจสิทธิ์และโหลดรายชื่อผู้รับ...</div></div>';
       api('mcpsendrecipients', {}).then(function(r){
@@ -2474,9 +2528,10 @@
               '<input id="mlsKey" type="text" maxlength="60" value="' + esc(mcpLiffDefaultKey_()) + '" ' +
                 'oninput="mcpLiffResetApproval_()" autocomplete="off"></div>' +
             '<div class="field"><label for="mlsText">ข้อความ *</label>' +
-              '<textarea id="mlsText" maxlength="1000" rows="5" oninput="mcpLiffResetApproval_()" ' +
+              '<textarea id="mlsText" maxlength="1000" rows="5" oninput="mcpLiffMainTextChanged_()" ' +
                 'style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;" placeholder="พิมพ์ข้อความที่จะส่ง"></textarea>' +
-              '<div class="note">สูงสุด 1,000 ตัวอักษร · ระบบบันทึกเฉพาะข้อความย่อในประวัติ ไม่เก็บข้อความเต็ม</div></div>' +
+              '<div class="note">สูงสุด 1,000 ตัวอักษร · ระบบบันทึกเฉพาะข้อความย่อในประวัติ ไม่เก็บข้อความเต็ม</div>' +
+              mcpLiffAiMarkup_() + '</div>' +
             '<button type="button" class="b-primary" id="mlsPrepare" style="width:100%;" onclick="mcpLiffPrepare()">🔎 ตรวจและขออนุมัติ</button>' +
             '<div id="mlsResult"></div>' +
           '</div>' +
@@ -2495,6 +2550,127 @@
       if (box) box.innerHTML = '';
     }
 
+    function mcpLiffMainTextChanged_(){
+      if (!_mcpLiffAi) _mcpLiffAi = mcpLiffAiNewState_();
+      var message = document.getElementById('mlsText');
+      _mcpLiffAi.finalText = message ? message.value : '';
+      mcpLiffResetApproval_();
+    }
+
+    function mcpLiffSelectTone_(tone, clicked){
+      if (!_mcpLiffAi) _mcpLiffAi = mcpLiffAiNewState_();
+      if (_mcpLiffAi.busy) return;
+      _mcpLiffAi.aiTone = tone || 'auto';
+      _mcpLiffAi.aiMode = _mcpLiffAi.aiTone === 'auto' ? 'auto' : 'manual';
+      var chips = document.querySelectorAll('.ai-tone-chip');
+      for (var i = 0; i < chips.length; i++) {
+        var on = chips[i] === clicked;
+        chips[i].classList.toggle('on', on);
+        chips[i].setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+    }
+
+    function mcpLiffSetAiBusy_(busy){
+      var main = document.getElementById('mlsAiRewrite');
+      var regen = document.getElementById('mlsAiRegenerate');
+      var chips = document.querySelectorAll('.ai-tone-chip');
+      if (main) {
+        main.disabled = busy;
+        main.textContent = busy ? '✨ AI กำลังช่วยเรียบเรียงข้อความ...' : '✨ AI ปรับข้อความ';
+      }
+      if (regen) regen.disabled = busy;
+      for (var i = 0; i < chips.length; i++) chips[i].disabled = busy;
+    }
+
+    function mcpLiffRewrite(regenerate){
+      if (!_mcpLiffAi) _mcpLiffAi = mcpLiffAiNewState_();
+      if (_mcpLiffAi.busy) return;
+      var message = document.getElementById('mlsText');
+      var current = message ? message.value.trim() : '';
+      var source = regenerate ? _mcpLiffAi.originalText : current;
+      if (!source) { liffToast('กรุณาพิมพ์ข้อความก่อนใช้ AI', 'warn'); return; }
+
+      if (!regenerate) {
+        _mcpLiffAi.originalText = current;
+        _mcpLiffAi.finalText = current;
+      }
+      var state = _mcpLiffAi;
+      state.busy = true;
+      state.generation += 1;
+      mcpLiffSetAiBusy_(true);
+
+      api('airewrite', {
+        text: source,
+        mode: state.aiMode,
+        tone: state.aiTone,
+        styleProfile: state.styleProfile
+      }).then(function(r){
+        if (_mcpLiffAi !== state) return;
+        state.busy = false;
+        state.aiText = r.text || '';
+        state.aiDetectedTone = r.tone || '';
+        state.aiIntent = r.intent || '';
+        state.aiGeneratedAt = r.generatedAt || '';
+        mcpLiffSetAiBusy_(false);
+        mcpLiffRenderAiPreview_(r);
+      }).catch(function(){
+        if (_mcpLiffAi !== state) return;
+        state.busy = false;
+        mcpLiffSetAiBusy_(false);
+        liffToast('⚠️ AI ยังไม่สามารถปรับข้อความได้ กรุณาลองใหม่', 'warn');
+      });
+    }
+
+    function mcpLiffRenderAiPreview_(result){
+      var box = document.getElementById('mlsAiPreview');
+      if (!box || !_mcpLiffAi) return;
+      var analysis = _mcpLiffAi.aiMode === 'auto'
+        ? '<div class="ai-preview-meta"><span class="ai-badge">🤖 AI วิเคราะห์</span>' +
+          '<span class="note" style="margin:0;">' + esc(result.intentLabel || 'ทั่วไป') +
+          ' • โทน' + esc(result.toneLabel || 'สุภาพ') + '</span></div>'
+        : '<div class="ai-preview-meta"><span class="ai-badge">โทนที่เลือก</span>' +
+          '<span class="note" style="margin:0;">' + esc(result.toneLabel || '') + '</span></div>';
+      box.innerHTML = '<div class="ai-preview">' +
+        '<div class="ai-draft-title">✨ ข้อความที่ AI แนะนำ</div>' + analysis +
+        '<label class="note" for="mlsAiText">แก้ข้อความแนะนำได้ก่อนเลือกใช้</label>' +
+        '<textarea id="mlsAiText" maxlength="1000" oninput="mcpLiffAiPreviewChanged_()">' + esc(_mcpLiffAi.aiText) + '</textarea>' +
+        '<div class="ai-preview-actions">' +
+          '<button type="button" class="b-second" onclick="mcpLiffRestoreOriginal_()">↩️ ข้อความเดิม</button>' +
+          '<button type="button" class="b-second" id="mlsAiRegenerate" onclick="mcpLiffRewrite(true)">🔄 สร้างใหม่</button>' +
+          '<button type="button" class="b-primary ai-use" onclick="mcpLiffUseAi_()">✅ ใช้ข้อความนี้</button>' +
+        '</div></div>';
+    }
+
+    function mcpLiffAiPreviewChanged_(){
+      if (!_mcpLiffAi) return;
+      var preview = document.getElementById('mlsAiText');
+      _mcpLiffAi.aiText = preview ? preview.value : _mcpLiffAi.aiText;
+    }
+
+    function mcpLiffRestoreOriginal_(){
+      if (!_mcpLiffAi || !_mcpLiffAi.originalText) return;
+      var message = document.getElementById('mlsText');
+      if (message) message.value = _mcpLiffAi.originalText;
+      _mcpLiffAi.finalText = _mcpLiffAi.originalText;
+      _mcpLiffAi.aiUsed = false;
+      mcpLiffResetApproval_();
+      liffToast('นำข้อความเดิมกลับมาแล้ว', 'ok');
+    }
+
+    function mcpLiffUseAi_(){
+      if (!_mcpLiffAi) return;
+      var preview = document.getElementById('mlsAiText');
+      var selected = preview ? preview.value.trim() : _mcpLiffAi.aiText.trim();
+      if (!selected) { liffToast('ข้อความที่ AI แนะนำว่างเปล่า', 'warn'); return; }
+      var message = document.getElementById('mlsText');
+      if (message) message.value = selected;
+      _mcpLiffAi.aiText = selected;
+      _mcpLiffAi.finalText = selected;
+      _mcpLiffAi.aiUsed = true;
+      mcpLiffResetApproval_();
+      liffToast('✅ ใช้ข้อความที่ AI ปรับแล้ว', 'ok');
+    }
+
     function mcpLiffPrepare(){
       var recipient = document.getElementById('mlsRecipient');
       var key = document.getElementById('mlsKey');
@@ -2505,6 +2681,8 @@
       var text = message ? message.value.trim() : '';
       if (!uid) { liffToast('กรุณาเลือกผู้รับก่อน', 'warn'); return; }
       if (!text) { liffToast('กรุณาพิมพ์ข้อความก่อน', 'warn'); return; }
+      if (!_mcpLiffAi) _mcpLiffAi = mcpLiffAiNewState_();
+      _mcpLiffAi.finalText = text;
       _mcpLiffApproval = null;
       if (btn) { btn.disabled = true; btn.textContent = 'กำลังตรวจ...'; }
       if (box) box.innerHTML = '<div class="note" style="margin-top:10px;">กำลังตรวจโควตาและการส่งซ้ำ...</div>';
@@ -2521,6 +2699,7 @@
         };
         if (key) key.value = r.messageKey;
         if (message) message.value = r.messageText;
+        if (_mcpLiffAi) _mcpLiffAi.finalText = r.messageText;
         var quota = (r.quotaLimit === '' || r.quotaLimit === null || r.quotaLimit === undefined || r.quotaRemainingBefore === null)
           ? 'ระบบไม่จำกัดโควตารายเดือน'
           : 'ใช้แล้ว ' + esc(r.quotaUsed) + ' · คงเหลือก่อนส่ง ' + esc(r.quotaRemainingBefore) +
@@ -2528,6 +2707,7 @@
         if (box) box.innerHTML =
           '<div class="msg" style="margin-top:12px;border-color:var(--nx-gold);">' +
             '<b>ขั้นที่ 2 — ตรวจสรุปก่อนส่งจริง</b>' +
+            (_mcpLiffAi && _mcpLiffAi.aiUsed ? '<div style="margin-top:7px;"><span class="ai-badge">✨ AI ช่วยเรียบเรียง</span></div>' : '') +
             '<div style="margin-top:8px;">ผู้รับ: <b>' + esc(r.recipientName) + '</b></div>' +
             '<div class="note">รหัส: ' + esc(r.messageKey) + ' · ' + esc(r.messageLength) + ' ตัวอักษร · ' + quota + '</div>' +
             '<div style="margin-top:8px;padding:9px;border-radius:8px;background:var(--nx-surface-2);white-space:pre-wrap;word-break:break-word;">' + esc(r.messageText) + '</div>' +
@@ -3071,6 +3251,54 @@
       return h;
     }
 
+    /* ================= AI Center — backend ชุดเดียวกับ Web App ================= */
+    var AI_CENTER_STATE = null;
+    function showAiCenter(){
+      setNav('account'); liffBackFn_ = "goTab('account')";
+      app.innerHTML = pageHead('✨ AI ผู้ช่วยงาน', "goTab('account')") + '<div class="center">กำลังโหลดโควตา AI...</div>';
+      api('aicenter', {}).then(function(d){ AI_CENTER_STATE=d; renderAiCenterLiff(d); })
+        .catch(function(e){ showErr(e, showAiCenter); });
+    }
+    function renderAiCenterLiff(d){
+      var q=d.quota||{}, cap=d.capabilities||{};
+      var quota=q.unlimited?'ไม่จำกัดตามบทบาทนี้':('เหลือ '+Number(q.remaining||0)+' / '+Number(q.limit||0)+' ครั้ง');
+      app.innerHTML = pageHead('✨ AI ผู้ช่วยงาน', "goTab('account')") +
+        '<div class="card"><div style="font-size:18px;font-weight:700;">โควตา AI วันนี้</div><div style="font-size:26px;font-weight:800;margin:6px 0;">'+esc(quota)+'</div><div class="note">ใช้แล้ว '+Number(q.used||0)+' ครั้ง · '+esc(q.note||'')+'</div></div>'+
+        '<div class="card"><div style="font-weight:700;margin-bottom:8px;">💬 ถามข้อมูลระบบ</div><div class="note">เช่น “ปีนี้อบรมกี่ชั่วโมง” หรือ “เอกสารข้อมูลไม่ครบกี่ใบ”</div>'+
+        '<input id="aiLiffQ" maxlength="240" placeholder="พิมพ์คำถาม" style="width:100%;margin:8px 0;">'+
+        '<button id="aiLiffAskBtn" class="b-primary" onclick="aiLiffAsk(this)">ถาม AI</button></div>'+
+        '<div class="card"><div style="font-weight:700;margin-bottom:8px;">🧭 ผู้ช่วยวางแผน</div><div class="btns">'+
+        '<button class="b-second" onclick="aiLiffReport(this)">📑 ร่างบทสรุปรายงาน</button><button class="b-second" onclick="aiLiffRecommend(this)">🌱 แนะนำแผนพัฒนา</button>'+
+        (cap.paEvidenceMap?'<button class="b-second" onclick="aiLiffPa(this)">🎓 จับคู่หลักฐาน ว.PA</button>':'')+
+        (cap.healthDigest?'<button class="b-second" onclick="aiLiffHealth(this)">🩺 สรุปปัญหาระบบ</button>':'')+
+        '</div></div><div id="aiLiffResult"></div><button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
+    }
+    function aiLiffBusy(btn,on){ if(!btn)return;if(!btn.dataset.old)btn.dataset.old=btn.textContent;btn.disabled=!!on;btn.textContent=on?'AI กำลังประมวลผล...':btn.dataset.old; }
+    function aiLiffBox(){ return document.getElementById('aiLiffResult'); }
+    function aiLiffFail(e,btn){ aiLiffBusy(btn,false);var b=aiLiffBox();if(b)b.innerHTML='<div class="msg err">'+esc(e&&e.message?e.message:e)+'</div>'; }
+    function aiLiffRefreshQuota(){ api('aicenter',{}).then(function(d){AI_CENTER_STATE=d;}).catch(function(){}); }
+    function aiLiffAsk(btn){
+      var q=(document.getElementById('aiLiffQ')||{}).value||'';q=q.trim();if(!q){liffToast('กรุณาพิมพ์คำถามก่อน','warn');return;}
+      aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังคำนวณจากข้อมูลจริง...</div>';
+      api('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+    }
+    function aiLiffReport(btn){
+      aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังร่างบทสรุป...</div>';
+      api('aireport',{filters:{reportKind:'all'}}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.narrative||'')+'</p>'+((d.highlights||[]).length?'<b>จุดเด่น</b><ul>'+d.highlights.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+    }
+    function aiLiffRecommend(btn){
+      aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังวิเคราะห์เป้าหมาย...</div>';
+      api('airecommend',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><ul>'+(d.recommendations||[]).map(function(x){return '<li><b>'+esc(x.title||'ข้อเสนอแนะ')+'</b> — '+esc(x.reason||'')+'<br>'+esc(x.action||'')+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+    }
+    function aiLiffPa(btn){
+      aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจับคู่หลักฐาน...</div>';
+      api('aipamap',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>ตรวจ '+Number(d.scanned||0)+' เอกสาร · จับคู่ได้ '+(d.mappings||[]).length+' หัวข้อ · ยังขาด '+(d.gaps||[]).length+' หัวข้อ</p><ul>'+(d.mappings||[]).map(function(m){return '<li><b>'+esc(m.checklist)+'</b><br>'+esc((m.evidence||[]).map(function(e){return e.activityName;}).join(', '))+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+    }
+    function aiLiffHealth(btn){
+      aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจัดกลุ่มปัญหา...</div>';
+      api('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+    }
+
     /* ================= บัญชีของฉัน ================= */
     function showAccount(){
       setNav('account');
@@ -3108,12 +3336,13 @@
         '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
         '<button type="button" class="act" onclick="showMyProfile()"><span class="ico">👤</span>โปรไฟล์ของฉัน</button>' +
         '<button type="button" class="act" onclick="showMyOrg()"><span class="ico">🏫</span>โรงเรียนของฉัน</button>' +
+        '<button type="button" class="act" onclick="showAiCenter()"><span class="ico">✨</span>AI ผู้ช่วยงาน</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเกียรติบัตร</button>' +
         '</div></div>' +
 
         // ช่องว่างสำหรับการ์ดคู่มือ MCP — เติมทีหลังเมื่อเซิร์ฟเวอร์ตอบว่าเป็นผู้ดูแลระบบ
-        '<div id="acctMcpGuide"></div>' +
+        '<div id="acctAiQuota"></div><div id="acctMcpGuide"></div>' +
 
         // ช่องว่างสำหรับการ์ดตั้งค่าแจ้งเตือนเชิงรุก (ก้อนที่ 97) — เติมทีหลังถ้าระบบเปิดไว้
         '<div id="acctAlertPrefs"></div>' +
@@ -3142,6 +3371,16 @@
           '<button type="button" class="act" onclick="showCareerInfo()"><span class="ico">🎖️</span>ประวัติราชการ / PA</button>' +
           '</div></div>';
       });
+
+      // โควตา AI กลาง — แสดงบนหน้าบัญชีทันทีเหมือน Web App และใช้ตัวนับเดียวกันทุกฟีเจอร์
+      api('aicenter', {}).then(function(d){
+        var slot = document.getElementById('acctAiQuota'); if(!slot) return;
+        var q = d.quota || {};
+        slot.innerHTML = '<div class="card"><div style="font-weight:600;">✨ โควตา AI วันนี้</div>' +
+          (q.unlimited ? '<div class="note">ไม่จำกัดตามบทบาทนี้</div>' :
+            '<div style="font-size:24px;font-weight:700;margin-top:6px;">เหลือ ' + Number(q.remaining||0) + ' / ' + Number(q.limit||0) + '</div><div class="note">ใช้แล้ว '+Number(q.used||0)+' ครั้ง · '+esc(q.note||'')+'</div>') +
+          '</div>';
+      }).catch(function(){ /* server รุ่นเก่า/อ่านไม่ได้ ไม่รบกวนหน้าบัญชี */ });
 
       /* การ์ดตั้งค่าแจ้งเตือนเชิงรุก (ก้อนที่ 97) — โหลดทีหลังไม่ให้หน่วงหน้าบัญชี
          ใช้แกนกลางเดียวกับหน้าเว็บผ่าน action alertprefs/savealertprefs
@@ -4488,11 +4727,27 @@
         '<div class="card preview">'+prev+'</div>'+
         dupHtml+
         summary+
+        '<div class="card"><button class="b-second" id="aiReviewBtn" onclick="aiLiffReview(this)">✨ ให้ AI ช่วยชี้จุดที่ควรตรวจ</button><div class="note">ใช้ผล AI เดิม ไม่หักโควตาเพิ่ม และไม่แก้ข้อมูลเอง</div><div id="aiReviewBox"></div></div>'+
         '<div class="card">'+fieldsHtml+qrBtn+'</div>'+
         // ปุ่มหลักติดล่างจอ: เลื่อนดูฟิลด์ยาว ๆ อยู่ก็ยังกดยืนยันได้ทันที ไม่ต้องเลื่อนกลับลงมาสุด
         '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
         floatBtn;
       updateBanner();
+    }
+
+    function aiLiffReview(btn){
+      if(!curCert||!curCert.certificateId)return;
+      var box=document.getElementById('aiReviewBox');aiLiffBusy(btn,true);box.innerHTML='<div class="center">กำลังตรวจ confidence และหลักฐาน...</div>';
+      api('aireview',{certificateId:curCert.certificateId}).then(function(d){
+        aiLiffBusy(btn,false);
+        var issues=(d.issues||[]).map(function(x){return '<li><b>'+esc(x.label||x.field)+'</b> — '+esc(x.action||'')+(x.evidence?'<br><span class="note">หลักฐาน: '+esc(x.evidence)+'</span>':'')+'</li>';}).join('');
+        var tr=(d.trainingSuggestions||[]).map(function(t){return '<li><b>'+esc(t.title||'กิจกรรมอบรม')+'</b> · ตรงกัน '+Number(t.score||0)+'%<br><button class="b-second" style="margin-top:5px;" onclick="aiLiffLinkTraining(\''+escJs(t.trainingId)+'\',this)">ผูกหลักฐานกับกิจกรรม</button></li>';}).join('');
+        box.innerHTML='<p><b>'+esc(d.headline||'')+'</b></p>'+(issues?'<ul>'+issues+'</ul>':'<p class="t-ok">ไม่พบจุดเสี่ยงเด่นชัด แต่ยังควรเทียบต้นฉบับ</p>')+(tr?'<b>กิจกรรมที่อาจตรงกัน</b><ul>'+tr+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>';
+      }).catch(function(e){aiLiffBusy(btn,false);box.innerHTML='<div class="msg err">'+esc(e&&e.message?e.message:e)+'</div>';});
+    }
+    function aiLiffLinkTraining(trainingId,btn){
+      if(!curCert||!confirm('ยืนยันผูกเอกสารกับกิจกรรมนี้?'))return;
+      aiLiffBusy(btn,true);api('traininglink',{trainingId:trainingId,certificateId:curCert.certificateId}).then(function(){aiLiffBusy(btn,false);liffToast('ผูกหลักฐานกับกิจกรรมแล้ว','ok');var b=document.getElementById('aiReviewBtn');if(b)aiLiffReview(b);}).catch(function(e){aiLiffBusy(btn,false);liffToast(e&&e.message?e.message:e,'err');});
     }
 
     // F7: นับ 3 สีสดจากสถานะฟิลด์จริง
