@@ -3289,26 +3289,39 @@
           .catch(function(e){if(done)return;done=true;clearTimeout(timer);reject(e);});
       });
     }
+    function aiLiffProvenanceHtml_(p){
+      if(!p)return '';
+      var sources=(p.sources||[]).map(function(s){return '<li><b>'+esc(s.name||'-')+'</b> — '+esc(s.description||'')+'<br><span class="note">อ่าน '+Number(s.rowsRead||0).toLocaleString()+' · ใช้จริง '+Number(s.rowsUsed||0).toLocaleString()+'</span></li>';}).join('');
+      var filters=(p.filters||[]).map(function(f){return '<li><b>'+esc(f.label||'')+':</b> '+esc(f.value==null?'':f.value)+'</li>';}).join('');
+      var calculations=(p.calculations||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('');
+      var evidence=(p.evidence||[]).map(function(e){var meta=[e.documentType,e.academicYear?'ปี '+e.academicYear:'',e.participationRole,e.issuer].filter(Boolean).join(' · ');return '<li><b>'+esc(e.activityName||e.certificateId||'-')+'</b>'+(meta?'<br><span class="note">'+esc(meta)+'</span>':'')+'<br><span class="note">วันที่ '+esc(e.receivedDate||'-')+' · '+Number(e.hours||0).toLocaleString()+' ชั่วโมง</span></li>';}).join('');
+      var notes=(p.notes||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('');
+      return '<details open style="margin-top:12px;"><summary style="font-weight:800;cursor:pointer;">🔎 ที่มาและวิธีคำนวณ</summary><div class="note" style="margin-top:8px;"><b>ขอบเขต</b><p>'+esc(p.scope||'-')+'</p>'+
+        (sources?'<b>แหล่งข้อมูล</b><ul>'+sources+'</ul>':'')+(filters?'<b>เงื่อนไขที่ใช้</b><ul>'+filters+'</ul>':'')+
+        (calculations?'<b>วิธีคำนวณ/ประมวลผล</b><ol>'+calculations+'</ol>':'')+
+        (evidence?'<b>รายการหลักฐานที่เกี่ยวข้อง (แสดงบางส่วน)</b><ol>'+evidence+'</ol>':'')+
+        (notes?'<b>หมายเหตุ</b><ul>'+notes+'</ul>':'')+'<div class="note">สร้างข้อมูลอ้างอิงเมื่อ '+esc(p.generatedAt||'-')+'</div></div></details>';
+    }
     function aiLiffAsk(btn){
       var q=(document.getElementById('aiLiffQ')||{}).value||'';q=q.trim();if(!q){liffToast('กรุณาพิมพ์คำถามก่อน','warn');return;}
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังคำนวณจากข้อมูลจริง...</div>';
-      aiLiffApi_('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffReport(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังร่างบทสรุป...</div>';
-      aiLiffApi_('aireport',{filters:{reportKind:'all'}}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.narrative||'')+'</p>'+((d.highlights||[]).length?'<b>จุดเด่น</b><ul>'+d.highlights.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aireport',{filters:{reportKind:'all'}}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.narrative||'')+'</p>'+((d.highlights||[]).length?'<b>จุดเด่น</b><ul>'+d.highlights.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+((d.gaps||[]).length?'<b>จุดที่ควรเติม</b><ul>'+d.gaps.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffRecommend(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังวิเคราะห์เป้าหมาย...</div>';
-      aiLiffApi_('airecommend',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><ul>'+(d.recommendations||[]).map(function(x){return '<li><b>'+esc(x.title||'ข้อเสนอแนะ')+'</b> — '+esc(x.reason||'')+'<br>'+esc(x.action||'')+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('airecommend',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><ul>'+(d.recommendations||[]).map(function(x){return '<li><b>'+esc(x.title||'ข้อเสนอแนะ')+'</b> — '+esc(x.reason||'')+'<br>'+esc(x.action||'')+((x.evidence||[]).length?'<br><span class="note">อ้างอิง: '+esc(x.evidence.join(' · '))+'</span>':'')+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffPa(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจับคู่หลักฐาน...</div>';
-      aiLiffApi_('aipamap',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>ตรวจ '+Number(d.scanned||0)+' เอกสาร · จับคู่ได้ '+(d.mappings||[]).length+' หัวข้อ · ยังขาด '+(d.gaps||[]).length+' หัวข้อ</p><ul>'+(d.mappings||[]).map(function(m){return '<li><b>'+esc(m.checklist)+'</b><br>'+esc((m.evidence||[]).map(function(e){return e.activityName;}).join(', '))+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aipamap',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>ตรวจ '+Number(d.scanned||0)+' เอกสาร · จับคู่ได้ '+(d.mappings||[]).length+' หัวข้อ · ยังขาด '+(d.gaps||[]).length+' หัวข้อ</p><ul>'+(d.mappings||[]).map(function(m){return '<li><b>'+esc(m.checklist)+'</b><br>'+esc((m.evidence||[]).map(function(e){return e.activityName;}).join(', '))+'<br><span class="note">'+esc(m.reason||'')+'</span></li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffHealth(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจัดกลุ่มปัญหา...</div>';
-      aiLiffApi_('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
 
     /* ================= สุขภาพระบบและผู้ช่วยดูแล (ADMIN) ================= */
