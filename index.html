@@ -3289,17 +3289,28 @@
           .catch(function(e){if(done)return;done=true;clearTimeout(timer);reject(e);});
       });
     }
+    var AI_LIFF_EVIDENCE_LOOKUPS={}, AI_LIFF_EVIDENCE_SEQ=0;
+    function aiLiffRegisterEvidence_(lookup){if(!lookup)return '';var id='ailev_'+(++AI_LIFF_EVIDENCE_SEQ);AI_LIFF_EVIDENCE_LOOKUPS[id]=lookup;return id;}
+    function aiLiffOpenEvidence_(btn){var id=btn&&btn.dataset?btn.dataset.certId:'';if(id)openDrive(id);}
+    function aiLiffRenderAllEvidence_(d){
+      var root=document.getElementById('viewerRoot');if(!root)return;
+      var rows=(d.items||[]).map(function(e,i){var meta=[e.kind,e.documentType,e.academicYear?'ปี '+e.academicYear:'',e.participationRole,e.issuer].filter(Boolean).join(' · ');return '<div class="card"><div style="font-weight:800;">'+(i+1)+'. '+esc(e.activityName||e.certificateId||'-')+'</div>'+(meta?'<div class="note">'+esc(meta)+'</div>':'')+'<div class="note">วันที่ '+esc(e.receivedDate||'-')+' · '+Number(e.hours||0).toLocaleString()+' ชั่วโมง</div>'+(e.certificateId?'<button class="b-second" style="margin-top:8px;" data-cert-id="'+esc(e.certificateId)+'" onclick="aiLiffOpenEvidence_(this)">📂 เปิดต้นฉบับ</button>':'<div class="note">ยังไม่มีเอกสารที่ผูก</div>')+'</div>';}).join('');
+      root.innerHTML='<div class="cv-overlay" style="display:block;overflow:auto;padding:18px;background:rgba(3,8,25,.96);"><div style="max-width:760px;margin:0 auto;"><div class="card"><div style="font-size:20px;font-weight:900;">📚 หลักฐานทั้งหมด '+Number(d.total||0).toLocaleString()+' รายการ</div>'+(d.capped?'<div class="note">รายการมีมากกว่า 500 รายการ หน้านี้แสดง 500 รายการแรก</div>':'')+'</div>'+rows+'<button class="b-second" style="width:100%;margin-bottom:30px;" onclick="closeViewer()">✕ ปิด</button></div></div>';
+    }
+    function aiLiffShowAllEvidence_(lookupId,btn){var lookup=AI_LIFF_EVIDENCE_LOOKUPS[lookupId];if(!lookup){liffToast('ชุดอ้างอิงหมดอายุ กรุณาสร้างคำตอบใหม่','warn');return;}aiLiffBusy(btn,true);aiLiffApi_('aievidence',{request:lookup}).then(function(d){aiLiffBusy(btn,false);aiLiffRenderAllEvidence_(d);}).catch(function(e){aiLiffFail(e,btn);});}
     function aiLiffProvenanceHtml_(p){
       if(!p)return '';
+      var lookupId=aiLiffRegisterEvidence_(p.lookup);
       var sources=(p.sources||[]).map(function(s){return '<li><b>'+esc(s.name||'-')+'</b> — '+esc(s.description||'')+'<br><span class="note">อ่าน '+Number(s.rowsRead||0).toLocaleString()+' · ใช้จริง '+Number(s.rowsUsed||0).toLocaleString()+'</span></li>';}).join('');
       var filters=(p.filters||[]).map(function(f){return '<li><b>'+esc(f.label||'')+':</b> '+esc(f.value==null?'':f.value)+'</li>';}).join('');
       var calculations=(p.calculations||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('');
-      var evidence=(p.evidence||[]).map(function(e){var meta=[e.documentType,e.academicYear?'ปี '+e.academicYear:'',e.participationRole,e.issuer].filter(Boolean).join(' · ');return '<li><b>'+esc(e.activityName||e.certificateId||'-')+'</b>'+(meta?'<br><span class="note">'+esc(meta)+'</span>':'')+'<br><span class="note">วันที่ '+esc(e.receivedDate||'-')+' · '+Number(e.hours||0).toLocaleString()+' ชั่วโมง</span></li>';}).join('');
+      var evidence=(p.evidence||[]).map(function(e){var meta=[e.kind,e.documentType,e.academicYear?'ปี '+e.academicYear:'',e.participationRole,e.issuer].filter(Boolean).join(' · ');return '<li><b>'+esc(e.activityName||e.certificateId||'-')+'</b>'+(meta?'<br><span class="note">'+esc(meta)+'</span>':'')+'<br><span class="note">วันที่ '+esc(e.receivedDate||'-')+' · '+Number(e.hours||0).toLocaleString()+' ชั่วโมง</span>'+(e.certificateId?'<br><button class="b-second" style="margin-top:6px;" data-cert-id="'+esc(e.certificateId)+'" onclick="aiLiffOpenEvidence_(this)">📂 เปิดต้นฉบับ</button>':'')+'</li>';}).join('');
       var notes=(p.notes||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('');
       return '<details open style="margin-top:12px;"><summary style="font-weight:800;cursor:pointer;">🔎 ที่มาและวิธีคำนวณ</summary><div class="note" style="margin-top:8px;"><b>ขอบเขต</b><p>'+esc(p.scope||'-')+'</p>'+
         (sources?'<b>แหล่งข้อมูล</b><ul>'+sources+'</ul>':'')+(filters?'<b>เงื่อนไขที่ใช้</b><ul>'+filters+'</ul>':'')+
         (calculations?'<b>วิธีคำนวณ/ประมวลผล</b><ol>'+calculations+'</ol>':'')+
         (evidence?'<b>รายการหลักฐานที่เกี่ยวข้อง (แสดงบางส่วน)</b><ol>'+evidence+'</ol>':'')+
+        (lookupId?'<button class="b-second" style="width:100%;margin:8px 0;" onclick="aiLiffShowAllEvidence_(\''+lookupId+'\',this)">📚 ดูหลักฐานทั้งหมด ('+Number(p.evidenceTotal||0).toLocaleString()+')</button>':'')+
         (notes?'<b>หมายเหตุ</b><ul>'+notes+'</ul>':'')+'<div class="note">สร้างข้อมูลอ้างอิงเมื่อ '+esc(p.generatedAt||'-')+'</div></div></details>';
     }
     function aiLiffAsk(btn){
