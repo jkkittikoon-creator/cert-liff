@@ -3277,26 +3277,38 @@
     function aiLiffBox(){ return document.getElementById('aiLiffResult'); }
     function aiLiffFail(e,btn){ aiLiffBusy(btn,false);var b=aiLiffBox();if(b)b.innerHTML='<div class="msg err">'+esc(e&&e.message?e.message:e)+'</div>'; }
     function aiLiffRefreshQuota(){ api('aicenter',{}).then(function(d){AI_CENTER_STATE=d;}).catch(function(){}); }
+    /** หมดเวลาแล้วปลดปุ่ม แต่ไม่ยิงคำขอซ้ำ เพื่อกันใช้โควตา AI ซ้ำ */
+    function aiLiffApi_(action,payload){
+      return new Promise(function(resolve,reject){
+        var done=false;
+        var timer=setTimeout(function(){
+          if(done)return; done=true;
+          reject(new Error('คำขอใช้เวลานานเกิน 45 วินาที ระบบปลดปุ่มให้แล้ว กรุณารอสักครู่แล้วลองใหม่'));
+        },45000);
+        api(action,payload).then(function(d){if(done)return;done=true;clearTimeout(timer);resolve(d);})
+          .catch(function(e){if(done)return;done=true;clearTimeout(timer);reject(e);});
+      });
+    }
     function aiLiffAsk(btn){
       var q=(document.getElementById('aiLiffQ')||{}).value||'';q=q.trim();if(!q){liffToast('กรุณาพิมพ์คำถามก่อน','warn');return;}
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังคำนวณจากข้อมูลจริง...</div>';
-      api('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffReport(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังร่างบทสรุป...</div>';
-      api('aireport',{filters:{reportKind:'all'}}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.narrative||'')+'</p>'+((d.highlights||[]).length?'<b>จุดเด่น</b><ul>'+d.highlights.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aireport',{filters:{reportKind:'all'}}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.narrative||'')+'</p>'+((d.highlights||[]).length?'<b>จุดเด่น</b><ul>'+d.highlights.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffRecommend(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังวิเคราะห์เป้าหมาย...</div>';
-      api('airecommend',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><ul>'+(d.recommendations||[]).map(function(x){return '<li><b>'+esc(x.title||'ข้อเสนอแนะ')+'</b> — '+esc(x.reason||'')+'<br>'+esc(x.action||'')+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('airecommend',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><ul>'+(d.recommendations||[]).map(function(x){return '<li><b>'+esc(x.title||'ข้อเสนอแนะ')+'</b> — '+esc(x.reason||'')+'<br>'+esc(x.action||'')+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffPa(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจับคู่หลักฐาน...</div>';
-      api('aipamap',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>ตรวจ '+Number(d.scanned||0)+' เอกสาร · จับคู่ได้ '+(d.mappings||[]).length+' หัวข้อ · ยังขาด '+(d.gaps||[]).length+' หัวข้อ</p><ul>'+(d.mappings||[]).map(function(m){return '<li><b>'+esc(m.checklist)+'</b><br>'+esc((m.evidence||[]).map(function(e){return e.activityName;}).join(', '))+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aipamap',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>ตรวจ '+Number(d.scanned||0)+' เอกสาร · จับคู่ได้ '+(d.mappings||[]).length+' หัวข้อ · ยังขาด '+(d.gaps||[]).length+' หัวข้อ</p><ul>'+(d.mappings||[]).map(function(m){return '<li><b>'+esc(m.checklist)+'</b><br>'+esc((m.evidence||[]).map(function(e){return e.activityName;}).join(', '))+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffHealth(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจัดกลุ่มปัญหา...</div>';
-      api('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div></div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
 
     /* ================= สุขภาพระบบและผู้ช่วยดูแล (ADMIN) ================= */
