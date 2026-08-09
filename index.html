@@ -3298,6 +3298,29 @@
       root.innerHTML='<div class="cv-overlay" style="display:block;overflow:auto;padding:18px;background:rgba(3,8,25,.96);"><div style="max-width:760px;margin:0 auto;"><div class="card"><div style="font-size:20px;font-weight:900;">📚 หลักฐานทั้งหมด '+Number(d.total||0).toLocaleString()+' รายการ</div>'+(d.capped?'<div class="note">รายการมีมากกว่า 500 รายการ หน้านี้แสดง 500 รายการแรก</div>':'')+'</div>'+rows+'<button class="b-second" style="width:100%;margin-bottom:30px;" onclick="closeViewer()">✕ ปิด</button></div></div>';
     }
     function aiLiffShowAllEvidence_(lookupId,btn){var lookup=AI_LIFF_EVIDENCE_LOOKUPS[lookupId];if(!lookup){liffToast('ชุดอ้างอิงหมดอายุ กรุณาสร้างคำตอบใหม่','warn');return;}aiLiffBusy(btn,true);aiLiffApi_('aievidence',{request:lookup}).then(function(d){aiLiffBusy(btn,false);aiLiffRenderAllEvidence_(d);}).catch(function(e){aiLiffFail(e,btn);});}
+    var AI_LIFF_FEEDBACK={}, AI_LIFF_FEEDBACK_SEQ=0;
+    function aiLiffFeedbackHtml_(d){
+      if(!d||!d.feedback||!d.feedback.responseId)return '';
+      var id='aifbui_'+(++AI_LIFF_FEEDBACK_SEQ);AI_LIFF_FEEDBACK[id]=d.feedback;
+      return '<div id="'+id+'" class="card" style="margin-top:10px;"><div style="font-weight:800;">คำตอบนี้มีประโยชน์ไหม?</div><div class="btns" style="margin-top:8px;">'+
+        '<button class="b-second" onclick="aiLiffFeedbackChoose_(\''+id+'\',\'HELPFUL\',this)">👍 มีประโยชน์</button>'+
+        '<button class="b-second" onclick="aiLiffFeedbackChoose_(\''+id+'\',\'NOT_HELPFUL\',this)">👎 ควรปรับปรุง</button></div>'+
+        '<div id="'+id+'_detail" style="display:none;margin-top:8px;"><select id="'+id+'_category" aria-label="สาเหตุที่ควรปรับปรุง" style="width:100%;">'+
+        '<option value="ACCURACY">ข้อมูลไม่ถูกต้อง</option><option value="CLARITY">อธิบายไม่ชัดเจน</option><option value="EVIDENCE">หลักฐานไม่เพียงพอ</option>'+
+        '<option value="RELEVANCE">ไม่ตรงคำถาม</option><option value="SPEED">ใช้เวลานาน</option><option value="OTHER">อื่น ๆ</option></select>'+
+        '<textarea id="'+id+'_comment" maxlength="300" placeholder="บอกเพิ่มเติมได้ (ไม่เกิน 300 ตัวอักษร)" style="width:100%;margin-top:8px;"></textarea>'+
+        '<button class="b-primary" style="margin-top:8px;" onclick="aiLiffFeedbackSubmit_(\''+id+'\',\'NOT_HELPFUL\',this)">ส่งข้อเสนอแนะ</button></div>'+
+        '<div id="'+id+'_status" class="note" style="margin-top:6px;"></div></div>';
+    }
+    function aiLiffFeedbackChoose_(id,rating,btn){if(rating==='HELPFUL'){aiLiffFeedbackSubmit_(id,rating,btn);return;}var d=document.getElementById(id+'_detail');if(d)d.style.display='block';}
+    function aiLiffFeedbackSubmit_(id,rating,btn){
+      var meta=AI_LIFF_FEEDBACK[id],root=document.getElementById(id);if(!meta||!root){liffToast('แบบประเมินหมดอายุ กรุณาสร้างคำตอบใหม่','warn');return;}
+      var payload={responseId:meta.responseId,rating:rating,category:'',comment:''};
+      if(rating==='NOT_HELPFUL'){payload.category=(document.getElementById(id+'_category')||{}).value||'OTHER';payload.comment=(document.getElementById(id+'_comment')||{}).value||'';}
+      Array.prototype.forEach.call(root.querySelectorAll('button,select,textarea'),function(x){x.disabled=true;});var status=document.getElementById(id+'_status');if(status)status.textContent='กำลังบันทึก...';
+      aiLiffApi_('aifeedback',{feedback:payload}).then(function(){delete AI_LIFF_FEEDBACK[id];root.innerHTML='<div class="t-ok">✅ ขอบคุณสำหรับข้อเสนอแนะ ระบบบันทึกแล้ว</div>';})
+        .catch(function(e){Array.prototype.forEach.call(root.querySelectorAll('button,select,textarea'),function(x){x.disabled=false;});if(status)status.textContent=e&&e.message?e.message:e;});
+    }
     function aiLiffProvenanceHtml_(p){
       if(!p)return '';
       var lookupId=aiLiffRegisterEvidence_(p.lookup);
@@ -3316,23 +3339,23 @@
     function aiLiffAsk(btn){
       var q=(document.getElementById('aiLiffQ')||{}).value||'';q=q.trim();if(!q){liffToast('กรุณาพิมพ์คำถามก่อน','warn');return;}
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังคำนวณจากข้อมูลจริง...</div>';
-      aiLiffApi_('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffReport(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังร่างบทสรุป...</div>';
-      aiLiffApi_('aireport',{filters:{reportKind:'all'}}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.narrative||'')+'</p>'+((d.highlights||[]).length?'<b>จุดเด่น</b><ul>'+d.highlights.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+((d.gaps||[]).length?'<b>จุดที่ควรเติม</b><ul>'+d.gaps.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aireport',{filters:{reportKind:'all'}}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.narrative||'')+'</p>'+((d.highlights||[]).length?'<b>จุดเด่น</b><ul>'+d.highlights.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+((d.gaps||[]).length?'<b>จุดที่ควรเติม</b><ul>'+d.gaps.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffRecommend(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังวิเคราะห์เป้าหมาย...</div>';
-      aiLiffApi_('airecommend',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><ul>'+(d.recommendations||[]).map(function(x){return '<li><b>'+esc(x.title||'ข้อเสนอแนะ')+'</b> — '+esc(x.reason||'')+'<br>'+esc(x.action||'')+((x.evidence||[]).length?'<br><span class="note">อ้างอิง: '+esc(x.evidence.join(' · '))+'</span>':'')+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('airecommend',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><ul>'+(d.recommendations||[]).map(function(x){return '<li><b>'+esc(x.title||'ข้อเสนอแนะ')+'</b> — '+esc(x.reason||'')+'<br>'+esc(x.action||'')+((x.evidence||[]).length?'<br><span class="note">อ้างอิง: '+esc(x.evidence.join(' · '))+'</span>':'')+'</li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffPa(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจับคู่หลักฐาน...</div>';
-      aiLiffApi_('aipamap',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>ตรวจ '+Number(d.scanned||0)+' เอกสาร · จับคู่ได้ '+(d.mappings||[]).length+' หัวข้อ · ยังขาด '+(d.gaps||[]).length+' หัวข้อ</p><ul>'+(d.mappings||[]).map(function(m){return '<li><b>'+esc(m.checklist)+'</b><br>'+esc((m.evidence||[]).map(function(e){return e.activityName;}).join(', '))+'<br><span class="note">'+esc(m.reason||'')+'</span></li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aipamap',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>ตรวจ '+Number(d.scanned||0)+' เอกสาร · จับคู่ได้ '+(d.mappings||[]).length+' หัวข้อ · ยังขาด '+(d.gaps||[]).length+' หัวข้อ</p><ul>'+(d.mappings||[]).map(function(m){return '<li><b>'+esc(m.checklist)+'</b><br>'+esc((m.evidence||[]).map(function(e){return e.activityName;}).join(', '))+'<br><span class="note">'+esc(m.reason||'')+'</span></li>';}).join('')+'</ul><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffHealth(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจัดกลุ่มปัญหา...</div>';
-      aiLiffApi_('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
 
     /* ================= สุขภาพระบบและผู้ช่วยดูแล (ADMIN) ================= */
