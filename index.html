@@ -3271,6 +3271,7 @@
         '<button class="b-second" onclick="aiLiffReport(this)">📑 ร่างบทสรุปรายงาน</button><button class="b-second" onclick="aiLiffRecommend(this)">🌱 แนะนำแผนพัฒนา</button>'+
         (cap.paEvidenceMap?'<button class="b-second" onclick="aiLiffPa(this)">🎓 จับคู่หลักฐาน ว.PA</button>':'')+
         (cap.healthDigest?'<button class="b-second" onclick="aiLiffHealth(this)">🩺 สรุปปัญหาระบบ</button>':'')+
+        (cap.proactiveAnomalies?'<button class="b-second" onclick="aiLiffAnomaly(this)">🚨 ตรวจสัญญาณผิดปกติ</button>':'')+
         '</div></div><div id="aiLiffResult"></div><button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
     }
     function aiLiffBusy(btn,on){ if(!btn)return;if(!btn.dataset.old)btn.dataset.old=btn.textContent;btn.disabled=!!on;btn.textContent=on?'AI กำลังประมวลผล...':btn.dataset.old; }
@@ -3356,6 +3357,10 @@
     function aiLiffHealth(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังจัดกลุ่มปัญหา...</div>';
       aiLiffApi_('aihealth',{}).then(function(d){aiLiffBusy(btn,false);aiLiffBox().innerHTML='<div class="card"><p>'+esc(d.summary||'')+'</p><b>ขั้นตอนตรวจสอบ</b><ol>'+(d.manualSteps||[]).map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ol><div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+    }
+    function aiLiffAnomaly(btn){
+      aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังเปรียบเทียบ 24 ชั่วโมงล่าสุดกับค่าฐาน 7 วัน...</div>';
+      aiLiffApi_('aianomaly',{}).then(function(d){aiLiffBusy(btn,false);var findings=(d.findings||[]).map(function(f){return '<li><b>'+esc(f.title||f.code)+'</b> <span class="note">['+esc(f.severity||'WARN')+']</span><br>'+esc(f.summary||'')+'<br><span class="note">เกณฑ์: '+esc(f.threshold||'-')+'<br>ขั้นตอนถัดไป: '+esc(f.action||'-')+'</span></li>';}).join('');aiLiffBox().innerHTML='<div class="card"><p><b>สถานะ '+esc(d.status||'OK')+'</b> · พบ '+Number(d.findingTotal||0)+' สัญญาณ</p>'+(findings?'<ol>'+findings+'</ol>':'<div class="t-ok">✅ ยังไม่พบสัญญาณที่เกินเกณฑ์</div>')+aiLiffProvenanceHtml_(d.provenance)+'</div>';}).catch(function(e){aiLiffFail(e,btn);});
     }
 
     /* ================= สุขภาพระบบและผู้ช่วยดูแล (ADMIN) ================= */
