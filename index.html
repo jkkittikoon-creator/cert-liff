@@ -709,6 +709,7 @@
     .od-file-main { flex: 1; min-width: 0; text-align: left; }
     .od-file-name { font-weight: 700; overflow-wrap: anywhere; }
     .od-file-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+    .od-file-view { flex: none; width: auto; min-width: 64px; min-height: 44px; padding: 8px 10px; border-radius: 12px; }
     .od-file-remove { flex: none; width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 12px; }
     .od-progress { margin-top: 12px; padding: 12px; border-radius: 14px; background: var(--nx-line); font-weight: 700; }
     .od-doc-tabs { display: flex; overflow-x: auto; gap: 8px; padding: 3px 2px 9px; scrollbar-width: thin;
@@ -726,6 +727,21 @@
     .od-unclear { color: #ff6b6b; background: rgba(255,107,107,.12); }
     .od-warning { border-left: 3px solid #ffd166; padding: 9px 11px; margin-top: 8px; border-radius: 9px;
       background: rgba(255,209,102,.09); overflow-wrap: anywhere; }
+    .od-source-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+    .od-inline-preview { min-height: 190px; margin: 9px 0 12px; display: grid; place-items: center; overflow: hidden;
+      border: 1px solid var(--nx-line); border-radius: 14px; background: var(--bg-inset); }
+    .od-inline-preview img, .od-inline-preview embed { display: block; width: 100%; max-height: 360px; object-fit: contain; border: 0; background: #fff; }
+    .od-inline-preview img { cursor: zoom-in; }
+    .od-source-overlay { position: fixed; inset: 0; z-index: 1100; padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(2,6,23,.94); display: grid; place-items: center; }
+    .od-source-shell { width: 100%; max-width: 900px; height: min(92vh, 960px); min-height: 320px; display: flex; flex-direction: column;
+      overflow: hidden; border: 1px solid rgba(125,211,252,.35); border-radius: 18px; background: var(--nx-surface); box-shadow: var(--shadow-modal); }
+    .od-source-head { display: flex; align-items: center; gap: 8px; padding: 10px 11px; border-bottom: 1px solid var(--nx-line); }
+    .od-source-head-name { flex: 1; min-width: 0; font-weight: 800; overflow-wrap: anywhere; }
+    .od-source-head button { flex: none; width: auto; min-width: 44px; min-height: 44px; padding: 8px 11px; }
+    .od-source-frame { width: 100%; min-height: 0; flex: 1; border: 0; background: #fff; }
+    .od-source-loading { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 18px; background: rgba(2,6,23,.88); }
+    .od-source-loading > div { max-width: 340px; padding: 18px; border-radius: 16px; background: var(--nx-surface); text-align: center; font-weight: 800; }
     .od-preview { min-height: 300px; resize: vertical; line-height: 1.65; font-size: 15px; }
     .od-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
     .od-actions button { min-width: 0; width: 100%; white-space: normal; }
@@ -734,6 +750,9 @@
       .od-grid .field.wide { grid-column: auto; }
       .od-upload { padding: 17px 10px; }
       .od-preview { min-height: 340px; }
+      .od-file { align-items: flex-start; flex-wrap: wrap; }
+      .od-file-main { min-width: calc(100% - 46px); }
+      .od-file-view { margin-left: 35px; flex: 1; }
     }
 
     /* ผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ในเครื่อง — ปิดอนิเมชันทั้งหมด */
@@ -837,7 +856,7 @@
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
     var API_TIMEOUT_MS = 20000;            // กันคำขอค้างแขวนบนเน็ตแย่ ๆ (เฉพาะ action ที่ retry ได้ — คำสั่งเขียนไม่มี timeout เหมือนเดิม)
     // งานอ่านเอกสารไม่เขียนข้อมูล/ไม่ส่ง LINE จึง timeout แบบไม่ retry ได้ ป้องกันหน้า LIFF ค้างและไม่ยิง AI ซ้ำ
-    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000, officialdraftget:30000 };
+    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000, officialdraftget:30000, officialdraftfile:60000 };
 
     // idToken ของ LINE หมดอายุเป็นราย ชม. และ LIFF ไม่ต่ออายุให้เอง — เช็กวันหมดอายุจริงจาก payload
     // ถ้าไม่มี getDecodedIDToken (SDK เก่า/สภาพแวดล้อมแปลก) คืน false = พฤติกรรมเดิมทุกอย่าง (fallback ปลอดภัย)
@@ -3552,10 +3571,12 @@
     /* ================= AI สรุปหนังสือราชการ ================= */
     var OFFICIAL_DOC_MAX_FILES = 5;
     var OFFICIAL_DOC_MAX_TOTAL = 12 * 1024 * 1024;
-    var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, lineText:'', requestId:0 };
+    var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:0, draftToken:'' };
+    var _officialDocPreviewUrl = '';
 
     function officialDocReset_(){
-      _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, lineText:'', requestId:_officialDoc.requestId + 1 };
+      officialDocReleasePreviewUrl_();
+      _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:_officialDoc.requestId + 1, draftToken:'' };
     }
 
     /** เปิด structured draft ที่บอทสร้างไว้ชั่วคราว — server ตรวจเจ้าของจาก LIFF idToken ซ้ำ */
@@ -3566,11 +3587,16 @@
         '<div class="card"><div class="od-progress">🔍 กำลังเปิดร่างหนังสือราชการ...</div>' +
         '<div class="note" style="margin-top:10px;">ร่างนี้ยังไม่ได้ส่งต่อถึง ผอ. กรุณาตรวจข้อมูลก่อนดำเนินการ</div></div>';
       api('officialdraftget', {token:String(token || '')}).then(function(r){
+        _officialDoc.draftToken = String(token || '');
         _officialDoc.documents = (r && r.documents) || [];
+        _officialDoc.files = ((r && r.files) || []).map(function(f){
+          return { fileName:f.fileName, mimeType:f.mimeType, size:Number(f.size)||0, pageCount:null, remote:true, serverIndex:Number(f.index)||0, base64:'' };
+        });
         _officialDoc.selected = 0;
         _officialDoc.lineText = r && r.lineTexts && r.lineTexts[0] ? String(r.lineTexts[0]) : '';
         if (!_officialDoc.documents.length) throw new Error('ไม่พบข้อมูลในร่างเอกสาร');
         officialDocRenderReview_();
+        officialDocLoadInlinePreview_();
       }).catch(function(e){
         showErr((e && e.message) || 'เปิดร่างเอกสารไม่สำเร็จ กรุณาส่งไฟล์เข้าบอทใหม่', function(){ goTab('account'); });
       });
@@ -3590,7 +3616,7 @@
           '<div id="odProgress" aria-live="polite"></div>' +
           '<button id="odReadBtn" class="b-primary" style="width:100%;margin-top:12px;" onclick="officialDocRead_()" disabled>✨ อ่านและสรุปด้วย AI</button>' +
         '</div>' +
-        '<div class="card"><div style="font-weight:700;">🔐 ความเป็นส่วนตัว</div><div class="note">ไฟล์ใช้วิเคราะห์ในคำขอนี้เท่านั้น ระบบไม่บันทึกไฟล์ลง Drive หรือประวัติ และ AI ไม่มีสิทธิ์ส่ง LINE</div></div>' +
+        '<div class="card"><div style="font-weight:700;">🔐 ความเป็นส่วนตัว</div><div class="note">ไฟล์ใช้วิเคราะห์ในคำขอนี้เท่านั้น ระบบไม่บันทึกไฟล์ลง Drive หรือประวัติ และ AI ไม่มีสิทธิ์ส่ง LINE ไฟล์จากบอทเปิดผ่าน LINE แบบส่วนตัวเฉพาะเจ้าของร่างภายในเวลาที่กำหนด</div></div>' +
         '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
     }
 
@@ -3634,7 +3660,7 @@
         reader.onload = function(){
           var url = String(reader.result || ''), comma = url.indexOf(',');
           if (comma < 0) { reject(new Error('อ่านข้อมูลไฟล์ไม่สำเร็จ')); return; }
-          var item = { fileName:file.name, mimeType:officialDocMime_(file), size:file.size, base64:url.slice(comma + 1), pageCount:null };
+          var item = { fileName:file.name, mimeType:officialDocMime_(file), size:file.size, base64:url.slice(comma + 1), pageCount:null, remote:false };
           if (item.mimeType !== 'application/pdf') { resolve(item); return; }
           file.arrayBuffer().then(function(buf){
             try {
@@ -3658,6 +3684,7 @@
         return '<div class="od-file"><div style="font-size:25px;">' + (kind === 'PDF' ? '📕' : '🖼️') + '</div>' +
           '<div class="od-file-main"><div class="od-file-name">' + esc(f.fileName) + '</div>' +
           '<div class="od-file-meta">' + esc(kind) + pages + ' · ' + esc(fmtBytes_(f.size)) + '</div></div>' +
+          '<button type="button" class="b-second od-file-view" onclick="officialDocOpenSource_(' + i + ')" aria-label="ดูต้นฉบับ ' + esc(f.fileName) + '">👁️ ดู</button>' +
           '<button class="b-second od-file-remove" onclick="officialDocRemove_(' + i + ')" aria-label="ลบไฟล์">✕</button></div>';
       }).join('');
       if (btn) btn.disabled = !_officialDoc.files.length || _officialDoc.busy || _officialDoc.localBusy;
@@ -3666,6 +3693,107 @@
     function officialDocRemove_(index){
       if (_officialDoc.busy || _officialDoc.localBusy) return;
       _officialDoc.files.splice(Number(index), 1); officialDocRenderFiles_();
+    }
+
+    function officialDocReleasePreviewUrl_(){
+      if (_officialDocPreviewUrl && window.URL && URL.revokeObjectURL) {
+        try { URL.revokeObjectURL(_officialDocPreviewUrl); } catch (_) {}
+      }
+      _officialDocPreviewUrl = '';
+    }
+
+    function officialDocSourceListHtml_(){
+      if (!_officialDoc.files.length) return '';
+      return '<div class="card"><div class="od-source-title"><div><div style="font-weight:800;font-size:17px;">📄 ต้นฉบับหนังสือราชการ</div>' +
+        '<div class="note">แตะดูต้นฉบับเพื่อเทียบเลขหนังสือ วันที่ จำนวนเงิน และข้อมูลที่ AI อ่าน</div></div></div>' +
+        '<div id="odInlinePreview" class="od-inline-preview">' + officialDocInlinePreviewHtml_(_officialDoc.files[0]) + '</div>' +
+        '<div class="od-file-list">' + _officialDoc.files.map(function(f,i){
+          var kind = f.mimeType === 'application/pdf' ? 'PDF' : String(f.mimeType || '').replace('image/','').toUpperCase();
+          return '<div class="od-file"><div style="font-size:25px;">' + (kind === 'PDF' ? '📕' : '🖼️') + '</div>' +
+            '<div class="od-file-main"><div class="od-file-name">' + esc(f.fileName || ('ไฟล์ที่ '+(i+1))) + '</div>' +
+            '<div class="od-file-meta">' + esc(kind) + (f.size ? ' · '+esc(fmtBytes_(f.size)) : '') + '</div></div>' +
+            '<button type="button" class="b-second od-file-view" onclick="officialDocOpenSource_(' + i + ')">🔍 ดูต้นฉบับ</button></div>';
+        }).join('') + '</div></div>';
+    }
+
+    function officialDocInlinePreviewHtml_(file){
+      if (!file || !file.base64) return '<div class="note" style="padding:18px;text-align:center;">🔍 กำลังโหลดภาพต้นฉบับแบบส่วนตัว...</div>';
+      if (file.mimeType === 'application/pdf') {
+        return '<embed src="data:application/pdf;base64,' + file.base64 + '" type="application/pdf" height="340">';
+      }
+      return '<img src="data:' + esc(file.mimeType) + ';base64,' + file.base64 + '" alt="ต้นฉบับหนังสือราชการ" onclick="officialDocOpenSource_(0)">' +
+        '<div class="cert-hint">🔍 แตะรูปเพื่อขยายและซูมตรวจรายละเอียด</div>';
+    }
+
+    function officialDocLoadInlinePreview_(){
+      var file = _officialDoc.files[0], box = document.getElementById('odInlinePreview');
+      if (!file || file.base64 || !file.remote || !_officialDoc.draftToken || _officialDoc.previewBusy) return;
+      _officialDoc.previewBusy = true;
+      api('officialdraftfile', {token:_officialDoc.draftToken,index:Number(file.serverIndex)||0}).then(function(r){
+        _officialDoc.previewBusy = false;
+        if (!r || !r.base64) throw new Error('ไม่พบข้อมูลไฟล์ต้นฉบับ');
+        file.base64 = String(r.base64); file.mimeType = String(r.mimeType || file.mimeType); file.size = Number(r.size || file.size) || 0;
+        box = document.getElementById('odInlinePreview');
+        if (box) box.innerHTML = officialDocInlinePreviewHtml_(file);
+      }).catch(function(e){
+        _officialDoc.previewBusy = false; box = document.getElementById('odInlinePreview');
+        if (box) box.innerHTML = '<div class="note" style="padding:18px;text-align:center;">⚠️ ' + esc((e&&e.message)||'เปิดต้นฉบับไม่สำเร็จ กรุณาส่งไฟล์ใหม่') + '</div>';
+      });
+    }
+
+    function officialDocOpenSource_(index){
+      if (_officialDoc.previewBusy) return;
+      var file = _officialDoc.files[Number(index)];
+      if (!file) { liffAlert('ไม่พบไฟล์ต้นฉบับที่เลือก'); return; }
+      if (file.base64) { officialDocShowSource_(file); return; }
+      if (!file.remote || !_officialDoc.draftToken) { liffAlert('ต้นฉบับหมดอายุแล้ว กรุณาเลือกหรือส่งไฟล์ใหม่'); return; }
+      _officialDoc.previewBusy = true;
+      document.getElementById('viewerRoot').innerHTML = '<div class="od-source-loading"><div>🔍 กำลังเปิดต้นฉบับแบบส่วนตัว...</div></div>';
+      api('officialdraftfile', {token:_officialDoc.draftToken,index:Number(file.serverIndex)||0}).then(function(r){
+        _officialDoc.previewBusy = false;
+        if (!r || !r.base64) throw new Error('ไม่พบข้อมูลไฟล์ต้นฉบับ');
+        file.base64 = String(r.base64); file.mimeType = String(r.mimeType || file.mimeType); file.size = Number(r.size || file.size) || 0;
+        officialDocShowSource_(file);
+      }).catch(function(e){
+        _officialDoc.previewBusy = false; closeViewer();
+        liffAlert((e&&e.message)||'เปิดต้นฉบับไม่สำเร็จ กรุณาส่งไฟล์เข้าบอทใหม่', {title:'เปิดต้นฉบับไม่ได้'});
+      });
+    }
+
+    function officialDocMakeBlobUrl_(file){
+      officialDocReleasePreviewUrl_();
+      var binary = atob(String(file.base64 || '')), bytes = new Uint8Array(binary.length);
+      for (var i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+      _officialDocPreviewUrl = URL.createObjectURL(new Blob([bytes], {type:file.mimeType || 'application/octet-stream'}));
+      return _officialDocPreviewUrl;
+    }
+
+    function officialDocShowSource_(file){
+      if (!file || !file.base64) return;
+      if (file.mimeType !== 'application/pdf') {
+        window.imgSrc = 'data:' + file.mimeType + ';base64,' + file.base64;
+        openViewer();
+        return;
+      }
+      var url;
+      try { url = officialDocMakeBlobUrl_(file); }
+      catch (e) { liffAlert('อุปกรณ์เปิด PDF นี้ไม่ได้ กรุณาลองเปิดผ่าน Chrome', {title:'เปิด PDF ไม่สำเร็จ'}); return; }
+      document.getElementById('viewerRoot').innerHTML = '<div class="od-source-overlay" onclick="officialDocCloseSource_()">' +
+        '<div class="od-source-shell" onclick="event.stopPropagation()"><div class="od-source-head">' +
+        '<div class="od-source-head-name">📕 ' + esc(file.fileName || 'หนังสือราชการ.pdf') + '</div>' +
+        '<button type="button" class="b-second" onclick="officialDocOpenPdfTab_()">เปิดเต็มจอ</button>' +
+        '<button type="button" class="b-second" onclick="officialDocCloseSource_()" aria-label="ปิด">✕</button></div>' +
+        '<iframe class="od-source-frame" src="' + esc(url) + '" title="ต้นฉบับหนังสือราชการ"></iframe></div></div>';
+    }
+
+    function officialDocOpenPdfTab_(){
+      if (!_officialDocPreviewUrl) return;
+      var opened = window.open(_officialDocPreviewUrl, '_blank');
+      if (!opened) liffAlert('LINE ไม่อนุญาตให้เปิดแท็บใหม่ กรุณาดูจากช่องเอกสารในหน้านี้');
+    }
+
+    function officialDocCloseSource_(){
+      closeViewer(); officialDocReleasePreviewUrl_();
     }
 
     function officialDocSetProgress_(text){
@@ -3736,7 +3864,7 @@
         ? '<div class="field"><label for="odf_schoolSpecificData">ข้อมูลที่พบจริง</label><textarea id="odf_schoolSpecificData" rows="4">' + esc(school.join('\n')) + '</textarea>' + officialDocConfidenceHtml_(doc,'schoolSpecificData') + '</div>'
         : '<div class="od-warning">ไม่พบข้อมูลเฉพาะของโรงเรียนบ้านเขาธรรมบทในเอกสาร</div>';
       var warnings = [].concat(doc.dateWarnings || [], doc.otherWarnings || []);
-      app.innerHTML = pageHead('🔎 ข้อมูลที่ AI ตรวจพบ', 'showOfficialDocumentSummary()') + choices +
+      app.innerHTML = pageHead('🔎 ข้อมูลที่ AI ตรวจพบ', 'showOfficialDocumentSummary()') + choices + officialDocSourceListHtml_() +
         '<div class="card"><div class="note" style="margin-bottom:12px;">ตรวจและแก้ข้อมูลที่ OCR/AI อ่านผิดก่อนสร้างข้อความ LINE โดยเฉพาะช่องสีเหลืองหรือสีแดง</div>' +
           '<div class="od-grid">' + OFFICIAL_DOC_FIELDS.map(function(p){ return officialDocFieldHtml_(doc,p); }).join('') + '</div></div>' +
         '<div class="card"><div style="font-weight:800;font-size:17px;">🏫 ข้อมูลเฉพาะโรงเรียนบ้านเขาธรรมบท</div>' + schoolHtml + '</div>' +
