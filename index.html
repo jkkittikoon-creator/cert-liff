@@ -732,8 +732,20 @@
     .od-source-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
     .od-inline-preview { min-height: 190px; margin: 9px 0 12px; display: grid; place-items: center; overflow: hidden;
       border: 1px solid var(--nx-line); border-radius: 14px; background: var(--bg-inset); }
-    .od-inline-preview img, .od-inline-preview embed { display: block; width: 100%; max-height: 360px; object-fit: contain; border: 0; background: #fff; }
+    .od-inline-preview img { display: block; width: 100%; max-height: 360px; object-fit: contain; border: 0; background: #fff; }
     .od-inline-preview img { cursor: zoom-in; }
+    .od-pdf-view { width: 100%; min-width: 0; display: flex; flex-direction: column; background: #e8edf5; color: #17223a; }
+    .od-pdf-toolbar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px;
+      border-bottom: 1px solid rgba(23,34,58,.16); background: #f7f9fc; }
+    .od-pdf-toolbar button { width: auto; min-width: 44px; min-height: 40px; padding: 6px 11px; color: #17223a;
+      background: #fff; border: 1px solid #cbd5e1; box-shadow: none; }
+    .od-pdf-toolbar button:disabled { opacity: .42; }
+    .od-pdf-page-label { min-width: 88px; text-align: center; font-weight: 800; font-size: 13px; }
+    .od-pdf-canvas-wrap { min-height: 220px; max-height: 68vh; overflow: auto; display: grid; place-items: start center;
+      padding: 10px; background: #d9e0ea; -webkit-overflow-scrolling: touch; }
+    .od-pdf-canvas { display: block; max-width: 100%; height: auto; background: #fff; box-shadow: 0 2px 12px rgba(15,23,42,.24); }
+    .od-pdf-state { min-height: 220px; display: grid; place-items: center; padding: 18px; text-align: center;
+      color: #475569; background: #f8fafc; }
     .od-source-overlay { position: fixed; inset: 0; z-index: 1100; padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
       background: rgba(2,6,23,.94); display: grid; place-items: center; }
     .od-source-shell { width: 100%; max-width: 900px; height: min(92vh, 960px); min-height: 320px; display: flex; flex-direction: column;
@@ -741,7 +753,9 @@
     .od-source-head { display: flex; align-items: center; gap: 8px; padding: 10px 11px; border-bottom: 1px solid var(--nx-line); }
     .od-source-head-name { flex: 1; min-width: 0; font-weight: 800; overflow-wrap: anywhere; }
     .od-source-head button { flex: none; width: auto; min-width: 44px; min-height: 44px; padding: 8px 11px; }
-    .od-source-frame { width: 100%; min-height: 0; flex: 1; border: 0; background: #fff; }
+    .od-source-body { width: 100%; min-height: 0; flex: 1; display: flex; overflow: hidden; background: #e8edf5; }
+    .od-source-body .od-pdf-view { flex: 1; min-height: 0; }
+    .od-source-body .od-pdf-canvas-wrap { max-height: none; min-height: 0; flex: 1; }
     .od-source-loading { position: fixed; inset: 0; z-index: 1100; display: grid; place-items: center; padding: 18px; background: rgba(2,6,23,.88); }
     .od-source-loading > div { max-width: 340px; padding: 18px; border-radius: 16px; background: var(--nx-surface); text-align: center; font-weight: 800; }
     .od-preview { display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
@@ -781,6 +795,8 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- LINE Android WebView ไม่มี PDF plugin จึงใช้ PDF.js วาด PDF ลง canvas โดยตรง -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <script>
     /* ===== ตั้งค่า (แก้ที่นี่ถ้าเปลี่ยน) ===== */
     var LIFF_ID = '2010685002-tqhkzAHP';
@@ -907,8 +923,8 @@
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
       expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
       dropdownoptions:1, mcpsendrecipients:1, aicenter:1, health:1,
-      // เปิดร่างเป็น read-only และไม่หักโควตา/ไม่ส่ง LINE จึงลองซ้ำอัตโนมัติได้อย่างปลอดภัย
-      officialdraftget:1
+      // เปิดร่าง/โหลดต้นฉบับเป็น read-only และไม่หักโควตา/ไม่ส่ง LINE จึงลองซ้ำได้อย่างปลอดภัย
+      officialdraftget:1, officialdraftfile:1
     };
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
@@ -3637,9 +3653,11 @@
     var OFFICIAL_DOC_MAX_TOTAL = 12 * 1024 * 1024;
     var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:0, draftToken:'' };
     var _officialDocPreviewUrl = '';
+    var _officialDocPdfViews = {};
 
     function officialDocReset_(){
       officialDocReleasePreviewUrl_();
+      officialDocDestroyPdfViews_();
       _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:_officialDoc.requestId + 1, draftToken:'' };
     }
 
@@ -3813,7 +3831,7 @@
     function officialDocInlinePreviewHtml_(file){
       if (!file || !file.base64) return '<div class="note" style="padding:18px;text-align:center;">🔍 กำลังโหลดภาพต้นฉบับแบบส่วนตัว...</div>';
       if (file.mimeType === 'application/pdf') {
-        return '<embed src="data:application/pdf;base64,' + file.base64 + '" type="application/pdf" height="340">';
+        return '<div id="odInlinePdf" class="od-pdf-view"><div class="od-pdf-state">📄 กำลังสร้างภาพตัวอย่าง PDF...</div></div>';
       }
       return '<img src="data:' + esc(file.mimeType) + ';base64,' + file.base64 + '" alt="ต้นฉบับหนังสือราชการ" onclick="officialDocOpenSource_(0)">' +
         '<div class="cert-hint">🔍 แตะรูปเพื่อขยายและซูมตรวจรายละเอียด</div>';
@@ -3828,7 +3846,10 @@
         if (!r || !r.base64) throw new Error('ไม่พบข้อมูลไฟล์ต้นฉบับ');
         file.base64 = String(r.base64); file.mimeType = String(r.mimeType || file.mimeType); file.size = Number(r.size || file.size) || 0;
         box = document.getElementById('odInlinePreview');
-        if (box) box.innerHTML = officialDocInlinePreviewHtml_(file);
+        if (box) {
+          box.innerHTML = officialDocInlinePreviewHtml_(file);
+          if (file.mimeType === 'application/pdf') officialDocMountPdf_(file, 'odInlinePdf', 1);
+        }
       }).catch(function(e){
         _officialDoc.previewBusy = false; box = document.getElementById('odInlinePreview');
         if (box) box.innerHTML = '<div class="note" style="padding:18px;text-align:center;">⚠️ ' + esc((e&&e.message)||'เปิดต้นฉบับไม่สำเร็จ กรุณาส่งไฟล์ใหม่') + '</div>';
@@ -3862,6 +3883,106 @@
       return _officialDocPreviewUrl;
     }
 
+    function officialDocDestroyPdfViews_(){
+      Object.keys(_officialDocPdfViews || {}).forEach(function(key){
+        var view = _officialDocPdfViews[key];
+        if (view && view.renderTask && view.renderTask.cancel) {
+          try { view.renderTask.cancel(); } catch (_) {}
+        }
+        if (view && view.loadingTask && view.loadingTask.destroy) {
+          try { view.loadingTask.destroy(); } catch (_) {}
+        }
+      });
+      _officialDocPdfViews = {};
+    }
+
+    function officialDocPdfBytes_(base64){
+      var binary = atob(String(base64 || '')), bytes = new Uint8Array(binary.length);
+      for (var i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+
+    function officialDocPdfShell_(targetId){
+      return '<div class="od-pdf-toolbar">' +
+        '<button type="button" id="' + targetId + '_prev" onclick="officialDocPdfStep_(&quot;' + targetId + '&quot;,-1)" aria-label="หน้าก่อน">‹</button>' +
+        '<span id="' + targetId + '_label" class="od-pdf-page-label">กำลังเปิด...</span>' +
+        '<button type="button" id="' + targetId + '_next" onclick="officialDocPdfStep_(&quot;' + targetId + '&quot;,1)" aria-label="หน้าถัดไป">›</button>' +
+        '</div><div class="od-pdf-canvas-wrap"><canvas id="' + targetId + '_canvas" class="od-pdf-canvas"></canvas></div>';
+    }
+
+    /** วาด PDF ด้วย PDF.js เพราะ LINE Android WebView ไม่รองรับ embed/iframe ของ data/blob PDF */
+    function officialDocMountPdf_(file, targetId, pageNo){
+      var host = document.getElementById(targetId);
+      if (!host || !file || !file.base64) return;
+      if (!window.pdfjsLib || !window.pdfjsLib.getDocument) {
+        host.innerHTML = '<div class="od-pdf-state">⚠️ โหลดตัวอ่าน PDF ไม่สำเร็จ<br>กรุณาตรวจอินเทอร์เน็ตแล้วลองเปิดต้นฉบับอีกครั้ง</div>';
+        return;
+      }
+      try {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+        var old = _officialDocPdfViews[targetId];
+        if (old && old.loadingTask && old.loadingTask.destroy) { try { old.loadingTask.destroy(); } catch (_) {} }
+        host.innerHTML = '<div class="od-pdf-state">📄 กำลังสร้างภาพตัวอย่าง PDF...</div>';
+        var loadingTask = window.pdfjsLib.getDocument({ data: officialDocPdfBytes_(file.base64) });
+        var view = { file:file, loadingTask:loadingTask, pdf:null, page:1, pages:0, renderTask:null, renderId:0 };
+        _officialDocPdfViews[targetId] = view;
+        loadingTask.promise.then(function(pdf){
+          if (_officialDocPdfViews[targetId] !== view || !document.getElementById(targetId)) return;
+          view.pdf = pdf; view.pages = Number(pdf.numPages) || 1;
+          host = document.getElementById(targetId); host.innerHTML = officialDocPdfShell_(targetId);
+          officialDocPdfRenderPage_(targetId, Math.max(1, Math.min(view.pages, Number(pageNo) || 1)));
+        }).catch(function(err){
+          if (_officialDocPdfViews[targetId] !== view) return;
+          host = document.getElementById(targetId);
+          if (host) host.innerHTML = '<div class="od-pdf-state">⚠️ สร้างภาพจาก PDF ไม่สำเร็จ<br>ไฟล์อาจเข้ารหัสหรือรูปแบบไม่รองรับ</div>';
+        });
+      } catch (err) {
+        host.innerHTML = '<div class="od-pdf-state">⚠️ อุปกรณ์นี้สร้างภาพจาก PDF ไม่สำเร็จ</div>';
+      }
+    }
+
+    function officialDocPdfRenderPage_(targetId, pageNo){
+      var view = _officialDocPdfViews[targetId], host = document.getElementById(targetId);
+      if (!view || !view.pdf || !host) return;
+      var nextPage = Math.max(1, Math.min(view.pages, Number(pageNo) || 1));
+      var renderId = ++view.renderId;
+      if (view.renderTask && view.renderTask.cancel) { try { view.renderTask.cancel(); } catch (_) {} }
+      view.page = nextPage;
+      var label = document.getElementById(targetId + '_label');
+      var prev = document.getElementById(targetId + '_prev'), next = document.getElementById(targetId + '_next');
+      if (label) label.textContent = 'หน้า ' + nextPage + ' / ' + view.pages;
+      if (prev) prev.disabled = nextPage <= 1;
+      if (next) next.disabled = nextPage >= view.pages;
+      view.pdf.getPage(nextPage).then(function(page){
+        if (view.renderId !== renderId) return;
+        var canvas = document.getElementById(targetId + '_canvas');
+        var wrap = canvas && canvas.parentElement;
+        if (!canvas || !wrap) return;
+        var baseViewport = page.getViewport({scale:1});
+        var cssWidth = Math.max(260, Math.min(900, (wrap.clientWidth || host.clientWidth || 340) - 20));
+        var scale = cssWidth / baseViewport.width;
+        var viewport = page.getViewport({scale:scale});
+        var ratio = Math.max(1, Math.min(2, Number(window.devicePixelRatio) || 1));
+        canvas.width = Math.floor(viewport.width * ratio);
+        canvas.height = Math.floor(viewport.height * ratio);
+        canvas.style.width = Math.floor(viewport.width) + 'px';
+        canvas.style.height = Math.floor(viewport.height) + 'px';
+        var ctx = canvas.getContext('2d', {alpha:false});
+        view.renderTask = page.render({canvasContext:ctx, viewport:viewport, transform:ratio === 1 ? null : [ratio,0,0,ratio,0,0]});
+        return view.renderTask.promise;
+      }).catch(function(err){
+        if (err && err.name === 'RenderingCancelledException') return;
+        var state = document.getElementById(targetId);
+        if (state) state.innerHTML = '<div class="od-pdf-state">⚠️ แสดงหน้า PDF นี้ไม่สำเร็จ กรุณาลองอีกครั้ง</div>';
+      });
+    }
+
+    function officialDocPdfStep_(targetId, delta){
+      var view = _officialDocPdfViews[targetId];
+      if (!view || !view.pdf) return;
+      officialDocPdfRenderPage_(targetId, view.page + Number(delta || 0));
+    }
+
     function officialDocShowSource_(file){
       if (!file || !file.base64) return;
       if (file.mimeType !== 'application/pdf') {
@@ -3869,24 +3990,18 @@
         openViewer();
         return;
       }
-      var url;
-      try { url = officialDocMakeBlobUrl_(file); }
-      catch (e) { liffAlert('อุปกรณ์เปิด PDF นี้ไม่ได้ กรุณาลองเปิดผ่าน Chrome', {title:'เปิด PDF ไม่สำเร็จ'}); return; }
       document.getElementById('viewerRoot').innerHTML = '<div class="od-source-overlay" onclick="officialDocCloseSource_()">' +
         '<div class="od-source-shell" onclick="event.stopPropagation()"><div class="od-source-head">' +
         '<div class="od-source-head-name">📕 ' + esc(file.fileName || 'หนังสือราชการ.pdf') + '</div>' +
-        '<button type="button" class="b-second" onclick="officialDocOpenPdfTab_()">เปิดเต็มจอ</button>' +
         '<button type="button" class="b-second" onclick="officialDocCloseSource_()" aria-label="ปิด">✕</button></div>' +
-        '<iframe class="od-source-frame" src="' + esc(url) + '" title="ต้นฉบับหนังสือราชการ"></iframe></div></div>';
-    }
-
-    function officialDocOpenPdfTab_(){
-      if (!_officialDocPreviewUrl) return;
-      var opened = window.open(_officialDocPreviewUrl, '_blank');
-      if (!opened) liffAlert('LINE ไม่อนุญาตให้เปิดแท็บใหม่ กรุณาดูจากช่องเอกสารในหน้านี้');
+        '<div class="od-source-body"><div id="odModalPdf" class="od-pdf-view"><div class="od-pdf-state">📄 กำลังสร้างภาพตัวอย่าง PDF...</div></div></div></div></div>';
+      officialDocMountPdf_(file, 'odModalPdf', 1);
     }
 
     function officialDocCloseSource_(){
+      var modalView = _officialDocPdfViews.odModalPdf;
+      if (modalView && modalView.loadingTask && modalView.loadingTask.destroy) { try { modalView.loadingTask.destroy(); } catch (_) {} }
+      delete _officialDocPdfViews.odModalPdf;
       closeViewer(); officialDocReleasePreviewUrl_();
     }
 
@@ -3965,6 +4080,10 @@
         (warnings.length ? '<div class="card"><div style="font-weight:800;">⚠️ รายการที่ควรตรวจสอบ</div>' + warnings.map(function(w){return '<div class="od-warning">'+esc(w)+'</div>';}).join('') + '</div>' : '') +
         '<button id="odCreateBtn" class="b-primary" style="width:100%;" onclick="officialDocCreateLine_()">✨ สร้างข้อความ LINE</button>' +
         '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showOfficialDocumentSummary()">เลือกไฟล์ใหม่</button>';
+      var firstSource = _officialDoc.files[0];
+      if (firstSource && firstSource.base64 && firstSource.mimeType === 'application/pdf') {
+        setTimeout(function(){ officialDocMountPdf_(firstSource, 'odInlinePdf', 1); }, 0);
+      }
     }
 
     function officialDocSelect_(index){
