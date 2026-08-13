@@ -837,7 +837,7 @@
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
     var API_TIMEOUT_MS = 20000;            // กันคำขอค้างแขวนบนเน็ตแย่ ๆ (เฉพาะ action ที่ retry ได้ — คำสั่งเขียนไม่มี timeout เหมือนเดิม)
     // งานอ่านเอกสารไม่เขียนข้อมูล/ไม่ส่ง LINE จึง timeout แบบไม่ retry ได้ ป้องกันหน้า LIFF ค้างและไม่ยิง AI ซ้ำ
-    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000 };
+    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000, officialdraftget:30000 };
 
     // idToken ของ LINE หมดอายุเป็นราย ชม. และ LIFF ไม่ต่ออายุให้เอง — เช็กวันหมดอายุจริงจาก payload
     // ถ้าไม่มี getDecodedIDToken (SDK เก่า/สภาพแวดล้อมแปลก) คืน false = พฤติกรรมเดิมทุกอย่าง (fallback ปลอดภัย)
@@ -935,6 +935,13 @@
       if (sp.get('tab')) return sp.get('tab');
       var st = sp.get('liff.state');
       if (st){ try { var s2 = new URLSearchParams(st.charAt(0)==='?'?st.slice(1):st); if (s2.get('tab')) return s2.get('tab'); } catch(e){} }
+      return '';
+    }
+    function getOfficialDraftParam(){
+      var sp = new URLSearchParams(location.search);
+      if (sp.get('officialdraft')) return sp.get('officialdraft');
+      var st = sp.get('liff.state');
+      if (st){ try { var s2 = new URLSearchParams(st.charAt(0)==='?'?st.slice(1):st); if (s2.get('officialdraft')) return s2.get('officialdraft'); } catch(e){} }
       return '';
     }
 
@@ -3551,6 +3558,24 @@
       _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, lineText:'', requestId:_officialDoc.requestId + 1 };
     }
 
+    /** เปิด structured draft ที่บอทสร้างไว้ชั่วคราว — server ตรวจเจ้าของจาก LIFF idToken ซ้ำ */
+    function showOfficialDocumentDraft_(token){
+      setNav('account');
+      officialDocReset_();
+      app.innerHTML = pageHead('📄 ผลอ่านจาก LINE Bot', 'goTab(\'account\')') +
+        '<div class="card"><div class="od-progress">🔍 กำลังเปิดร่างหนังสือราชการ...</div>' +
+        '<div class="note" style="margin-top:10px;">ร่างนี้ยังไม่ได้ส่งต่อถึง ผอ. กรุณาตรวจข้อมูลก่อนดำเนินการ</div></div>';
+      api('officialdraftget', {token:String(token || '')}).then(function(r){
+        _officialDoc.documents = (r && r.documents) || [];
+        _officialDoc.selected = 0;
+        _officialDoc.lineText = r && r.lineTexts && r.lineTexts[0] ? String(r.lineTexts[0]) : '';
+        if (!_officialDoc.documents.length) throw new Error('ไม่พบข้อมูลในร่างเอกสาร');
+        officialDocRenderReview_();
+      }).catch(function(e){
+        showErr((e && e.message) || 'เปิดร่างเอกสารไม่สำเร็จ กรุณาส่งไฟล์เข้าบอทใหม่', function(){ goTab('account'); });
+      });
+    }
+
     function showOfficialDocumentSummary(){
       setNav('account');
       officialDocReset_();
@@ -5692,14 +5717,15 @@
 
     /* ---------- เริ่มทำงาน ---------- */
     function start(){
-      var cert = getCertParam(), tab = getTabParam();
+      var cert = getCertParam(), tab = getTabParam(), officialDraft = getOfficialDraftParam();
       loadOrgBranding_();                               // ดึงชื่อ+ตราหน่วยงานมาแสดง (ไม่บล็อก)
       loadProudHome_();                                 // ดึงสไลด์โชว์ผลงานของเจ้าของบัญชี (ไม่บล็อก)
       // เลขแดงเมนูปฏิทินให้เห็นตั้งแต่เปิดแอป (ไม่บล็อก)
       // ถ้าเปิดมาที่หน้าปฏิทินอยู่แล้ว showCalendar ดึงชุดเดียวกันให้เอง — ไม่ยิงซ้ำ
       if (tab !== 'calendar') refreshCalendarBadge_();
       app.innerHTML = homeSkeleton();
-      if(cert){ openDoc(cert); }                        // เปิดจากลิงก์เอกสารใบใดใบหนึ่ง
+      if(officialDraft){ showOfficialDocumentDraft_(officialDraft); } // ร่างจาก LINE Bot — server ตรวจเจ้าของซ้ำ
+      else if(cert){ openDoc(cert); }                   // เปิดจากลิงก์เอกสารใบใดใบหนึ่ง
       else if(tab==='report'){ showReportCenter(); }    // Rich Menu ปุ่ม "รายงานผลงาน"
       else if(tab==='dash'){ showDash(); }              // Rich Menu ปุ่ม "แดชบอร์ด"
       else if(tab==='saved'){ showList('saved'); }      // Rich Menu ปุ่ม "เอกสารของฉัน"
