@@ -699,6 +699,43 @@
     .pw-ov-close { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 12px; width: 44px; height: 44px;
       border-radius: 50%; border: none; background: #fff; color: #222; font-size: 20px; }
 
+    /* ---------- AI สรุปหนังสือราชการ ---------- */
+    .od-upload { border: 1.5px dashed var(--line); border-radius: 18px; padding: 20px 14px; text-align: center;
+      background: linear-gradient(135deg, rgba(67,97,238,.10), rgba(46,196,182,.07)); }
+    .od-upload input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .od-file-list { display: grid; gap: 8px; margin-top: 12px; }
+    .od-file { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px;
+      border: 1px solid var(--nx-line); border-radius: 14px; background: var(--nx-surface); }
+    .od-file-main { flex: 1; min-width: 0; text-align: left; }
+    .od-file-name { font-weight: 700; overflow-wrap: anywhere; }
+    .od-file-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+    .od-file-remove { flex: none; width: 44px; min-width: 44px; height: 44px; padding: 0; border-radius: 12px; }
+    .od-progress { margin-top: 12px; padding: 12px; border-radius: 14px; background: var(--nx-line); font-weight: 700; }
+    .od-doc-tabs { display: flex; overflow-x: auto; gap: 8px; padding: 3px 2px 9px; scrollbar-width: thin;
+      overscroll-behavior-inline: contain; -webkit-overflow-scrolling: touch; }
+    .od-doc-tabs button { flex: 0 0 auto; width: auto; max-width: 260px; white-space: nowrap; }
+    .od-doc-tabs button.on { border-color: var(--line); box-shadow: 0 0 0 2px rgba(67,97,238,.22); }
+    .od-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+    .od-grid .field { min-width: 0; margin: 0; }
+    .od-grid .field.wide { grid-column: 1 / -1; }
+    .od-grid input, .od-grid textarea, .od-grid select { min-width: 0; width: 100%; box-sizing: border-box; }
+    .od-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; font-size: 11px; color: var(--text-2); }
+    .od-confidence { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 7px; font-weight: 700; }
+    .od-clear { color: #39d98a; background: rgba(57,217,138,.12); }
+    .od-review { color: #ffd166; background: rgba(255,209,102,.12); }
+    .od-unclear { color: #ff6b6b; background: rgba(255,107,107,.12); }
+    .od-warning { border-left: 3px solid #ffd166; padding: 9px 11px; margin-top: 8px; border-radius: 9px;
+      background: rgba(255,209,102,.09); overflow-wrap: anywhere; }
+    .od-preview { min-height: 300px; resize: vertical; line-height: 1.65; font-size: 15px; }
+    .od-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .od-actions button { min-width: 0; width: 100%; white-space: normal; }
+    @media (max-width: 520px) {
+      .od-grid, .od-actions { grid-template-columns: minmax(0,1fr); }
+      .od-grid .field.wide { grid-column: auto; }
+      .od-upload { padding: 17px 10px; }
+      .od-preview { min-height: 340px; }
+    }
+
     /* ผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ในเครื่อง — ปิดอนิเมชันทั้งหมด */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
@@ -799,6 +836,8 @@
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
     var API_TIMEOUT_MS = 20000;            // กันคำขอค้างแขวนบนเน็ตแย่ ๆ (เฉพาะ action ที่ retry ได้ — คำสั่งเขียนไม่มี timeout เหมือนเดิม)
+    // งานอ่านเอกสารไม่เขียนข้อมูล/ไม่ส่ง LINE จึง timeout แบบไม่ retry ได้ ป้องกันหน้า LIFF ค้างและไม่ยิง AI ซ้ำ
+    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000 };
 
     // idToken ของ LINE หมดอายุเป็นราย ชม. และ LIFF ไม่ต่ออายุให้เอง — เช็กวันหมดอายุจริงจาก payload
     // ถ้าไม่มี getDecodedIDToken (SDK เก่า/สภาพแวดล้อมแปลก) คืน false = พฤติกรรมเดิมทุกอย่าง (fallback ปลอดภัย)
@@ -835,8 +874,9 @@
       var body = Object.assign({ action: action, idToken: liff.getIDToken() }, payload||{});
       // timeout ใส่เฉพาะ action อ่านที่ retry ได้ — คำสั่งเขียนคงพฤติกรรมเดิมทุกไบต์ (ไม่ abort คำขอที่อาจสำเร็จแล้วฝั่งเซิร์ฟเวอร์)
       var canRetry = !!API_RETRY_SAFE[action];
-      var ctrl = (canRetry && typeof AbortController !== 'undefined') ? new AbortController() : null;
-      var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, API_TIMEOUT_MS) : null;
+      var timeoutMs = canRetry ? API_TIMEOUT_MS : Number(API_TIMEOUT_ONCE[action] || 0);
+      var ctrl = (timeoutMs && typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, timeoutMs) : null;
       return fetch(EXEC_URL + '?liff=api', {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -858,6 +898,11 @@
         if (timer){ clearTimeout(timer); timer = null; }
         // error จากเซิร์ฟเวอร์ (ตอบ JSON แต่ ok=false) = คำตอบจริง ห้าม retry — โยนต่อให้หน้าจอจัดการ
         if (e && e.fromServer) throw e;
+        if (!canRetry && e && e.name === 'AbortError') {
+          throw new Error(action === 'officialdocread'
+            ? 'AI ใช้เวลาอ่านเอกสารนานเกินไป กรุณาลดขนาดหรือแบ่งเอกสารเป็นชุดย่อยแล้วลองใหม่'
+            : 'คำขอใช้เวลานานเกินไป กรุณาลองใหม่');
+        }
         // ที่เหลือ = ต่อไม่ติด/ตอบไม่เป็น JSON/timeout — ถ้าเป็น action อ่านและยังไม่เกินเพดาน ลองซ้ำเงียบ ๆ ก่อน
         // (ไม่เช็ก instanceof TypeError เพราะ error ที่ข้ามเฟรม/ข้าม realm มาจะไม่ผ่านการเช็กนั้น)
         if (canRetry && _attempt < API_RETRY_MAX) {
@@ -2493,7 +2538,8 @@
         p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
     }
 
-    function showMcpSend(){
+    function showMcpSend(initialMessage){
+      var initialDraft = String(initialMessage || '').slice(0, 1000);
       setNav('account');
       _mcpLiffApproval = null;
       _mcpLiffAi = mcpLiffAiNewState_();
@@ -2542,6 +2588,16 @@
             '<div id="mlsResult"></div>' +
           '</div>' +
           '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
+        if (initialDraft) {
+          var draftBox = document.getElementById('mlsText');
+          if (draftBox) {
+            draftBox.value = initialDraft;
+            _mcpLiffAi.originalText = initialDraft;
+            _mcpLiffAi.finalText = initialDraft;
+            mcpLiffUpdateCount_();
+            mcpLiffResetApproval_();
+          }
+        }
       }).catch(function(e){
         app.innerHTML = pageHead('ส่งข้อความ MCP', 'goTab(\'account\')') +
           '<div class="card"><div class="state"><div class="em">🔒</div><div class="ttl">เปิดเมนูไม่ได้</div>' +
@@ -3486,6 +3542,269 @@
       });
     }
 
+    /* ================= AI สรุปหนังสือราชการ ================= */
+    var OFFICIAL_DOC_MAX_FILES = 5;
+    var OFFICIAL_DOC_MAX_TOTAL = 12 * 1024 * 1024;
+    var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, lineText:'', requestId:0 };
+
+    function officialDocReset_(){
+      _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, lineText:'', requestId:_officialDoc.requestId + 1 };
+    }
+
+    function showOfficialDocumentSummary(){
+      setNav('account');
+      officialDocReset_();
+      app.innerHTML = pageHead('📄 AI สรุปหนังสือราชการ', 'goTab(\'account\')') +
+        '<div class="card"><div style="font-weight:800;font-size:18px;">อัปโหลดหนังสือราชการ</div>' +
+          '<div class="note" style="margin:5px 0 12px;">อัปโหลด PDF หรือรูปภาพ ให้ AI อ่านทุกหน้าที่เกี่ยวข้องและเตรียมข้อความ LINE สำหรับแจ้ง ผอ. โรงเรียนบ้านเขาธรรมบท</div>' +
+          '<div class="od-upload"><div style="font-size:34px;">📄</div><div style="font-weight:800;margin:5px 0;">เลือก PDF หรือรูปหนังสือ</div>' +
+            '<div class="note">PDF, JPG, JPEG, PNG, WEBP · สูงสุด 5 ไฟล์ · รวมไม่เกิน 12 MB</div>' +
+            '<label class="b-second" style="display:inline-flex;width:auto;margin-top:12px;cursor:pointer;">➕ เลือกไฟล์' +
+              '<input id="odFileInput" type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" onchange="officialDocChoose_(this.files);this.value=\'\';"></label>' +
+          '</div><div id="odFiles" class="od-file-list"></div>' +
+          '<div id="odProgress" aria-live="polite"></div>' +
+          '<button id="odReadBtn" class="b-primary" style="width:100%;margin-top:12px;" onclick="officialDocRead_()" disabled>✨ อ่านและสรุปด้วย AI</button>' +
+        '</div>' +
+        '<div class="card"><div style="font-weight:700;">🔐 ความเป็นส่วนตัว</div><div class="note">ไฟล์ใช้วิเคราะห์ในคำขอนี้เท่านั้น ระบบไม่บันทึกไฟล์ลง Drive หรือประวัติ และ AI ไม่มีสิทธิ์ส่ง LINE</div></div>' +
+        '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
+    }
+
+    function officialDocMime_(file){
+      var type = String(file.type || '').toLowerCase();
+      if (type) return type;
+      var ext = String(file.name || '').toLowerCase().split('.').pop();
+      return {pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'}[ext] || '';
+    }
+
+    function officialDocChoose_(fileList){
+      if (_officialDoc.busy || _officialDoc.localBusy) return;
+      var incoming = Array.prototype.slice.call(fileList || []);
+      if (!incoming.length) return;
+      if (_officialDoc.files.length + incoming.length > OFFICIAL_DOC_MAX_FILES) {
+        liffAlert('เลือกได้ครั้งละไม่เกิน 5 ไฟล์', {title:'ไฟล์มากเกินไป'}); return;
+      }
+      var existingSize = _officialDoc.files.reduce(function(s,f){ return s + f.size; }, 0);
+      var incomingSize = incoming.reduce(function(s,f){ return s + Number(f.size || 0); }, 0);
+      if (existingSize + incomingSize > OFFICIAL_DOC_MAX_TOTAL) {
+        liffAlert('ไฟล์รวมต้องไม่เกิน 12 MB กรุณาลดขนาดหรือแบ่งเอกสารเป็นชุดย่อย', {title:'ไฟล์ใหญ่เกินไป'}); return;
+      }
+      var allowed = ['application/pdf','image/jpeg','image/png','image/webp'];
+      var bad = incoming.filter(function(f){ return allowed.indexOf(officialDocMime_(f)) === -1; });
+      if (bad.length) { liffAlert('รองรับเฉพาะ PDF, JPG, JPEG, PNG และ WEBP', {title:'ชนิดไฟล์ไม่รองรับ'}); return; }
+      _officialDoc.localBusy = true; officialDocSetProgress_('📂 กำลังเตรียมไฟล์...');
+      Promise.all(incoming.map(officialDocReadLocalFile_)).then(function(items){
+        _officialDoc.localBusy = false; officialDocSetProgress_('');
+        _officialDoc.files = _officialDoc.files.concat(items);
+        officialDocRenderFiles_();
+      }).catch(function(e){
+        _officialDoc.localBusy = false; officialDocSetProgress_(''); officialDocRenderFiles_();
+        liffAlert((e && e.message) || 'เปิดไฟล์ไม่ได้ กรุณาเลือกไฟล์ใหม่', {title:'อ่านไฟล์ไม่สำเร็จ'});
+      });
+    }
+
+    function officialDocReadLocalFile_(file){
+      return new Promise(function(resolve, reject){
+        var reader = new FileReader();
+        reader.onerror = function(){ reject(new Error('เปิดไฟล์ ' + file.name + ' ไม่ได้')); };
+        reader.onload = function(){
+          var url = String(reader.result || ''), comma = url.indexOf(',');
+          if (comma < 0) { reject(new Error('อ่านข้อมูลไฟล์ไม่สำเร็จ')); return; }
+          var item = { fileName:file.name, mimeType:officialDocMime_(file), size:file.size, base64:url.slice(comma + 1), pageCount:null };
+          if (item.mimeType !== 'application/pdf') { resolve(item); return; }
+          file.arrayBuffer().then(function(buf){
+            try {
+              var raw = new TextDecoder('latin1').decode(new Uint8Array(buf));
+              var pages = (raw.match(/\/Type\s*\/Page\b/g) || []).length;
+              item.pageCount = pages || null;
+            } catch (_) { item.pageCount = null; }
+            resolve(item);
+          }).catch(function(){ resolve(item); });
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function officialDocRenderFiles_(){
+      var box = document.getElementById('odFiles'), btn = document.getElementById('odReadBtn');
+      if (!box) return;
+      box.innerHTML = _officialDoc.files.map(function(f,i){
+        var kind = f.mimeType === 'application/pdf' ? 'PDF' : f.mimeType.replace('image/','').toUpperCase();
+        var pages = f.pageCount ? ' · ประมาณ ' + f.pageCount + ' หน้า' : '';
+        return '<div class="od-file"><div style="font-size:25px;">' + (kind === 'PDF' ? '📕' : '🖼️') + '</div>' +
+          '<div class="od-file-main"><div class="od-file-name">' + esc(f.fileName) + '</div>' +
+          '<div class="od-file-meta">' + esc(kind) + pages + ' · ' + esc(fmtBytes_(f.size)) + '</div></div>' +
+          '<button class="b-second od-file-remove" onclick="officialDocRemove_(' + i + ')" aria-label="ลบไฟล์">✕</button></div>';
+      }).join('');
+      if (btn) btn.disabled = !_officialDoc.files.length || _officialDoc.busy || _officialDoc.localBusy;
+    }
+
+    function officialDocRemove_(index){
+      if (_officialDoc.busy || _officialDoc.localBusy) return;
+      _officialDoc.files.splice(Number(index), 1); officialDocRenderFiles_();
+    }
+
+    function officialDocSetProgress_(text){
+      var box = document.getElementById('odProgress');
+      if (box) box.innerHTML = text ? '<div class="od-progress">' + esc(text) + '</div>' : '';
+    }
+
+    function officialDocRead_(){
+      if (_officialDoc.busy || !_officialDoc.files.length) return;
+      _officialDoc.busy = true;
+      var requestId = ++_officialDoc.requestId;
+      officialDocRenderFiles_(); officialDocSetProgress_('🔍 กำลังอ่านเอกสารทุกหน้า...');
+      var stages = ['📄 กำลังตรวจข้อมูลหนังสือราชการ...', '✨ AI กำลังสรุปข้อความ...'];
+      var stage = 0, timer = setInterval(function(){ if (stage < stages.length) officialDocSetProgress_(stages[stage++]); }, 4500);
+      var payloadFiles = _officialDoc.files.map(function(f){ return {
+        fileName:f.fileName, mimeType:f.mimeType, size:f.size, pageCount:f.pageCount, base64:f.base64
+      }; });
+      api('officialdocread', {files:payloadFiles}).then(function(r){
+        if (requestId !== _officialDoc.requestId) return;
+        clearInterval(timer); _officialDoc.busy = false;
+        _officialDoc.documents = (r && r.documents) || []; _officialDoc.selected = 0;
+        if (!_officialDoc.documents.length) throw new Error('ไม่พบข้อมูลหนังสือราชการในไฟล์');
+        officialDocRenderReview_();
+      }).catch(function(e){
+        if (requestId !== _officialDoc.requestId) return;
+        clearInterval(timer); _officialDoc.busy = false; officialDocRenderFiles_(); officialDocSetProgress_('');
+        liffAlert((e && e.message) || 'อ่านเอกสารไม่สำเร็จ กรุณาลองอัปโหลดไฟล์ใหม่หรือใช้ภาพที่ชัดขึ้น', {title:'⚠️ อ่านเอกสารไม่สำเร็จ'});
+      });
+    }
+
+    var OFFICIAL_DOC_FIELDS = [
+      ['documentType','ประเภทเรื่อง'],['senderAgency','หน่วยงาน'],['bookNumber','เลขหนังสือ'],['documentDate','ลงวันที่'],
+      ['subject','เรื่อง'],['recipient','ผู้รับ'],['eventDates','วันที่กิจกรรม'],['eventTimes','เวลา'],['locations','สถานที่'],
+      ['deadlines','Deadline'],['contactDepartment','กลุ่มงาน'],['contactPerson','ผู้ติดต่อ'],['contactPhone','เบอร์โทร'],['contactEmail','Email'],
+      ['importantPoints','สาระสำคัญ'],['actionItems','สิ่งที่ต้องดำเนินการ'],['decisionRequired','สิ่งที่ ผอ. ต้องตัดสินใจ']
+    ];
+    var OFFICIAL_DOC_ARRAY_KEYS = {eventDates:1,eventTimes:1,locations:1,deadlines:1,importantPoints:1,actionItems:1,decisionRequired:1,schoolSpecificData:1};
+
+    function officialDocConfidenceHtml_(doc, key){
+      var meta = doc && doc.fieldMeta && doc.fieldMeta[key];
+      if (!meta) return '';
+      var status = meta.status || 'UNCLEAR', label = status === 'CLEAR' ? '🟢 ชัดเจน' : (status === 'REVIEW' ? '🟡 ควรตรวจสอบ' : '🔴 อ่านไม่ชัด');
+      var cls = status === 'CLEAR' ? 'od-clear' : (status === 'REVIEW' ? 'od-review' : 'od-unclear');
+      var pages = (meta.sourcePages || []).join(', ');
+      return '<div class="od-meta"><span class="od-confidence ' + cls + '">' + label + '</span>' +
+        (pages ? '<span>ที่มา: ' + esc(pages) + '</span>' : '<span>ไม่ระบุหน้าที่มา</span>') + '</div>';
+    }
+
+    function officialDocFieldHtml_(doc, pair){
+      var key = pair[0], label = pair[1], value = doc[key];
+      if (OFFICIAL_DOC_ARRAY_KEYS[key]) value = Array.isArray(value) ? value.join('\n') : String(value || '');
+      var isLong = OFFICIAL_DOC_ARRAY_KEYS[key] || key === 'subject';
+      var input = isLong
+        ? '<textarea id="odf_' + key + '" rows="' + (OFFICIAL_DOC_ARRAY_KEYS[key] ? '3' : '2') + '" placeholder="ไม่พบข้อมูล">' + esc(value || '') + '</textarea>'
+        : '<input id="odf_' + key + '" type="text" value="' + esc(value || '') + '" placeholder="ไม่พบข้อมูล">';
+      return '<div class="field ' + (isLong ? 'wide' : '') + '"><label for="odf_' + key + '">' + esc(label) + '</label>' + input + officialDocConfidenceHtml_(doc,key) + '</div>';
+    }
+
+    function officialDocRenderReview_(){
+      var doc = _officialDoc.documents[_officialDoc.selected];
+      if (!doc) { showOfficialDocumentSummary(); return; }
+      setNav('account');
+      var choices = _officialDoc.documents.length > 1 ?
+        '<div class="card"><div style="font-weight:800;color:var(--nx-gold);">พบเอกสารมากกว่า 1 เรื่อง</div><div class="note">กรุณาเลือกเรื่องที่ต้องการสรุป</div><div class="od-doc-tabs">' +
+        _officialDoc.documents.map(function(d,i){ return '<button class="b-second ' + (i===_officialDoc.selected?'on':'') + '" onclick="officialDocSelect_(' + i + ')">' + esc(d.documentSetTitle || d.subject || ('เรื่องที่ '+(i+1))) + '</button>'; }).join('') + '</div></div>' : '';
+      var school = (doc.schoolSpecificData || []);
+      var schoolHtml = school.length
+        ? '<div class="field"><label for="odf_schoolSpecificData">ข้อมูลที่พบจริง</label><textarea id="odf_schoolSpecificData" rows="4">' + esc(school.join('\n')) + '</textarea>' + officialDocConfidenceHtml_(doc,'schoolSpecificData') + '</div>'
+        : '<div class="od-warning">ไม่พบข้อมูลเฉพาะของโรงเรียนบ้านเขาธรรมบทในเอกสาร</div>';
+      var warnings = [].concat(doc.dateWarnings || [], doc.otherWarnings || []);
+      app.innerHTML = pageHead('🔎 ข้อมูลที่ AI ตรวจพบ', 'showOfficialDocumentSummary()') + choices +
+        '<div class="card"><div class="note" style="margin-bottom:12px;">ตรวจและแก้ข้อมูลที่ OCR/AI อ่านผิดก่อนสร้างข้อความ LINE โดยเฉพาะช่องสีเหลืองหรือสีแดง</div>' +
+          '<div class="od-grid">' + OFFICIAL_DOC_FIELDS.map(function(p){ return officialDocFieldHtml_(doc,p); }).join('') + '</div></div>' +
+        '<div class="card"><div style="font-weight:800;font-size:17px;">🏫 ข้อมูลเฉพาะโรงเรียนบ้านเขาธรรมบท</div>' + schoolHtml + '</div>' +
+        (warnings.length ? '<div class="card"><div style="font-weight:800;">⚠️ รายการที่ควรตรวจสอบ</div>' + warnings.map(function(w){return '<div class="od-warning">'+esc(w)+'</div>';}).join('') + '</div>' : '') +
+        '<button id="odCreateBtn" class="b-primary" style="width:100%;" onclick="officialDocCreateLine_()">✨ สร้างข้อความ LINE</button>' +
+        '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showOfficialDocumentSummary()">เลือกไฟล์ใหม่</button>';
+    }
+
+    function officialDocSelect_(index){
+      officialDocCollectReview_(); _officialDoc.selected = Number(index) || 0; officialDocRenderReview_();
+    }
+
+    function officialDocLines_(value){
+      return String(value || '').split(/\r?\n/).map(function(x){return x.replace(/^[-•]\s*/,'').trim();}).filter(Boolean);
+    }
+
+    function officialDocCollectReview_(){
+      var doc = _officialDoc.documents[_officialDoc.selected]; if (!doc) return null;
+      OFFICIAL_DOC_FIELDS.forEach(function(pair){
+        var key = pair[0], el = document.getElementById('odf_' + key); if (!el) return;
+        doc[key] = OFFICIAL_DOC_ARRAY_KEYS[key] ? officialDocLines_(el.value) : el.value.trim();
+      });
+      var school = document.getElementById('odf_schoolSpecificData');
+      if (school) doc.schoolSpecificData = officialDocLines_(school.value);
+      return doc;
+    }
+
+    function officialDocCreateLine_(){
+      if (_officialDoc.busy) return;
+      var doc = officialDocCollectReview_(); if (!doc) return;
+      _officialDoc.busy = true;
+      var btn = document.getElementById('odCreateBtn'); if(btn){btn.disabled=true;btn.textContent='✨ กำลังสร้างข้อความ...';}
+      api('officialdocline', {document:doc}).then(function(r){
+        _officialDoc.busy=false; _officialDoc.lineText=String(r.text||''); officialDocRenderLine_();
+      }).catch(function(e){
+        _officialDoc.busy=false; if(btn){btn.disabled=false;btn.textContent='✨ สร้างข้อความ LINE';}
+        liffAlert((e&&e.message)||'สร้างข้อความไม่สำเร็จ', {title:'สร้างข้อความไม่ได้'});
+      });
+    }
+
+    function officialDocRenderLine_(){
+      setNav('account');
+      app.innerHTML = pageHead('📱 ข้อความพร้อมส่ง ผอ.', 'officialDocRenderReview_()') +
+        '<div class="card"><div class="note" style="margin-bottom:8px;">ข้อความล่าสุดในช่องนี้คือข้อความที่จะคัดลอกหรือส่งต่อ คุณแก้ไขเองได้ก่อนดำเนินการ</div>' +
+          '<textarea id="odLineText" class="od-preview" maxlength="1000" oninput="officialDocLineChanged_()">' + esc(_officialDoc.lineText) + '</textarea>' +
+          '<div class="note"><span id="odLineCount">' + _officialDoc.lineText.length + '</span> / 1000 ตัวอักษร</div></div>' +
+        '<div class="od-actions">' +
+          '<button class="b-primary" onclick="officialDocCopy_()">📋 คัดลอกข้อความ</button>' +
+          '<button id="odRewriteBtn" class="b-second" onclick="officialDocRewrite_()">✨ ปรับข้อความด้วย AI</button>' +
+          '<button class="b-second" onclick="officialDocCreateLine_()">🔄 สร้างใหม่</button>' +
+          '<button class="b-second" onclick="officialDocRenderReview_()">📄 กลับไปตรวจข้อมูล</button>' +
+        '</div>' +
+        '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="officialDocGoSend_()">➡️ นำไปหน้าส่ง LINE</button>' +
+        '<div class="card" style="margin-top:10px;"><div class="note">AI ยังไม่ได้ส่งข้อความ การส่งจริงต้องผ่าน “ตรวจและขออนุมัติ” และ “ยืนยันส่งจริง” ในหน้าถัดไปเสมอ</div></div>';
+    }
+
+    function officialDocLineChanged_(){
+      var box=document.getElementById('odLineText'), count=document.getElementById('odLineCount');
+      _officialDoc.lineText=box?box.value:''; if(count) count.textContent=String(_officialDoc.lineText.length);
+    }
+
+    function officialDocCopy_(){
+      officialDocLineChanged_(); var text=_officialDoc.lineText;
+      if(!text){ liffAlert('ยังไม่มีข้อความให้คัดลอก'); return; }
+      var done=function(){ liffAlert('✅ คัดลอกข้อความแล้ว พร้อมส่ง ผอ.', {title:'คัดลอกแล้ว'}); };
+      if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(function(){officialDocCopyFallback_(text,done);}); }
+      else officialDocCopyFallback_(text,done);
+    }
+
+    function officialDocCopyFallback_(text, done){
+      var t=document.createElement('textarea'); t.value=text; t.setAttribute('readonly',''); t.style.position='fixed'; t.style.opacity='0';
+      document.body.appendChild(t); t.select(); try{document.execCommand('copy');done();}catch(e){liffAlert('คัดลอกอัตโนมัติไม่ได้ กรุณาแตะค้างที่ข้อความแล้วเลือกคัดลอก');} document.body.removeChild(t);
+    }
+
+    function officialDocRewrite_(){
+      if(_officialDoc.busy) return; officialDocLineChanged_();
+      var original=_officialDoc.lineText; if(!original.trim()){liffAlert('ยังไม่มีข้อความให้ AI ปรับ');return;}
+      _officialDoc.busy=true; var btn=document.getElementById('odRewriteBtn'); if(btn){btn.disabled=true;btn.textContent='✨ กำลังปรับข้อความ...';}
+      api('airewrite',{text:original,tone:'formal',mode:'manual',styleProfile:'formalSchool'}).then(function(r){
+        if(!r || r.success === false) throw new Error((r && r.message) || 'AI ปรับข้อความไม่ได้');
+        _officialDoc.busy=false; _officialDoc.lineText=String(r.finalText||r.text||original); officialDocRenderLine_();
+      }).catch(function(e){
+        _officialDoc.busy=false; _officialDoc.lineText=original; if(btn){btn.disabled=false;btn.textContent='✨ ปรับข้อความด้วย AI';}
+        liffAlert((e&&e.message)||'AI ปรับข้อความไม่ได้ ข้อความเดิมยังอยู่ครบ', {title:'ปรับข้อความไม่สำเร็จ'});
+      });
+    }
+
+    function officialDocGoSend_(){
+      officialDocLineChanged_();
+      if(!_officialDoc.lineText.trim()){liffAlert('ยังไม่มีข้อความสำหรับส่งต่อ');return;}
+      showMcpSend(_officialDoc.lineText);
+    }
+
     /* ================= บัญชีของฉัน ================= */
     function showAccount(){
       setNav('account');
@@ -3524,6 +3843,7 @@
         '<button type="button" class="act" onclick="showMyProfile()"><span class="ico">👤</span>โปรไฟล์ของฉัน</button>' +
         '<button type="button" class="act" onclick="showMyOrg()"><span class="ico">🏫</span>โรงเรียนของฉัน</button>' +
         '<button type="button" class="act" onclick="showAiCenter()"><span class="ico">✨</span>AI ผู้ช่วยงาน</button>' +
+        '<button type="button" class="act" onclick="showOfficialDocumentSummary()"><span class="ico">📄</span>AI สรุปหนังสือราชการ</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเกียรติบัตร</button>' +
         '</div></div>' +
@@ -5387,6 +5707,7 @@
       else if(tab==='sendhelp'){ showHome(); showSendHelp(); } // Rich Menu ปุ่ม "ส่งเอกสาร" — เปิดหน้าหลักไว้ข้างหลัง + การ์ดวิธีส่งลอยด้านบน
       else if(tab==='pending'){ showList('pending'); }
       else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
+      else if(tab==='officialdoc'){ showOfficialDocumentSummary(); } // AI สรุปหนังสือราชการ (server ตรวจสิทธิ์ทุกคำขอ)
       else if(tab==='mcpsend'){ showMcpSend(); }        // ลิงก์ตรงสำหรับผู้ดูแลระบบ (server ยังตรวจสิทธิ์ทุกครั้ง)
       else if(tab==='health'){ showSystemCare(); }      // ศูนย์ดูแลสุขภาพระบบสำหรับ ADMIN
       else { showHome(); }                              // Rich Menu ปุ่ม "เอกสารล่าสุด" (ไม่มี tab) — หน้าหลักมีการ์ดเอกสารล่าสุดอยู่แล้ว
