@@ -857,7 +857,7 @@
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
     var API_TIMEOUT_MS = 20000;            // กันคำขอค้างแขวนบนเน็ตแย่ ๆ (เฉพาะ action ที่ retry ได้ — คำสั่งเขียนไม่มี timeout เหมือนเดิม)
     // งานอ่านเอกสารไม่เขียนข้อมูล/ไม่ส่ง LINE จึง timeout แบบไม่ retry ได้ ป้องกันหน้า LIFF ค้างและไม่ยิง AI ซ้ำ
-    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000, officialdraftget:30000, officialdraftfile:60000 };
+    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000, officialdraftget:60000, officialdraftfile:60000 };
 
     // idToken ของ LINE หมดอายุเป็นราย ชม. และ LIFF ไม่ต่ออายุให้เอง — เช็กวันหมดอายุจริงจาก payload
     // ถ้าไม่มี getDecodedIDToken (SDK เก่า/สภาพแวดล้อมแปลก) คืน false = พฤติกรรมเดิมทุกอย่าง (fallback ปลอดภัย)
@@ -5847,14 +5847,17 @@
     /* ---------- เริ่มทำงาน ---------- */
     function start(){
       var cert = getCertParam(), tab = getTabParam(), officialDraft = getOfficialDraftParam();
+      app.innerHTML = homeSkeleton();
+      // ลิงก์ร่างจาก LINE Bot ต้องมาก่อนคำขอประกอบทั้งหมด: Apps Script อาจรับคำขอพร้อมกันเป็นคิว
+      // ถ้ายิง branding/ผลงาน/ปฏิทินพร้อมกัน ร่างที่ผู้ใช้กำลังรออาจเริ่มช้าและชน timeout ทั้งที่ backend สำเร็จ
+      // หน้าตรวจร่างไม่ใช้ข้อมูลทั้งสามชุดนี้ จึงข้ามได้โดยไม่กระทบเนื้อหาหรือสิทธิ์ของเอกสาร
+      if(officialDraft){ showOfficialDocumentDraft_(officialDraft); return; }
       loadOrgBranding_();                               // ดึงชื่อ+ตราหน่วยงานมาแสดง (ไม่บล็อก)
       loadProudHome_();                                 // ดึงสไลด์โชว์ผลงานของเจ้าของบัญชี (ไม่บล็อก)
       // เลขแดงเมนูปฏิทินให้เห็นตั้งแต่เปิดแอป (ไม่บล็อก)
       // ถ้าเปิดมาที่หน้าปฏิทินอยู่แล้ว showCalendar ดึงชุดเดียวกันให้เอง — ไม่ยิงซ้ำ
       if (tab !== 'calendar') refreshCalendarBadge_();
-      app.innerHTML = homeSkeleton();
-      if(officialDraft){ showOfficialDocumentDraft_(officialDraft); } // ร่างจาก LINE Bot — server ตรวจเจ้าของซ้ำ
-      else if(cert){ openDoc(cert); }                   // เปิดจากลิงก์เอกสารใบใดใบหนึ่ง
+      if(cert){ openDoc(cert); }                        // เปิดจากลิงก์เอกสารใบใดใบหนึ่ง
       else if(tab==='report'){ showReportCenter(); }    // Rich Menu ปุ่ม "รายงานผลงาน"
       else if(tab==='dash'){ showDash(); }              // Rich Menu ปุ่ม "แดชบอร์ด"
       else if(tab==='saved'){ showList('saved'); }      // Rich Menu ปุ่ม "เอกสารของฉัน"
