@@ -906,7 +906,9 @@
       reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
       expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
-      dropdownoptions:1, mcpsendrecipients:1, aicenter:1, health:1
+      dropdownoptions:1, mcpsendrecipients:1, aicenter:1, health:1,
+      // เปิดร่างเป็น read-only และไม่หักโควตา/ไม่ส่ง LINE จึงลองซ้ำอัตโนมัติได้อย่างปลอดภัย
+      officialdraftget:1
     };
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
@@ -933,8 +935,9 @@
       } catch(_) { try { location.reload(); } catch(__){} }
     }
 
-    function api(action, payload, _attempt){
+    function api(action, payload, _attempt, _requestId){
       _attempt = _attempt || 0;
+      _requestId = _requestId || ('liff_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8));
       // token ใกล้หมดอายุ → ต่ออายุเงียบ ๆ ก่อนยิงคำขอ (ผู้ใช้ไม่เห็นหน้า error)
       // กัน loop: ต่ออายุครั้งเดียวต่อการโหลดหน้า — ถ้า refresh แล้วยังไม่หาย จะปล่อยให้ error เดิมโชว์ครั้งเดียวแทนการ reload วน
       if (_attempt === 0 && liffIdTokenExpiring_()) {
@@ -946,7 +949,7 @@
           return new Promise(function(){});  // ค้างไว้ระหว่าง redirect/reload ไม่โยน error ให้หน้าจอ
         }
       }
-      var body = Object.assign({ action: action, idToken: liff.getIDToken() }, payload||{});
+      var body = Object.assign({ action: action, idToken: liff.getIDToken(), clientRequestId:_requestId }, payload||{});
       // timeout ใส่เฉพาะ action อ่านที่ retry ได้ — คำสั่งเขียนคงพฤติกรรมเดิมทุกไบต์ (ไม่ abort คำขอที่อาจสำเร็จแล้วฝั่งเซิร์ฟเวอร์)
       var canRetry = !!API_RETRY_SAFE[action];
       var timeoutMs = canRetry ? API_TIMEOUT_MS : Number(API_TIMEOUT_ONCE[action] || 0);
@@ -986,9 +989,11 @@
         if (canRetry && _attempt < API_RETRY_MAX) {
           var delay = API_RETRY_DELAYS[_attempt] || 1500;
           return new Promise(function(res){ setTimeout(res, delay); })
-            .then(function(){ return api(action, payload, _attempt + 1); });
+            .then(function(){ return api(action, payload, _attempt + 1, _requestId); });
         }
-        throw new Error('เชื่อมต่อระบบไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+        var networkError = new Error('ระบบรับคำขอแล้วแต่ส่งผลกลับมาไม่สมบูรณ์ กรุณาลองใหม่');
+        networkError.code = 'NETWORK_ERROR';
+        throw networkError;
       });
     }
 
@@ -3676,7 +3681,9 @@
         ? 'ร่างเดิมกู้คืนไม่ได้เพื่อความปลอดภัย กรุณากลับไปส่งไฟล์ให้บอทใหม่ ระบบจะสร้างลิงก์ใหม่ที่ใช้ได้ 6 ชั่วโมง'
         : (timedOut
           ? 'อินเทอร์เน็ตหรือระบบตอบช้าชั่วคราว ลองเปิดร่างเดิมอีกครั้งได้ หากยังไม่สำเร็จให้ส่งไฟล์ใหม่'
-          : msg);
+          : (code === 'NETWORK_ERROR'
+            ? 'ระบบลองเปิดร่างให้อัตโนมัติแล้ว 3 ครั้ง แต่ยังรับผลกลับมาไม่ครบ กรุณารอสักครู่แล้วลองร่างเดิมได้ โดยไม่ต้องส่งไฟล์ซ้ำ'
+            : msg));
       app.innerHTML = pageHead('แก้ปัญหาการเปิดร่าง') +
         '<div class="card"><div class="state">' +
         '<div class="em">' + (expired ? '⌛' : '⚠️') + '</div><div class="ttl">' + esc(title) + '</div>' +
