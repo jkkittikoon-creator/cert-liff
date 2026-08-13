@@ -664,6 +664,8 @@
     .state .ttl { font-family: var(--font-display); font-weight: 600; margin-top: 8px; }
     .state .txt { font-size: 13px; color: var(--text-2); margin-top: 4px; line-height: 1.6; }
     .state button { width: auto; flex: none; margin-top: 12px; padding: 9px 18px; font-size: 13px; }
+    .line-link-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 14px; }
+    .state .line-link-actions button { width: 100%; min-width: 0; min-height: 44px; margin: 0; white-space: normal; }
 
     /* ปุ่มยืนยันติดล่างจอ (หน้าฟอร์ม) — ลอยเหนือแถบเมนูและ Safe Area เสมอ */
     .sticky-act { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 90;
@@ -828,8 +830,14 @@
         app.innerHTML = pageHead('เชื่อมบัญชี') +
           '<div class="card"><div class="state">' +
           '<div class="em">🔗</div><div class="ttl">ยังไม่ได้เชื่อมบัญชี LINE กับระบบ</div>' +
-          '<div class="txt">ทักแชตน้องชาโปรแล้วพิมพ์ว่า <b>เชื่อมบัญชี</b><br>ระบบจะส่งวิธีเชื่อมให้ในแชตครับ 🐶</div>' +
-          '<button class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button>' +
+          '<div class="txt">กดปุ่มแรกเพื่อเชื่อมด้วยอีเมลที่ LINE ยืนยัน หากอีเมลไม่ตรง ระบบจะพาใช้รหัส 6 ตัวแทนโดยไม่ยึดทับบัญชีเดิม</div>' +
+          '<div class="line-link-actions">' +
+          '<button class="b-primary" onclick="connectLineAccountNow_(this)">🔗 เชื่อมบัญชี LINE ตอนนี้</button>' +
+          '<button class="b-second" onclick="sendLineLinkHelp_(this)">💬 ส่งคำว่า “เชื่อมบัญชี” ให้บอท</button>' +
+          '<button class="b-second" onclick="openLineLinkWeb_()">🌐 เปิดเว็บสร้างรหัส 6 ตัว</button>' +
+          '<button class="b-second" onclick="retryLast()">🔄 เชื่อมแล้ว ลองเปิดอีกครั้ง</button>' +
+          '</div>' +
+          '<div id="lineLinkHelpMsg" class="note" style="margin-top:10px;text-align:left;">บัญชีต้องมีสถานะ ACTIVE และใช้อีเมลเดียวกับบัญชีในระบบ</div>' +
           '</div></div>';
         return;
       }
@@ -842,6 +850,53 @@
         '</div></div>';
     }
     function retryLast(){ if(_lastRetry) _lastRetry(); }
+
+    function lineLinkHelpMessage_(msg, isErr){
+      var box = document.getElementById('lineLinkHelpMsg');
+      if (!box) return;
+      box.className = isErr ? 'msg err' : 'msg ok';
+      box.textContent = String(msg || '');
+    }
+    function openLineLinkWeb_(){
+      var url = EXEC_URL + '?intent=line-link';
+      try {
+        if (typeof liff !== 'undefined' && liff.openWindow) { liff.openWindow({ url:url, external:true }); return; }
+      } catch(_){ }
+      window.open(url, '_blank', 'noopener');
+    }
+    function connectLineAccountNow_(btn){
+      if (btn && btn.disabled) return;
+      if (btn) { btn.disabled = true; btn.textContent = '🔗 กำลังตรวจและเชื่อมบัญชี...'; }
+      lineLinkHelpMessage_('กำลังตรวจอีเมลที่ LINE ยืนยันกับบัญชีในระบบ...', false);
+      api('linkself', {}).then(function(r){
+        if (r && r.linked) {
+          lineLinkHelpMessage_('✅ เชื่อมบัญชีสำเร็จ กำลังเปิดรายการเดิมอีกครั้ง...', false);
+          setTimeout(function(){ if (_lastRetry) retryLast(); else location.reload(); }, 700);
+          return;
+        }
+        if (btn) { btn.disabled = false; btn.textContent = '🔗 เชื่อมบัญชี LINE ตอนนี้'; }
+        lineLinkHelpMessage_((r && r.message) || 'เชื่อมอัตโนมัติไม่ได้ กรุณาใช้รหัส 6 ตัวจากเว็บระบบ', true);
+      }).catch(function(err){
+        if (btn) { btn.disabled = false; btn.textContent = '🔗 เชื่อมบัญชี LINE ตอนนี้'; }
+        lineLinkHelpMessage_((err && err.message) || 'เชื่อมบัญชีไม่สำเร็จ กรุณาใช้วิธีสร้างรหัส 6 ตัว', true);
+      });
+    }
+    function sendLineLinkHelp_(btn){
+      if (btn && btn.disabled) return;
+      if (btn) { btn.disabled = true; btn.textContent = '💬 กำลังส่งให้บอท...'; }
+      if (!(typeof liff !== 'undefined' && liff.isInClient && liff.isInClient() && liff.sendMessages)) {
+        if (btn) { btn.disabled = false; btn.textContent = '💬 ส่งคำว่า “เชื่อมบัญชี” ให้บอท'; }
+        lineLinkHelpMessage_('หน้าปัจจุบันส่งข้อความเข้าห้องแชตไม่ได้ กรุณากด “เปิดเว็บสร้างรหัส 6 ตัว”', true);
+        return;
+      }
+      liff.sendMessages([{ type:'text', text:'เชื่อมบัญชี' }]).then(function(){
+        lineLinkHelpMessage_('✅ ส่งคำขอให้บอทแล้ว กำลังกลับไปที่แชต', false);
+        setTimeout(function(){ try { liff.closeWindow(); } catch(_){ } }, 450);
+      }).catch(function(){
+        if (btn) { btn.disabled = false; btn.textContent = '💬 ส่งคำว่า “เชื่อมบัญชี” ให้บอท'; }
+        lineLinkHelpMessage_('LINE ไม่อนุญาตให้ส่งจากหน้าปัจจุบัน กรุณากด “เปิดเว็บสร้างรหัส 6 ตัว”', true);
+      });
+    }
 
     // action ที่ "อ่านอย่างเดียว + ไม่ใช้ AI" — ปลอดภัยที่จะลองซ้ำอัตโนมัติเมื่อเน็ตสะดุด (ลองซ้ำแล้วไม่ทำข้อมูลซ้ำ)
     // ไม่รวมคำสั่งเขียน (ลบ/บันทึก/ยืนยัน/สร้างรายงาน/exportzip) และคำสั่ง AI (semanticsearch/posterread/trainingsuggest)
@@ -908,6 +963,7 @@
           // ต่อธง notLinked จากเซิร์ฟเวอร์ไว้ ให้หน้าจอแยกได้ว่า "ยังไม่เชื่อมบัญชี" (flow ปกติของผู้ใช้ใหม่)
           // ออกจาก "ระบบพัง" ซึ่งต้องแสดงคนละแบบกัน
           err.notLinked = !!j.notLinked;
+          err.code = String(j.errorCode || '');
           err.fromServer = true;
           throw err;
         }
@@ -919,9 +975,11 @@
         // error จากเซิร์ฟเวอร์ (ตอบ JSON แต่ ok=false) = คำตอบจริง ห้าม retry — โยนต่อให้หน้าจอจัดการ
         if (e && e.fromServer) throw e;
         if (!canRetry && e && e.name === 'AbortError') {
-          throw new Error(action === 'officialdocread'
+          var timeoutError = new Error(action === 'officialdocread'
             ? 'AI ใช้เวลาอ่านเอกสารนานเกินไป กรุณาลดขนาดหรือแบ่งเอกสารเป็นชุดย่อยแล้วลองใหม่'
             : 'คำขอใช้เวลานานเกินไป กรุณาลองใหม่');
+          timeoutError.code = 'REQUEST_TIMEOUT';
+          throw timeoutError;
         }
         // ที่เหลือ = ต่อไม่ติด/ตอบไม่เป็น JSON/timeout — ถ้าเป็น action อ่านและยังไม่เกินเพดาน ลองซ้ำเงียบ ๆ ก่อน
         // (ไม่เช็ก instanceof TypeError เพราะ error ที่ข้ามเฟรม/ข้าม realm มาจะไม่ผ่านการเช็กนั้น)
@@ -3599,8 +3657,36 @@
         officialDocRenderReview_();
         officialDocLoadInlinePreview_();
       }).catch(function(e){
-        showErr((e && e.message) || 'เปิดร่างเอกสารไม่สำเร็จ กรุณาส่งไฟล์เข้าบอทใหม่', function(){ goTab('account'); });
+        // ต้องส่ง Error object ทั้งก้อนเพื่อรักษา notLinked; เดิมส่งเฉพาะ message ทำให้หน้าช่วยเชื่อมไม่ทำงาน
+        showOfficialDraftRecovery_(e || new Error('เปิดร่างเอกสารไม่สำเร็จ กรุณาส่งไฟล์เข้าบอทใหม่'), String(token || ''));
       });
+    }
+
+    function showOfficialDraftRecovery_(e, token){
+      if (e && e.notLinked) {
+        showErr(e, function(){ showOfficialDocumentDraft_(token); });
+        return;
+      }
+      var code = String((e && e.code) || '');
+      var msg = (e && e.message) ? e.message : 'เปิดร่างเอกสารไม่สำเร็จ';
+      var expired = code === 'OFFICIAL_DRAFT_EXPIRED';
+      var timedOut = code === 'REQUEST_TIMEOUT';
+      var title = expired ? 'ร่างเอกสารหมดอายุ' : (timedOut ? 'เปิดร่างไม่ทันเวลา' : 'เปิดร่างไม่สำเร็จ');
+      var explain = expired
+        ? 'ร่างเดิมกู้คืนไม่ได้เพื่อความปลอดภัย กรุณากลับไปส่งไฟล์ให้บอทใหม่ ระบบจะสร้างลิงก์ใหม่ที่ใช้ได้ 6 ชั่วโมง'
+        : (timedOut
+          ? 'อินเทอร์เน็ตหรือระบบตอบช้าชั่วคราว ลองเปิดร่างเดิมอีกครั้งได้ หากยังไม่สำเร็จให้ส่งไฟล์ใหม่'
+          : msg);
+      app.innerHTML = pageHead('แก้ปัญหาการเปิดร่าง') +
+        '<div class="card"><div class="state">' +
+        '<div class="em">' + (expired ? '⌛' : '⚠️') + '</div><div class="ttl">' + esc(title) + '</div>' +
+        '<div class="txt">' + esc(explain) + '</div>' +
+        '<div class="line-link-actions">' +
+        (!expired ? '<button class="b-primary" onclick="showOfficialDocumentDraft_(&quot;' + escJs(token) + '&quot;)">🔄 ลองเปิดร่างเดิมอีกครั้ง</button>' : '') +
+        '<button class="' + (expired ? 'b-primary' : 'b-second') + '" onclick="closeOrHome()">💬 กลับแชตเพื่อส่งไฟล์ใหม่</button>' +
+        '<button class="b-second" onclick="goTab(\'account\')">👤 ไปหน้าบัญชี</button>' +
+        '</div><div class="note" style="margin-top:10px;text-align:left;">ถ้าพบว่า “ยังไม่ได้เชื่อมบัญชี” ระบบจะแสดงปุ่มเชื่อม LINE โดยอัตโนมัติ ไม่ต้องส่งไฟล์ซ้ำก่อนเชื่อมสำเร็จ</div>' +
+        '</div></div>';
     }
 
     function showOfficialDocumentSummary(){
