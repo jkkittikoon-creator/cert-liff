@@ -778,7 +778,7 @@
     .od-preview { display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box;
       min-height: 300px; resize: vertical; line-height: 1.65; font-size: 15px; }
     .od-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
-    .od-actions button { min-width: 0; width: 100%; white-space: normal; }
+    .od-actions button, .od-actions label { min-width: 0; width: 100%; white-space: normal; align-items: center; justify-content: center; text-align: center; }
     @media (max-width: 520px) {
       .od-grid, .od-actions { grid-template-columns: minmax(0,1fr); }
       .od-grid .field.wide { grid-column: auto; }
@@ -956,7 +956,7 @@
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
     var API_TIMEOUT_MS = 20000;            // กันคำขอค้างแขวนบนเน็ตแย่ ๆ (เฉพาะ action ที่ retry ได้ — คำสั่งเขียนไม่มี timeout เหมือนเดิม)
     // งานอ่านเอกสารไม่เขียนข้อมูล/ไม่ส่ง LINE จึง timeout แบบไม่ retry ได้ ป้องกันหน้า LIFF ค้างและไม่ยิง AI ซ้ำ
-    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdocline:30000, officialdraftget:60000, officialdraftfile:60000 };
+    var API_TIMEOUT_ONCE = { officialdocread:180000, officialdraftappendread:180000, officialdocline:30000, officialdraftget:60000, officialdraftfile:60000 };
 
     // idToken ของ LINE หมดอายุเป็นราย ชม. และ LIFF ไม่ต่ออายุให้เอง — เช็กวันหมดอายุจริงจาก payload
     // ถ้าไม่มี getDecodedIDToken (SDK เก่า/สภาพแวดล้อมแปลก) คืน false = พฤติกรรมเดิมทุกอย่าง (fallback ปลอดภัย)
@@ -1020,7 +1020,7 @@
         // error จากเซิร์ฟเวอร์ (ตอบ JSON แต่ ok=false) = คำตอบจริง ห้าม retry — โยนต่อให้หน้าจอจัดการ
         if (e && e.fromServer) throw e;
         if (!canRetry && e && e.name === 'AbortError') {
-          var timeoutError = new Error(action === 'officialdocread'
+          var timeoutError = new Error(action === 'officialdocread' || action === 'officialdraftappendread'
             ? 'AI ใช้เวลาอ่านเอกสารนานเกินไป กรุณาลดขนาดหรือแบ่งเอกสารเป็นชุดย่อยแล้วลองใหม่'
             : 'คำขอใช้เวลานานเกินไป กรุณาลองใหม่');
           timeoutError.code = 'REQUEST_TIMEOUT';
@@ -3677,7 +3677,7 @@
     /* ================= AI สรุปหนังสือราชการ ================= */
     var OFFICIAL_DOC_MAX_FILES = 5;
     var OFFICIAL_DOC_MAX_TOTAL = 12 * 1024 * 1024;
-    var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:0, draftToken:'', sourcePinned:true };
+    var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:0, draftToken:'', sourcePinned:true, analyzedFileCount:0 };
     var _officialDocPreviewUrl = '';
     var _officialDocPdfViews = {};
     var _officialDocImageViews = {};
@@ -3686,7 +3686,7 @@
       officialDocReleasePreviewUrl_();
       officialDocDestroyPdfViews_();
       _officialDocImageViews = {};
-      _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:_officialDoc.requestId + 1, draftToken:'', sourcePinned:true };
+      _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:_officialDoc.requestId + 1, draftToken:'', sourcePinned:true, analyzedFileCount:0 };
     }
 
     /** เปิด structured draft ที่บอทสร้างไว้ชั่วคราว — server ตรวจเจ้าของจาก LIFF idToken ซ้ำ */
@@ -3702,6 +3702,7 @@
         _officialDoc.files = ((r && r.files) || []).map(function(f){
           return { fileName:f.fileName, mimeType:f.mimeType, size:Number(f.size)||0, pageCount:null, remote:true, serverIndex:Number(f.index)||0, base64:'' };
         });
+        _officialDoc.analyzedFileCount = _officialDoc.files.length;
         _officialDoc.selected = 0;
         _officialDoc.lineText = r && r.lineTexts && r.lineTexts[0] ? String(r.lineTexts[0]) : '';
         if (!_officialDoc.documents.length) throw new Error('ไม่พบข้อมูลในร่างเอกสาร');
@@ -3767,8 +3768,10 @@
       return {pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp'}[ext] || '';
     }
 
-    function officialDocChoose_(fileList){
+    function officialDocChoose_(fileList, mode){
       if (_officialDoc.busy || _officialDoc.localBusy) return;
+      var appendMode = mode === 'append';
+      if (appendMode) officialDocCollectReview_();
       var incoming = Array.prototype.slice.call(fileList || []);
       if (!incoming.length) return;
       if (_officialDoc.files.length + incoming.length > OFFICIAL_DOC_MAX_FILES) {
@@ -3782,13 +3785,22 @@
       var allowed = ['application/pdf','image/jpeg','image/png','image/webp'];
       var bad = incoming.filter(function(f){ return allowed.indexOf(officialDocMime_(f)) === -1; });
       if (bad.length) { liffAlert('รองรับเฉพาะ PDF, JPG, JPEG, PNG และ WEBP', {title:'ชนิดไฟล์ไม่รองรับ'}); return; }
-      _officialDoc.localBusy = true; officialDocSetProgress_('📂 กำลังเตรียมไฟล์...');
+      _officialDoc.localBusy = true;
+      if (appendMode) showSaveOverlay('📎 กำลังแนบเอกสารเพิ่ม...', 'ไฟล์เดิมจะยังอยู่และยังไม่เรียก AI จนกว่าเตรียมไฟล์ครบ');
+      else officialDocSetProgress_('📂 กำลังเตรียมไฟล์...');
       Promise.all(incoming.map(officialDocReadLocalFile_)).then(function(items){
-        _officialDoc.localBusy = false; officialDocSetProgress_('');
+        _officialDoc.localBusy = false;
+        if (appendMode) hideSaveOverlay(); else officialDocSetProgress_('');
         _officialDoc.files = _officialDoc.files.concat(items);
-        officialDocRenderFiles_();
+        if (appendMode) {
+          officialDocRenderReview_();
+          officialDocLoadInlinePreview_();
+          setTimeout(officialDocConfirmCombinedRead_, 0);
+        } else officialDocRenderFiles_();
       }).catch(function(e){
-        _officialDoc.localBusy = false; officialDocSetProgress_(''); officialDocRenderFiles_();
+        _officialDoc.localBusy = false;
+        if (appendMode) { hideSaveOverlay(); officialDocRenderReview_(); officialDocLoadInlinePreview_(); }
+        else { officialDocSetProgress_(''); officialDocRenderFiles_(); }
         liffAlert((e && e.message) || 'เปิดไฟล์ไม่ได้ กรุณาเลือกไฟล์ใหม่', {title:'อ่านไฟล์ไม่สำเร็จ'});
       });
     }
@@ -4166,6 +4178,7 @@
         if (requestId !== _officialDoc.requestId) return;
         clearInterval(timer); _officialDoc.busy = false;
         _officialDoc.documents = (r && r.documents) || []; _officialDoc.selected = 0;
+        _officialDoc.analyzedFileCount = _officialDoc.files.length;
         if (!_officialDoc.documents.length) throw new Error('ไม่พบข้อมูลหนังสือราชการในไฟล์');
         officialDocRenderReview_();
       }).catch(function(e){
@@ -4203,6 +4216,90 @@
       return '<div class="field ' + (isLong ? 'wide' : '') + '"><label for="odf_' + key + '">' + esc(label) + '</label>' + input + officialDocConfidenceHtml_(doc,key) + '</div>';
     }
 
+    function officialDocAppendPanelHtml_(){
+      var pending = Math.max(0, _officialDoc.files.length - Number(_officialDoc.analyzedFileCount || 0));
+      var pendingFiles = pending ? _officialDoc.files.slice(_officialDoc.analyzedFileCount) : [];
+      return '<div class="card od-append-card"><div style="font-weight:800;font-size:17px;">📎 เอกสารยังไม่ครบ?</div>' +
+        '<div class="note" style="margin:5px 0 10px;">แนบหน้าที่ 2 หรือสิ่งที่ส่งมาด้วยภายหลังได้ ระบบจะรวมกับต้นฉบับเดิมและให้ AI สรุปใหม่เป็นเรื่องเดียวกัน</div>' +
+        (pendingFiles.length ? '<div class="od-file-list">' + pendingFiles.map(function(f, offset){
+          var index = Number(_officialDoc.analyzedFileCount || 0) + offset;
+          var kind = f.mimeType === 'application/pdf' ? 'PDF' : String(f.mimeType || '').replace('image/','').toUpperCase();
+          return '<div class="od-file"><div style="font-size:25px;">' + (kind === 'PDF' ? '📕' : '🖼️') + '</div>' +
+            '<div class="od-file-main"><div class="od-file-name">' + esc(f.fileName || ('ไฟล์ที่ '+(index+1))) + '</div>' +
+            '<div class="od-file-meta">ไฟล์ใหม่ · ' + esc(kind) + (f.size ? ' · '+esc(fmtBytes_(f.size)) : '') + '</div></div>' +
+            '<button type="button" class="b-second od-file-remove" onclick="officialDocRemovePending_(' + index + ')" aria-label="ลบไฟล์ใหม่">✕</button></div>';
+        }).join('') + '</div>' : '') +
+        '<div class="od-actions" style="margin-top:10px;">' +
+          '<label class="b-second" style="position:relative;display:flex;cursor:pointer;">➕ แนบเอกสารเพิ่ม' +
+            '<input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;" onchange="officialDocChoose_(this.files,\'append\');this.value=\'\';"></label>' +
+          (pending ? '<button id="odMergeReadBtn" type="button" class="b-primary" onclick="officialDocReadCombined_()">✨ สรุปรวมใหม่ (' + pending + ' ไฟล์)</button>' : '') +
+        '</div>' +
+        (pending ? '<div class="od-warning" style="margin-top:10px;">ไฟล์ใหม่ยังไม่ถูกรวมในผลด้านล่าง กด “สรุปรวมใหม่” ก่อนสร้างข้อความ LINE</div>' : '') +
+        '</div>';
+    }
+
+    function officialDocRemovePending_(index){
+      if (_officialDoc.busy || _officialDoc.localBusy) return;
+      var i = Number(index);
+      if (!isFinite(i) || i < Number(_officialDoc.analyzedFileCount || 0) || i >= _officialDoc.files.length) return;
+      officialDocCollectReview_();
+      _officialDoc.files.splice(i, 1);
+      officialDocRenderReview_();
+      officialDocLoadInlinePreview_();
+    }
+
+    function officialDocConfirmCombinedRead_(){
+      var pending = Math.max(0, _officialDoc.files.length - Number(_officialDoc.analyzedFileCount || 0));
+      if (!pending || _officialDoc.busy) return;
+      liffConfirm({
+        title:'📎 รวมเป็นเรื่องเดียวกัน',
+        message:'จะนำต้นฉบับเดิม ' + Number(_officialDoc.analyzedFileCount || 0) + ' ไฟล์ รวมกับไฟล์ใหม่ ' + pending + ' ไฟล์ แล้วให้ AI อ่านและสรุปใหม่ทั้งหมด\n\nการทำรายการนี้ใช้โควตา AI 1 ครั้ง และยังไม่ส่ง LINE',
+        okLabel:'✨ สรุปรวมใหม่', cancelLabel:'ไว้สรุปภายหลัง'
+      }, officialDocReadCombined_);
+    }
+
+    function officialDocReadCombined_(){
+      if (_officialDoc.busy) return;
+      var pending = Math.max(0, _officialDoc.files.length - Number(_officialDoc.analyzedFileCount || 0));
+      if (!pending) { liffAlert('กรุณาแนบเอกสารเพิ่มก่อนสรุปรวมใหม่'); return; }
+      officialDocCollectReview_();
+      var allFiles = _officialDoc.files.map(function(f){ return {
+        fileName:f.fileName, mimeType:f.mimeType, size:f.size, pageCount:f.pageCount, base64:f.base64
+      }; });
+      // ร่างจากบอทเก็บต้นฉบับเดิมไว้ server-side แต่ไฟล์ที่แนบผ่าน LIFF อยู่ในหน่วยความจำหน้าเว็บ
+      // เมื่อแนบเพิ่มรอบที่ 2 ต้องส่งไฟล์ LIFF ก่อนหน้ากลับไปด้วย ไม่เช่นนั้นหน้าที่เพิ่มรอบแรกจะหายจากชุดสรุปใหม่
+      var newFiles = _officialDoc.files.filter(function(f){ return !f.remote; }).map(function(f){ return {
+        fileName:f.fileName, mimeType:f.mimeType, size:f.size, pageCount:f.pageCount, base64:f.base64
+      }; });
+      var action = _officialDoc.draftToken ? 'officialdraftappendread' : 'officialdocread';
+      var payload = _officialDoc.draftToken
+        ? { token:_officialDoc.draftToken, files:newFiles }
+        : { files:allFiles, mergeAsSingleDocumentSet:true };
+      var requestId = ++_officialDoc.requestId;
+      _officialDoc.busy = true;
+      showSaveOverlay('🔍 กำลังอ่านเอกสารเดิมและไฟล์ใหม่ทุกหน้า...', 'AI จะสรุปข้อมูลทั้งหมดใหม่เป็นเรื่องเดียวกัน กรุณาอย่าปิดหน้านี้');
+      api(action, payload).then(function(r){
+        if (requestId !== _officialDoc.requestId) return;
+        _officialDoc.busy = false;
+        _officialDoc.documents = (r && r.documents) || [];
+        _officialDoc.selected = 0;
+        _officialDoc.lineText = '';
+        if (!_officialDoc.documents.length) throw new Error('ไม่พบข้อมูลหนังสือราชการในไฟล์ที่รวมกัน');
+        _officialDoc.analyzedFileCount = _officialDoc.files.length;
+        hideSaveOverlay();
+        officialDocRenderReview_();
+        officialDocLoadInlinePreview_();
+        liffToast('✅ AI สรุปรวมเอกสารทั้งหมดเป็นเรื่องเดียวกันแล้ว');
+      }).catch(function(e){
+        if (requestId !== _officialDoc.requestId) return;
+        _officialDoc.busy = false;
+        hideSaveOverlay();
+        officialDocRenderReview_();
+        officialDocLoadInlinePreview_();
+        liffAlert((e && e.message) || 'สรุปรวมเอกสารไม่สำเร็จ ข้อมูลเดิมยังอยู่ กรุณาลองใหม่', {title:'⚠️ สรุปรวมไม่สำเร็จ'});
+      });
+    }
+
     function officialDocRenderReview_(){
       var doc = _officialDoc.documents[_officialDoc.selected];
       if (!doc) { showOfficialDocumentSummary(); return; }
@@ -4215,7 +4312,7 @@
         ? '<div class="field"><label for="odf_schoolSpecificData">ข้อมูลที่พบจริง</label><textarea id="odf_schoolSpecificData" rows="4">' + esc(school.join('\n')) + '</textarea>' + officialDocConfidenceHtml_(doc,'schoolSpecificData') + '</div>'
         : '<div class="od-warning">ไม่พบข้อมูลเฉพาะของโรงเรียนบ้านเขาธรรมบทในเอกสาร</div>';
       var warnings = [].concat(doc.dateWarnings || [], doc.otherWarnings || []);
-      app.innerHTML = pageHead('🔎 ข้อมูลที่ AI ตรวจพบ', 'showOfficialDocumentSummary()') + choices + officialDocSourceListHtml_() +
+      app.innerHTML = pageHead('🔎 ข้อมูลที่ AI ตรวจพบ', 'showOfficialDocumentSummary()') + choices + officialDocSourceListHtml_() + officialDocAppendPanelHtml_() +
         '<div class="card"><div class="note" style="margin-bottom:12px;">ตรวจและแก้ข้อมูลที่ OCR/AI อ่านผิดก่อนสร้างข้อความ LINE โดยเฉพาะช่องสีเหลืองหรือสีแดง</div>' +
           '<div class="od-grid">' + OFFICIAL_DOC_FIELDS.map(function(p){ return officialDocFieldHtml_(doc,p); }).join('') + '</div></div>' +
         '<div class="card"><div style="font-weight:800;font-size:17px;">🏫 ข้อมูลเฉพาะโรงเรียนบ้านเขาธรรมบท</div>' + schoolHtml + '</div>' +
