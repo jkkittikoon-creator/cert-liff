@@ -615,6 +615,44 @@
     .qm .sub { display: block; font-size: 11.5px; font-weight: 400; color: var(--text-3); margin-top: 2px; }
     .qm .go { flex: none; font-size: 12px; color: var(--nx-blue); font-weight: 600; }
 
+    /* ============ คู่มือ LIFF ฉบับใช้งานจริง ============
+       หน้าเดียวต้องตอบได้ทั้ง "ของใหม่คืออะไร" และ "ต้องกดตรงไหน" โดยไม่กลายเป็นกำแพงข้อความ
+       การ์ดลัดอยู่บนสุด ส่วนรายละเอียดใช้ <details> มาตรฐาน จึงกด/อ่านด้วยคีย์บอร์ดได้และไม่ต้อง bind event เพิ่ม */
+    .guide-hero { position: relative; overflow: hidden; border-color: var(--nx-line-hot); background:
+      radial-gradient(circle at 92% 8%, rgba(139,92,246,.22), transparent 38%),
+      linear-gradient(135deg, rgba(59,130,246,.13), rgba(16,185,129,.08)); }
+    .guide-hero-title { font-family: var(--font-display); font-size: 18px; font-weight: 800; line-height: 1.45; padding-right: 58px; }
+    .guide-hero .mascot-corner { opacity: .92; }
+    .guide-updated { display: inline-flex; align-items: center; gap: 5px; margin-top: 9px; padding: 5px 9px;
+      border-radius: 999px; background: var(--nx-surface-2); border: 1px solid var(--nx-line); color: var(--text-2); font-size: 11.5px; }
+    .guide-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .guide-action { min-width: 0; min-height: 54px; padding: 10px; border-radius: 14px; border: 1px solid var(--nx-line);
+      background: var(--nx-surface-2); color: var(--text-1); text-align: left; font-family: var(--font-body); }
+    .guide-action b { display: block; font-size: 13px; line-height: 1.35; }
+    .guide-action span { display: block; margin-top: 3px; color: var(--text-3); font-size: 10.5px; line-height: 1.35; }
+    .guide-action.primary { grid-column: 1 / -1; color: #fff; border-color: transparent;
+      background: linear-gradient(120deg, var(--nx-blue), var(--nx-purple)); box-shadow: 0 6px 20px rgba(42,120,214,.22); }
+    .guide-action.primary span { color: rgba(255,255,255,.86); }
+    .guide-new { display: flex; gap: 9px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--nx-line); }
+    .guide-new:last-child { border-bottom: 0; padding-bottom: 0; }
+    .guide-new:first-child { padding-top: 0; }
+    .guide-new .ico { flex: none; font-size: 20px; line-height: 1.4; }
+    .guide-new .tx { min-width: 0; color: var(--text-2); font-size: 13px; line-height: 1.65; }
+    .guide-new b { color: var(--text-1); }
+    .guide-details { padding: 0; overflow: hidden; }
+    .guide-details > summary { display: flex; align-items: center; gap: 9px; min-height: 56px; padding: 13px 14px;
+      cursor: pointer; list-style: none; font-weight: 800; line-height: 1.4; }
+    .guide-details > summary::-webkit-details-marker { display: none; }
+    .guide-details > summary::after { content: '⌄'; margin-left: auto; color: var(--nx-blue); font-size: 18px; transition: transform .18s ease; }
+    .guide-details[open] > summary::after { transform: rotate(180deg); }
+    .guide-details .guide-detail-body { padding: 0 14px 14px; color: var(--text-2); font-size: 13.5px; line-height: 1.8; }
+    .guide-safety { border-color: var(--nx-gold); background: linear-gradient(135deg, rgba(245,158,11,.10), transparent 62%); }
+    @media (max-width: 350px) {
+      .guide-actions { grid-template-columns: 1fr; }
+      .guide-action.primary { grid-column: auto; }
+      .guide-hero-title { padding-right: 48px; font-size: 17px; }
+    }
+
     /* แจ้งผลสั้น ๆ ลอยเหนือเมนูล่าง — ใช้แทน alert() ทุกที่ที่ผู้ใช้อ่านแล้วจบ
        ซ้อนกันได้ (กล่องรวมเป็น flex column) เพราะบางจังหวะมีผลลัพธ์เด้งพร้อมกันหลายอัน
        pointer-events: none ที่กล่องรวม — ไม่ให้บังปุ่มที่อยู่ใต้มัน */
@@ -2298,7 +2336,7 @@
         '<div class="hero-top">' + av +
         '<div style="flex:1;min-width:0;">' +
         '<div class="hero-greet">' + greetOf(p.hour, p.minute) + (name ? ' คุณ' + esc(name) : '') + '</div>' +
-        '<div class="hero-sub">จัดการเกียรติบัตรของคุณได้ง่าย ๆ ผ่าน LINE</div>' +
+        '<div class="hero-sub">เก็บเกียรติบัตรและจัดการหนังสือราชการได้ง่าย ๆ ผ่าน LINE</div>' +
         '</div></div>' +
         '<div class="hero-clock" id="hClock"></div>' +
         '<div style="margin-top:10px;"><span class="chip"><span class="dot"></span>เชื่อมบัญชีแล้ว</span></div>' +
@@ -2326,7 +2364,7 @@
 
       var actions = '<div class="act-grid">' +
         '<button type="button" class="act primary" onclick="showSendHelp()">' +
-        '<span class="ico">📤</span><span>ส่งเกียรติบัตรใหม่<span class="sub">ถ่ายรูปหรือส่งไฟล์เข้าแชต แล้ว AI อ่านให้</span></span></button>' +
+        '<span class="ico">📤</span><span>ส่งเอกสารให้น้องชาโปร<span class="sub">โยนไฟล์เข้าแชต แล้วบอทแยกประเภทให้อัตโนมัติ</span></span></button>' +
         '<button type="button" class="act" onclick="goTab(\'search\')"><span class="ico">🔍</span>ค้นหาเอกสาร</button>' +
         '<button type="button" class="act" onclick="showDash()"><span class="ico">📊</span>สรุปผลงาน</button>' +
         '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>รายงานผลงาน</button>' +
@@ -2367,27 +2405,28 @@
       pwMountHome_();
     }
 
-    /* วิธีส่งเอกสารเข้าระบบ — ระบบรับไฟล์ทางแชต LINE (webhook → คิว AI) ไม่ได้อัปโหลดในหน้านี้
-       จึงอธิบายขั้นตอนจริงแล้วพากลับไปที่แชต แทนที่จะใส่ปุ่มอัปโหลดที่ไม่มีเบื้องหลังรองรับ */
+    /* วิธีส่งเอกสารเข้าระบบ — จุดรับหลักคือแชต LINE (webhook → แยกประเภท → คิวงานที่ถูกต้อง)
+       แผงนี้อธิบายสองเส้นทางให้ตรงกับระบบปัจจุบัน: เกียรติบัตรเข้าเมนูรอตรวจ ส่วนหนังสือราชการได้ร่างข้อความให้ตรวจ */
     function showSendHelp(){
       document.getElementById('viewerRoot').innerHTML =
         '<div class="cv-overlay" style="align-items:flex-end;background:var(--backdrop);" onclick="closeViewer()">' +
         '<div style="background:var(--bg-card);color:var(--text-1);width:100%;max-width:640px;border-radius:22px 22px 0 0;' +
         'padding:20px 18px calc(24px + env(safe-area-inset-bottom));box-shadow:var(--shadow-modal);" onclick="event.stopPropagation()">' +
         '<div style="width:40px;height:4px;border-radius:9px;background:var(--border-strong);margin:0 auto 14px;"></div>' +
-        '<div style="font-family:var(--font-display);font-weight:700;font-size:17px;margin-bottom:10px;">📤 ส่งเกียรติบัตรเข้าระบบ</div>' +
+        '<div style="font-family:var(--font-display);font-weight:700;font-size:17px;margin-bottom:4px;">📤 ส่งเอกสารให้น้องชาโปร</div>' +
+        '<div class="note" style="margin-bottom:10px;">ไม่ต้องเลือกประเภทก่อนครับเจ้านาย — ส่งไฟล์มาแล้วน้องชาโปรแยกทางให้เอง 🐶</div>' +
         '<div style="font-size:14px;line-height:1.9;color:var(--text-2);">' +
         '<div><b style="color:var(--nx-blue);">1.</b> เปิดแชตน้องชาโปร</div>' +
-        '<div><b style="color:var(--nx-blue);">2.</b> ถ่ายรูปเกียรติบัตร หรือส่งไฟล์ PDF เข้าไปในแชต</div>' +
-        '<div><b style="color:var(--nx-blue);">3.</b> เอกสารจะโผล่ในเมนู <b>รอตรวจ</b> ทันที ' +
-        'ติดป้าย <b>🤖 อยู่ในคิว</b> ระหว่างที่ AI อ่านให้ (ประมาณ 1–2 นาที) — ช่วงนี้ยังกดเข้าไปแก้ไม่ได้</div>' +
-        '<div><b style="color:var(--nx-blue);">4.</b> พอป้ายเปลี่ยนเป็น <b>รอตรวจ</b> ให้กดเข้าไปตรวจข้อมูลแล้วกดยืนยัน</div>' +
+        '<div><b style="color:var(--nx-blue);">2.</b> ส่งรูปหรือ PDF ที่อ่านชัดเข้าไปในแชต</div>' +
+        '<div><b style="color:var(--nx-blue);">3.</b> รอผลแยกประเภทอัตโนมัติ แล้วทำตามปุ่มที่บอทส่งกลับมา</div>' +
         '</div>' +
-        /* บอกเรื่องการกู้คิวอัตโนมัติไว้ตรงนี้ เพราะถ้าไม่บอก ครูที่เห็นป้าย "อยู่ในคิว" ค้างนานๆ
-           จะคิดว่าไฟล์หาย แล้วส่งซ้ำ — ซึ่งจะไปโดนระบบเตือนว่า "ไฟล์ซ้ำ" งงหนักกว่าเดิม */
-        '<div class="note" style="margin-top:10px;">ถ้าค้างที่ "อยู่ในคิว" เกิน 3 นาที ' +
-        'ระบบจะส่งให้ AI อ่านใหม่ให้เองอัตโนมัติ ไม่ต้องส่งไฟล์ซ้ำครับ</div>' +
-        '<div class="note" style="margin-top:6px;">รองรับรูป JPG/PNG/WEBP สูงสุด 8MB และ PDF สูงสุด 15MB</div>' +
+        '<div style="margin-top:10px;padding:10px;border-radius:13px;background:var(--nx-surface-2);border:1px solid var(--nx-line);font-size:13px;line-height:1.65;">' +
+        '<b>🏅 ถ้าเป็นเกียรติบัตร/วุฒิบัตร/ประกาศนียบัตร</b><br><span style="color:var(--text-2);">เอกสารเข้าเมนู <b>รอตรวจ</b> → รอ AI อ่าน → ตรวจข้อมูล → ยืนยันเก็บเข้าระบบ</span></div>' +
+        '<div style="margin-top:8px;padding:10px;border-radius:13px;background:var(--nx-surface-2);border:1px solid var(--nx-line);font-size:13px;line-height:1.65;">' +
+        '<b>📄 ถ้าเป็นหนังสือราชการ</b><br><span style="color:var(--text-2);">บอทอ่านและส่งปุ่ม <b>ตรวจ แก้ และส่งต่อ</b> → ดูต้นฉบับ → แก้ข้อมูล → สร้างข้อความ LINE โดยยังไม่ส่งจริง</span></div>' +
+        /* บอกเรื่องการกู้คิวอัตโนมัติไว้ตรงนี้ เพราะถ้าไม่บอก ผู้ใช้จะส่งไฟล์ซ้ำ */
+        '<div class="note" style="margin-top:10px;">เกียรติบัตรที่ค้าง "อยู่ในคิว" เกิน 3 นาที ระบบจะลองอ่านใหม่เอง ไม่ต้องส่งซ้ำ · ร่างหนังสือราชการใช้ได้ 6 ชั่วโมง</div>' +
+        '<div class="note" style="margin-top:6px;">เกียรติบัตร: รูป JPG/PNG/WEBP สูงสุด 8MB · PDF สูงสุด 15MB<br>ชุดหนังสือราชการใน LIFF: สูงสุด 5 ไฟล์ รวมไม่เกิน 12MB</div>' +
         '<div class="btns" style="margin-top:14px;">' +
         '<button class="b-second" onclick="closeViewer()">ปิด</button>' +
         '<button class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button></div>' +
@@ -2552,6 +2591,18 @@
         '<b style="color:var(--nx-blue);flex:none;">' + n + '.</b><div>' + html + '</div></div>';
     }
     function gLine_(html){ return '<div style="margin-bottom:4px;">' + html + '</div>'; }
+    function guideNew_(ico, html){
+      return '<div class="guide-new"><span class="ico">' + ico + '</span><div class="tx">' + html + '</div></div>';
+    }
+    function guideDetails_(ico, title, lines, open){
+      return '<details class="card guide-details"' + (open ? ' open' : '') + '>' +
+        '<summary><span style="font-size:20px;">' + ico + '</span><span>' + esc(title) + '</span></summary>' +
+        '<div class="guide-detail-body">' + lines.join('') + '</div></details>';
+    }
+    function guideAction_(ico, title, sub, onclick, primary){
+      return '<button type="button" class="guide-action' + (primary ? ' primary' : '') + '" onclick="' + onclick + '">' +
+        '<b>' + ico + ' ' + esc(title) + '</b><span>' + esc(sub) + '</span></button>';
+    }
 
     /* ---------- คู่มือ MCP สำหรับผู้ดูแลระบบ (ก้อนที่ 76) ----------
        **ฝั่งเซิร์ฟเวอร์เป็นคนตัดสินว่าใครเห็น** — ครูทั่วไปได้ { visible:false } กลับมา
@@ -3299,53 +3350,119 @@
     function showGuide(){
       setNav('account');
       app.innerHTML = pageHead('คู่มือใช้งาน', 'goTab(\'account\')') +
+        '<div class="card guide-hero">' +
+          '<img class="mascot-corner" src="' + MASCOT_URL + '" alt="น้องชาโปร" onerror="this.style.display=\'none\';">' +
+          '<div class="guide-hero-title">🐶 คู่มือน้องชาโปร<br>ฉบับทำตามได้เลยครับเจ้านาย</div>' +
+          '<div class="note" style="margin-top:5px;padding-right:52px;">รวมของใหม่และวิธีใช้จริงใน LIFF ตั้งแต่ส่งไฟล์จนถึงตรวจและยืนยัน</div>' +
+          '<div class="guide-updated">✨ ปรับปรุงล่าสุด 14 สิงหาคม 2569</div>' +
+        '</div>' +
 
-        '<div class="card" style="border-color:var(--nx-blue);">' +
-        '<div style="font-weight:700;font-size:15px;">🐶 อ่านครั้งเดียวจบ ใช้เวลา 2 นาที</div>' +
-        '<div class="note" style="margin-top:4px;">ทุกอย่างทำผ่าน LINE ที่มีอยู่แล้ว ไม่ต้องติดตั้งแอปเพิ่ม</div></div>' +
+        '<div class="card"><div style="font-weight:800;font-size:15px;">เริ่มจากงานที่ต้องการ</div>' +
+          '<div class="guide-actions">' +
+            guideAction_('📤', 'ส่งเอกสารเข้าบอท', 'บอทแยกประเภทให้อัตโนมัติ', 'showSendHelp()', true) +
+            guideAction_('📄', 'สรุปหนังสือราชการ', 'อัปโหลดจาก LIFF โดยตรง', 'showOfficialDocumentSummary()', false) +
+            guideAction_('🕒', 'ตรวจเกียรติบัตร', 'เปิดรายการที่ยังรอยืนยัน', 'goTab(\'pending\')', false) +
+            guideAction_('✨', 'ถาม AI ผู้ช่วยงาน', 'วิเคราะห์ข้อมูลตามสิทธิ์ของคุณ', 'showAiCenter()', false) +
+            guideAction_('📊', 'ดูสรุปและรายงาน', 'ชั่วโมง กราฟ PDF และ Word', 'showDash()', false) +
+          '</div></div>' +
 
-        guideSection_('📤', 'ส่งเกียรติบัตรเข้าระบบ', [
-          gStep_(1, 'เปิดแชต <b>น้องชาโปร</b>'),
-          gStep_(2, '<b>ถ่ายรูปเกียรติบัตร</b> หรือส่ง <b>ไฟล์ PDF</b> เข้าไปในแชต'),
-          gStep_(3, 'เอกสารโผล่ในเมนู <b>รอตรวจ</b> ทันที ติดป้าย <b>🤖 อยู่ในคิว</b> ระหว่างที่ AI อ่านให้ (1–2 นาที) — ช่วงนี้ยังกดเข้าไปแก้ไม่ได้'),
-          gStep_(4, 'พอป้ายเปลี่ยนเป็น <b>รอตรวจ</b> กดเข้าไปตรวจข้อมูล แก้ตรงที่ผิด แล้วกด <b>ยืนยัน</b>'),
-          '<div class="note" style="margin-top:8px;">รูป JPG/PNG/WEBP สูงสุด 8MB · PDF สูงสุด 15MB — ถ้ามีไฟล์ PDF ต้นฉบับ ส่ง PDF ดีกว่าถ่ายรูปเสมอ</div>'
-        ]) +
+        '<div class="card"><div style="font-weight:800;font-size:16px;margin-bottom:10px;">✨ มีอะไรเพิ่มมาแล้วบ้าง</div>' +
+          guideNew_('🧠', '<b>บอทแยกประเภทเอกสารเอง</b> — โยนไฟล์เข้าแชตได้เลย เกียรติบัตรไปทางเก็บผลงาน ส่วนหนังสือราชการไปทางอ่านและร่างข้อความแจ้ง ผอ.') +
+          guideNew_('📌', '<b>ต้นฉบับหนังสือราชการปักหมุดและซูมได้</b> — เลื่อนแก้ข้อมูลด้านล่างไปพร้อมกับเทียบต้นฉบับ ถ่าง 2 นิ้ว ซูมด้วยปุ่ม หรือลากภาพหลังซูม') +
+          guideNew_('📎', '<b>แนบหน้าหรือสิ่งที่ส่งมาด้วยภายหลังได้</b> — กด “แนบเอกสารเพิ่ม” แล้วให้น้องชาโปรอ่านเอกสารเดิมกับไฟล์ใหม่ทุกหน้าเป็นเรื่องเดียวกัน') +
+          guideNew_('🔗', '<b>เชื่อมบัญชี LINE ง่ายขึ้น</b> — ถ้าระบบพบว่ายังไม่เชื่อม จะมีปุ่ม “เชื่อมบัญชี LINE ตอนนี้” พร้อมทางเลือกส่งคำว่า “เชื่อมบัญชี” ให้บอท') +
+          guideNew_('✨', '<b>AI ผู้ช่วยงานบอกที่มาของคำตอบ</b> — ดูแหล่งข้อมูล จำนวนรายการ และข้อควรตรวจสอบได้ ไม่ใช่คำตอบลอย ๆ') +
+        '</div>' +
 
-        guideSection_('🤖', 'ระหว่างรอ AI อ่าน', [
-          gLine_('ป้าย <b>🤖 อยู่ในคิว</b> = กำลังอ่าน ไม่ใช่แอปค้าง'),
-          gLine_('ค้างเกิน <b>3 นาที</b> ระบบส่งให้ AI อ่านใหม่ให้เอง <b>ไม่ต้องส่งไฟล์ซ้ำ</b>'),
-          gLine_('ส่งไฟล์เดิมซ้ำ น้องจะเตือนว่าซ้ำ และ<b>ไม่บันทึกซ้ำ</b>ให้'),
-          gLine_('ป้ายสี <span style="color:var(--nx-green);">เขียว</span> = AI มั่นใจสูง · <span style="color:var(--nx-gold);">เหลือง/ส้ม</span> = ควรตรวจให้ละเอียดเป็นพิเศษ')
-        ]) +
+        guideDetails_('📤', 'ส่งเอกสารเข้าบอท — ไม่ต้องเลือกประเภทเอง', [
+          gStep_(1, 'เปิดแชต <b>น้องชาโปร</b> แล้วส่งรูปหรือ PDF ที่อ่านชัด'),
+          gStep_(2, 'น้องชาโปรตรวจว่าเป็น <b>เกียรติบัตร/วุฒิบัตร/ประกาศนียบัตร</b> หรือ <b>หนังสือราชการ</b>'),
+          gStep_(3, 'กดปุ่มที่บอทส่งกลับมา แล้วทำตามเส้นทางของเอกสารนั้น'),
+          '<div class="note" style="margin-top:8px;">ถ้ามี PDF ต้นฉบับ ให้ส่ง PDF แทนการถ่ายหน้าจอ ตัวหนังสือจะชัดกว่าและ AI อ่านแม่นกว่าครับ</div>'
+        ], true) +
 
-        guideSection_('🧭', 'เมนูล่าง 6 ปุ่ม', [
-          gLine_('🏠 <b>หน้าหลัก</b> — สรุปตัวเลข งานค้าง อากาศ เอกสารล่าสุด'),
-          gLine_('🕒 <b>รอตรวจ</b> — เอกสารที่ต้องตรวจและยืนยัน (เลขแดง = จำนวนที่ค้าง)'),
-          gLine_('📂 <b>เอกสาร</b> — เอกสารที่บันทึกแล้วทั้งหมด'),
-          gLine_('🗓️ <b>ปฏิทิน</b> — กิจกรรมอบรม (เลขแดง = อบรมจบแล้วยังไม่เก็บเอกสาร)'),
-          gLine_('🔍 <b>ค้นหา</b> — ค้นตามชื่อกิจกรรม หน่วยงาน ปีการศึกษา'),
-          gLine_('👤 <b>บัญชี</b> — ธีมสี ถังขยะ ศูนย์รายงาน สรุปผลงาน และคู่มือนี้')
-        ]) +
+        guideDetails_('🏅', 'เส้นทางเกียรติบัตร / วุฒิบัตร', [
+          gStep_(1, 'ไฟล์จะเข้าเมนู <b>รอตรวจ</b> และขึ้นป้าย <b>🤖 อยู่ในคิว</b> ระหว่าง AI อ่าน'),
+          gStep_(2, 'พอป้ายเปลี่ยนเป็น <b>รอตรวจ</b> ให้เปิดดูรูปต้นฉบับ เทียบชื่อ หลักสูตร วันที่ ชั่วโมง และหน่วยงาน'),
+          gStep_(3, 'แก้ช่องที่อ่านผิด แล้วกด <b>ยืนยัน</b> เพื่อบันทึกเข้าระบบของคุณ'),
+          gLine_('ค้างเกิน <b>3 นาที</b> ระบบจะลองส่งให้อ่านใหม่เอง ไม่ต้องส่งไฟล์ซ้ำ'),
+          gLine_('ไฟล์เดิมซ้ำ ระบบจะเตือนและไม่สร้างรายการซ้ำให้'),
+          '<div class="note" style="margin-top:8px;">รองรับรูป JPG/PNG/WEBP สูงสุด 8MB · PDF สูงสุด 15MB</div>'
+        ], false) +
+
+        guideDetails_('📄', 'เส้นทางหนังสือราชการจาก LINE Bot', [
+          gStep_(1, 'บอทอ่านหนังสือและส่งการ์ด <b>แยกเป็นหนังสือราชการแล้ว</b> พร้อมปุ่ม <b>ตรวจ แก้ และส่งต่อ</b>'),
+          gStep_(2, 'เปิดร่างภายใน <b>6 ชั่วโมง</b> ระบบตรวจว่าเป็นเจ้าของร่างก่อนให้ดูไฟล์'),
+          gStep_(3, 'เทียบต้นฉบับกับข้อมูลที่ AI ตรวจพบ โดยเน้นเลขหนังสือ วันที่ จำนวนเงิน กำหนดส่ง และเบอร์โทร'),
+          gStep_(4, 'แก้ข้อมูลได้ทุกช่อง แล้วกด <b>สร้างข้อความ LINE</b>'),
+          gStep_(5, 'แก้ข้อความต่อเอง คัดลอก หรือกด <b>นำไปหน้าส่ง LINE</b>'),
+          '<div class="note" style="margin-top:8px;">ช่องเขียว = ชัดเจน · เหลือง = ควรตรวจสอบ · แดง = อ่านไม่ชัด และระบบจะแสดงหน้าต้นฉบับที่มาของข้อมูลสำคัญให้</div>'
+        ], false) +
+
+        guideDetails_('📌', 'ดูต้นฉบับ ปักหมุด และซูมด้วยนิ้ว', [
+          gLine_('<b>ปักหมุดเป็นค่าเริ่มต้น</b> — ต้นฉบับค้างอยู่ด้านบน ขณะเลื่อนแก้ช่องข้อมูลด้านล่าง'),
+          gLine_('แตะ <b>📌 ปักอยู่</b> เพื่อถอนหมุด หรือแตะอีกครั้งเพื่อปักกลับ'),
+          gLine_('ถ่าง 2 นิ้วเพื่อซูมเข้า/ออก · เมื่อซูมแล้วลากด้วย 1 นิ้ว · แตะสองครั้งหรือกด ⟲ เพื่อคืน 100%'),
+          gLine_('ปุ่ม <b>เปิดเต็มจอ</b> เหมาะกับการตรวจเลขหนังสือ ตัวเลขเล็ก ตาราง และลายเซ็น'),
+          '<div class="note" style="margin-top:8px;">ถ้ากรอบตัวอย่างว่าง ให้ลองกด “ดูต้นฉบับ” อีกครั้ง ตรวจอินเทอร์เน็ต และเปิดร่างเดิมใหม่ก่อนส่งไฟล์ซ้ำ</div>'
+        ], false) +
+
+        guideDetails_('📎', 'เอกสารมาไม่ครบ — แนบเพิ่มแล้วสรุปเรื่องเดิม', [
+          gStep_(1, 'อยู่หน้า <b>ข้อมูลที่ AI ตรวจพบ</b> แล้วกด <b>➕ แนบเอกสารเพิ่ม</b>'),
+          gStep_(2, 'เลือกหน้าถัดไป ตาราง กำหนดการ หรือสิ่งที่ส่งมาด้วย จะเลือกหลายไฟล์พร้อมกันก็ได้'),
+          gStep_(3, 'ตรวจรายชื่อไฟล์ ลบไฟล์ที่เลือกผิด แล้วกด <b>✨ สรุปรวมใหม่</b>'),
+          gStep_(4, 'AI จะอ่านต้นฉบับเดิมและไฟล์ใหม่ทุกหน้าอีกครั้ง แล้วคืนผลเป็น <b>เรื่องเดียวกัน</b>'),
+          '<div class="note" style="margin-top:8px;">รวมได้สูงสุด 5 ไฟล์ ขนาดรวมไม่เกิน 12MB · การสรุปรวมใช้โควตา AI 1 ครั้ง · ถ้าล้ม ข้อมูลเดิมและไฟล์ที่เพิ่งเลือกยังอยู่ให้ลองซ้ำ</div>'
+        ], false) +
+
+        guideDetails_('📱', 'สร้างข้อความแจ้ง ผอ. และส่งอย่างปลอดภัย', [
+          gStep_(1, 'ตรวจข้อมูลให้ถูกก่อน แล้วกด <b>✨ สร้างข้อความ LINE</b>'),
+          gStep_(2, 'ข้อความในช่องแก้ไขคือฉบับที่จะใช้จริง คุณแก้เองหรือกด <b>ปรับข้อความด้วย AI</b> ได้'),
+          gStep_(3, 'เลือก <b>คัดลอกข้อความ</b> หรือ <b>นำไปหน้าส่ง LINE</b>'),
+          gStep_(4, 'ถ้าส่งผ่านระบบ ต้องเลือกผู้รับ → <b>ตรวจและขออนุมัติ</b> → อ่านสรุป → <b>ยืนยันส่งจริง</b>'),
+          '<div class="note" style="margin-top:8px;color:var(--nx-gold);">AI ไม่มีสิทธิ์ส่ง LINE เอง และการสร้าง/ปรับข้อความไม่ถือว่าเป็นการส่งจริงครับเจ้านาย</div>'
+        ], false) +
+
+        guideDetails_('✨', 'AI ผู้ช่วยงานและ AI ปรับข้อความ', [
+          gLine_('<b>AI ผู้ช่วยงาน</b> — ถามข้อมูลเอกสาร ชั่วโมงอบรม ร่างรายงาน แนะนำแผนพัฒนา จับคู่หลักฐาน ว.PA และสรุปปัญหาระบบตามสิทธิ์ของคุณ'),
+          gLine_('คำตอบจะแสดง <b>ที่มาของข้อมูล</b> จำนวนรายการที่ใช้ และข้อควรตรวจสอบ เพื่อให้ย้อนเช็กได้'),
+          gLine_('<b>ผู้ดูแลระบบ</b> ใช้ AI ปรับข้อความก่อนส่งได้ 7 แบบ: อัตโนมัติ น่ารัก สุภาพ กระชับ กวน ให้กำลังใจ และเป็นทางการ พร้อมคืนข้อความเดิมได้'),
+          gLine_('ข้อความล่าสุดที่เห็นในช่องแก้ไขคือข้อความที่จะเข้าสู่ขั้นตรวจเสมอ AI ไม่ส่งแทนผู้ใช้')
+        ], false) +
+
+        guideDetails_('🧭', 'เมนูล่าง 6 ปุ่มและเมนูเสริม', [
+          gLine_('🏠 <b>หน้าหลัก</b> — สรุปตัวเลข งานค้าง อากาศ เมนูด่วน และเอกสารล่าสุด'),
+          gLine_('🕒 <b>รอตรวจ</b> — เกียรติบัตรที่ต้องตรวจและยืนยัน เลขแดงคือจำนวนที่ค้าง'),
+          gLine_('📂 <b>เอกสาร</b> — เอกสารที่บันทึกแล้ว ดู QR เปิด Drive ดาวน์โหลด หรือแนบไฟล์ย้อนหลัง'),
+          gLine_('🗓️ <b>ปฏิทิน</b> — กิจกรรมอบรม พยากรณ์อากาศ และเลขเตือนกิจกรรมที่ยังขาดเอกสาร'),
+          gLine_('🔍 <b>ค้นหา</b> — ค้นตามชื่อกิจกรรม หน่วยงาน ประเภท และปีการศึกษา'),
+          gLine_('👤 <b>บัญชี</b> — โปรไฟล์ โรงเรียน ธีม AI ผู้ช่วย หนังสือราชการ รายงาน ผลงานเด่น ถังขยะ การแจ้งเตือน และคู่มือนี้')
+        ], false) +
 
         quickMsgCardHtml() +
 
-        guideSection_('📄', 'เอาไปใช้ทำอะไรได้', [
+        guideSection_('📊', 'นำข้อมูลไปใช้ต่อ', [
+          gLine_('<b>สรุปผลงาน</b> — ดูจำนวนเอกสาร ชั่วโมง กราฟรายประเภท/ปี เป้าหมายและเหรียญความสำเร็จ'),
           gLine_('<b>ศูนย์รายงานผลงาน</b> — ออกรายงาน PDF/Word พร้อมหัวกระดาษและช่องลงชื่อ'),
-          gLine_('<b>QR ตรวจสอบ</b> — เปิดเอกสารแล้วกดขอ QR ให้คนอื่นสแกนยืนยันได้'),
-          gLine_('<b>ผลงานที่ภาคภูมิใจ</b> — เลือกใบเด่นขึ้นสไลด์โชว์หน้าแรกของตัวเอง'),
-          gLine_('<b>ถังขยะ</b> — ลบผิดกู้คืนได้ ไม่ได้หายถาวรทันที')
+          gLine_('<b>QR ตรวจสอบ</b> — ให้ผู้อื่นสแกนยืนยันเอกสารได้'),
+          gLine_('<b>ผลงานที่ภาคภูมิใจ</b> — เลือกภาพเด่นขึ้นสไลด์โชว์หน้าแรก'),
+          gLine_('<b>ถังขยะ</b> — ลบผิดยังกู้คืนได้ก่อนลบถาวร')
         ]) +
 
-        guideSection_('❓', 'เจอปัญหาบ่อย ๆ', [
-          gLine_('<b>ส่งรูปแล้วไม่ขึ้น?</b> รอ 1–2 นาที แล้วดึงหน้าจอลงเพื่อรีเฟรช'),
-          gLine_('<b>รูปใหญ่เกิน 8MB?</b> ส่งแบบ "ขนาดปกติ" แทนแบบ HD'),
-          gLine_('<b>AI อ่านชื่อผิด?</b> แก้ในหน้าตรวจได้ทุกช่อง ระบบเก็บประวัติการแก้ไว้ให้'),
-          gLine_('<b>เข้าไม่ได้ / ขึ้นว่าไม่มีสิทธิ์?</b> ต้องเชื่อมบัญชีด้วย<b>อีเมลโรงเรียน</b> พิมพ์รหัส 6 ตัวในแชตเพื่อเชื่อม/เปลี่ยนบัญชี'),
-          gLine_('<b>จอสว่าง/มืดไม่ถูกใจ?</b> กดไอคอน 🌗 มุมขวาบน วนได้ 3 โหมด (อัตโนมัติ / สว่าง / มืด)')
-        ]) +
+        '<div class="card guide-safety"><div style="font-weight:800;font-size:15px;margin-bottom:7px;">🔐 ความเป็นส่วนตัวและโควตา</div>' +
+          '<div style="font-size:13px;line-height:1.75;color:var(--text-2);">ข้อมูลแต่ละคนแยกตามบัญชี LINE และสิทธิ์ฝั่งเซิร์ฟเวอร์ · ร่างหนังสือราชการเปิดได้เฉพาะเจ้าของ · ไฟล์ที่อัปโหลดในหน้าสรุปใช้วิเคราะห์คำขอนั้นและไม่บันทึกลง Drive/ประวัติ · การเรียก AI และการส่ง LINE มีโควตาแยกกัน โดยหน้าส่งจะแสดงจำนวนคงเหลือก่อนยืนยัน</div></div>' +
 
-        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showSendHelp()">📤 ดูวิธีส่งเกียรติบัตรแบบย่อ</button>' +
+        guideDetails_('❓', 'เจอปัญหา — น้องชาโปรพาแก้ทีละขั้น', [
+          gLine_('<b>ยังไม่ได้เชื่อมบัญชี?</b> กด “เชื่อมบัญชี LINE ตอนนี้” บนหน้าที่แจ้งเตือน หรือกดส่งคำว่า “เชื่อมบัญชี” ให้บอทแล้วทำตามรหัส 6 ตัว'),
+          gLine_('<b>เปิดร่างช้าหรือเครือข่ายหลุด?</b> กด “ลองเปิดร่างเดิมอีกครั้ง” ระบบลองเชื่อมต่อให้อัตโนมัติได้โดยไม่ต้องส่งไฟล์ซ้ำ'),
+          gLine_('<b>ร่างหมดอายุ?</b> กลับแชตแล้วส่งไฟล์ใหม่เพื่อรับลิงก์ใหม่ ร่างเดิมกู้ไม่ได้เพื่อความปลอดภัย'),
+          gLine_('<b>AI อ่านไม่ได้?</b> ใช้ PDF ต้นฉบับหรือภาพตรง ไม่เบลอ ไม่เอียง ไม่ครอปขอบ และแบ่งไฟล์ให้อยู่ในขนาดที่รองรับ'),
+          gLine_('<b>AI อ่านข้อมูลผิด?</b> เทียบต้นฉบับแล้วแก้ได้ทุกช่องก่อนสร้างข้อความหรือยืนยันเก็บ'),
+          gLine_('<b>ปุ่มค้าง?</b> รอให้สถานะประมวลผลจบก่อน อย่ากดรัว ถ้ายังไม่หายให้ปิด LIFF แล้วเปิดจากแชตใหม่'),
+          gLine_('<b>จอสว่าง/มืดไม่ถูกใจ?</b> กด 🌗 มุมขวาบนเพื่อวนโหมดตามเครื่อง สว่าง และมืด')
+        ], false) +
+
+        '<button class="b-second" style="width:100%;margin-bottom:8px;" onclick="showSendHelp()">📤 เปิดวิธีส่งเอกสารแบบย่อ</button>' +
         '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">← กลับหน้าบัญชี</button>';
       window.scrollTo(0, 0);
     }
@@ -4453,7 +4570,7 @@
         '<button type="button" class="act" onclick="showAiCenter()"><span class="ico">✨</span>AI ผู้ช่วยงาน</button>' +
         '<button type="button" class="act" onclick="showOfficialDocumentSummary()"><span class="ico">📄</span>AI สรุปหนังสือราชการ</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
-        '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเกียรติบัตร</button>' +
+        '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเอกสารให้บอท</button>' +
         '</div></div>' +
 
         // ช่องว่างสำหรับการ์ดคู่มือ MCP — เติมทีหลังเมื่อเซิร์ฟเวอร์ตอบว่าเป็นผู้ดูแลระบบ
