@@ -730,20 +730,37 @@
     .od-warning { border-left: 3px solid #ffd166; padding: 9px 11px; margin-top: 8px; border-radius: 9px;
       background: rgba(255,209,102,.09); overflow-wrap: anywhere; }
     .od-source-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+    .od-source-title-main { flex: 1; min-width: 0; }
+    .od-source-pin { flex: none; width: auto; min-width: 44px; min-height: 44px; padding: 8px 10px; border-radius: 12px; }
+    .od-source-card.is-pinned { position: sticky; top: 6px; z-index: 100; padding: 10px;
+      border-color: var(--nx-line-hot); box-shadow: 0 12px 32px rgba(2,6,23,.34), 0 0 0 1px rgba(79,220,255,.12); }
+    .od-source-card.is-pinned .od-source-title { margin-bottom: 6px; }
+    .od-source-card.is-pinned .od-source-note { display: none; }
+    .od-source-card.is-pinned .od-file-list { display: none; }
     .od-inline-preview { min-height: 190px; margin: 9px 0 12px; display: grid; place-items: center; overflow: hidden;
       border: 1px solid var(--nx-line); border-radius: 14px; background: var(--bg-inset); }
+    .od-source-card.is-pinned .od-inline-preview { height: min(38svh, 360px); min-height: 220px; margin: 6px 0 0; }
     .od-inline-preview img { display: block; width: 100%; max-height: 360px; object-fit: contain; border: 0; background: #fff; }
     .od-inline-preview img { cursor: zoom-in; }
     .od-pdf-view { width: 100%; min-width: 0; display: flex; flex-direction: column; background: #e8edf5; color: #17223a; }
-    .od-pdf-toolbar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px;
+    .od-inline-preview .od-pdf-view { height: 100%; min-height: 0; }
+    .od-pdf-toolbar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; padding: 7px;
       border-bottom: 1px solid rgba(23,34,58,.16); background: #f7f9fc; }
-    .od-pdf-toolbar button { width: auto; min-width: 44px; min-height: 40px; padding: 6px 11px; color: #17223a;
+    .od-pdf-toolbar button { flex: none; width: auto; min-width: 40px; min-height: 38px; padding: 5px 9px; color: #17223a;
       background: #fff; border: 1px solid #cbd5e1; box-shadow: none; }
     .od-pdf-toolbar button:disabled { opacity: .42; }
     .od-pdf-page-label { min-width: 88px; text-align: center; font-weight: 800; font-size: 13px; }
-    .od-pdf-canvas-wrap { min-height: 220px; max-height: 68vh; overflow: auto; display: grid; place-items: start center;
-      padding: 10px; background: #d9e0ea; -webkit-overflow-scrolling: touch; }
-    .od-pdf-canvas { display: block; max-width: 100%; height: auto; background: #fff; box-shadow: 0 2px 12px rgba(15,23,42,.24); }
+    .od-pdf-zoom-label { min-width: 48px; text-align: center; font-weight: 800; font-size: 12px; }
+    .od-pdf-canvas-wrap { min-height: 180px; max-height: 68vh; overflow: hidden; display: grid; place-items: center;
+      padding: 10px; background: #d9e0ea; overscroll-behavior: contain; }
+    .od-pdf-canvas { display: block; max-width: 100%; max-height: 100%; height: auto; background: #fff;
+      box-shadow: 0 2px 12px rgba(15,23,42,.24); transform-origin: center center; user-select: none;
+      -webkit-user-select: none; will-change: transform; }
+    .od-pdf-gesture-hint { flex-basis: 100%; text-align: center; color: #64748b; font-size: 11px; line-height: 1.25; }
+    .od-image-stage { width: 100%; height: 100%; min-height: 190px; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; background: #e8edf5; }
+    .od-image-stage img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
+      transform-origin: center center; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; will-change: transform; }
     .od-pdf-state { min-height: 220px; display: grid; place-items: center; padding: 18px; text-align: center;
       color: #475569; background: #f8fafc; }
     .od-source-overlay { position: fixed; inset: 0; z-index: 1100; padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
@@ -770,6 +787,14 @@
       .od-file { align-items: flex-start; flex-wrap: wrap; }
       .od-file-main { min-width: calc(100% - 46px); }
       .od-file-view { margin-left: 35px; flex: 1; }
+      .od-source-card.is-pinned { top: 4px; }
+      .od-pdf-toolbar { gap: 4px; padding: 5px; }
+      .od-pdf-toolbar button { min-width: 36px; min-height: 36px; padding: 4px 7px; }
+      .od-pdf-page-label { min-width: 72px; }
+    }
+    @media (max-height: 650px) {
+      .od-source-card.is-pinned .od-inline-preview { height: 30svh; min-height: 170px; }
+      .od-pdf-gesture-hint { display: none; }
     }
 
     /* ผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ในเครื่อง — ปิดอนิเมชันทั้งหมด */
@@ -3652,14 +3677,16 @@
     /* ================= AI สรุปหนังสือราชการ ================= */
     var OFFICIAL_DOC_MAX_FILES = 5;
     var OFFICIAL_DOC_MAX_TOTAL = 12 * 1024 * 1024;
-    var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:0, draftToken:'' };
+    var _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:0, draftToken:'', sourcePinned:true };
     var _officialDocPreviewUrl = '';
     var _officialDocPdfViews = {};
+    var _officialDocImageViews = {};
 
     function officialDocReset_(){
       officialDocReleasePreviewUrl_();
       officialDocDestroyPdfViews_();
-      _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:_officialDoc.requestId + 1, draftToken:'' };
+      _officialDocImageViews = {};
+      _officialDoc = { files:[], documents:[], selected:0, busy:false, localBusy:false, previewBusy:false, lineText:'', requestId:_officialDoc.requestId + 1, draftToken:'', sourcePinned:true };
     }
 
     /** เปิด structured draft ที่บอทสร้างไว้ชั่วคราว — server ตรวจเจ้าของจาก LIFF idToken ซ้ำ */
@@ -3817,8 +3844,10 @@
 
     function officialDocSourceListHtml_(){
       if (!_officialDoc.files.length) return '';
-      return '<div class="card"><div class="od-source-title"><div><div style="font-weight:800;font-size:17px;">📄 ต้นฉบับหนังสือราชการ</div>' +
-        '<div class="note">แตะดูต้นฉบับเพื่อเทียบเลขหนังสือ วันที่ จำนวนเงิน และข้อมูลที่ AI อ่าน</div></div></div>' +
+      var pinned = _officialDoc.sourcePinned !== false;
+      return '<div id="odSourceCard" class="card od-source-card ' + (pinned ? 'is-pinned' : '') + '"><div class="od-source-title"><div class="od-source-title-main"><div style="font-weight:800;font-size:17px;">📄 ต้นฉบับหนังสือราชการ</div>' +
+        '<div class="note od-source-note">ปักหมุดไว้เทียบต้นฉบับระหว่างเลื่อนแก้ข้อมูล ถ่าง 2 นิ้วเพื่อซูม</div></div>' +
+        '<button type="button" id="odPinBtn" class="b-second od-source-pin" aria-pressed="' + (pinned ? 'true' : 'false') + '" onclick="officialDocTogglePin_()">' + (pinned ? '📌 ปักอยู่' : '📍 ปักหมุด') + '</button></div>' +
         '<div id="odInlinePreview" class="od-inline-preview">' + officialDocInlinePreviewHtml_(_officialDoc.files[0]) + '</div>' +
         '<div class="od-file-list">' + _officialDoc.files.map(function(f,i){
           var kind = f.mimeType === 'application/pdf' ? 'PDF' : String(f.mimeType || '').replace('image/','').toUpperCase();
@@ -3834,8 +3863,14 @@
       if (file.mimeType === 'application/pdf') {
         return '<div id="odInlinePdf" class="od-pdf-view"><div class="od-pdf-state">📄 กำลังสร้างภาพตัวอย่าง PDF...</div></div>';
       }
-      return '<img src="data:' + esc(file.mimeType) + ';base64,' + file.base64 + '" alt="ต้นฉบับหนังสือราชการ" onclick="officialDocOpenSource_(0)">' +
-        '<div class="cert-hint">🔍 แตะรูปเพื่อขยายและซูมตรวจรายละเอียด</div>';
+      return '<div class="od-pdf-view"><div class="od-pdf-toolbar">' +
+        '<button type="button" onclick="officialDocZoom_(&quot;odInlineImage&quot;,0.8)" aria-label="ซูมออก">−</button>' +
+        '<span id="odInlineImage_zoom" class="od-pdf-zoom-label">100%</span>' +
+        '<button type="button" onclick="officialDocZoom_(&quot;odInlineImage&quot;,1.25)" aria-label="ซูมเข้า">＋</button>' +
+        '<button type="button" onclick="officialDocResetZoom_(&quot;odInlineImage&quot;)" aria-label="คืนขนาด">⟲</button>' +
+        '<button type="button" onclick="officialDocOpenSource_(0)" aria-label="เปิดเต็มจอ">⛶</button>' +
+        '<div class="od-pdf-gesture-hint">ถ่าง 2 นิ้วเพื่อซูม · ซูมแล้วลากด้วย 1 นิ้ว</div></div>' +
+        '<div id="odInlineImage_stage" class="od-image-stage"><img id="odInlineImage_el" src="data:' + esc(file.mimeType) + ';base64,' + file.base64 + '" alt="ต้นฉบับหนังสือราชการ" draggable="false"></div></div>';
     }
 
     function officialDocLoadInlinePreview_(){
@@ -3850,6 +3885,7 @@
         if (box) {
           box.innerHTML = officialDocInlinePreviewHtml_(file);
           if (file.mimeType === 'application/pdf') officialDocMountPdf_(file, 'odInlinePdf', 1);
+          else officialDocMountImageZoom_('odInlineImage');
         }
       }).catch(function(e){
         _officialDoc.previewBusy = false; box = document.getElementById('odInlinePreview');
@@ -3908,7 +3944,94 @@
         '<button type="button" id="' + targetId + '_prev" onclick="officialDocPdfStep_(&quot;' + targetId + '&quot;,-1)" aria-label="หน้าก่อน">‹</button>' +
         '<span id="' + targetId + '_label" class="od-pdf-page-label">กำลังเปิด...</span>' +
         '<button type="button" id="' + targetId + '_next" onclick="officialDocPdfStep_(&quot;' + targetId + '&quot;,1)" aria-label="หน้าถัดไป">›</button>' +
-        '</div><div class="od-pdf-canvas-wrap"><canvas id="' + targetId + '_canvas" class="od-pdf-canvas"></canvas></div>';
+        '<button type="button" onclick="officialDocZoom_(&quot;' + targetId + '&quot;,0.8)" aria-label="ซูมออก">−</button>' +
+        '<span id="' + targetId + '_zoom" class="od-pdf-zoom-label">100%</span>' +
+        '<button type="button" onclick="officialDocZoom_(&quot;' + targetId + '&quot;,1.25)" aria-label="ซูมเข้า">＋</button>' +
+        '<button type="button" onclick="officialDocResetZoom_(&quot;' + targetId + '&quot;)" aria-label="คืนขนาด">⟲</button>' +
+        '<div class="od-pdf-gesture-hint">ถ่าง 2 นิ้วเพื่อซูม · ซูมแล้วลากด้วย 1 นิ้ว</div>' +
+        '</div><div id="' + targetId + '_stage" class="od-pdf-canvas-wrap"><canvas id="' + targetId + '_canvas" class="od-pdf-canvas"></canvas></div>';
+    }
+
+    function officialDocClampZoom_(value){ return Math.max(1, Math.min(5, Number(value) || 1)); }
+
+    function officialDocZoomView_(targetId){
+      return _officialDocPdfViews[targetId] || _officialDocImageViews[targetId] || null;
+    }
+
+    function officialDocApplyZoom_(targetId){
+      var view = officialDocZoomView_(targetId); if (!view) return;
+      var el = document.getElementById(view.elementId || (targetId + '_canvas'));
+      if (!el) return;
+      view.zoom = officialDocClampZoom_(view.zoom);
+      if (view.zoom <= 1) { view.zoom = 1; view.tx = 0; view.ty = 0; }
+      el.style.transform = 'translate(' + (Number(view.tx)||0) + 'px,' + (Number(view.ty)||0) + 'px) scale(' + view.zoom + ')';
+      var label = document.getElementById(targetId + '_zoom');
+      if (label) label.textContent = Math.round(view.zoom * 100) + '%';
+    }
+
+    function officialDocZoom_(targetId, factor){
+      var view = officialDocZoomView_(targetId); if (!view) return;
+      view.zoom = officialDocClampZoom_((Number(view.zoom)||1) * (Number(factor)||1));
+      officialDocApplyZoom_(targetId);
+    }
+
+    function officialDocResetZoom_(targetId){
+      var view = officialDocZoomView_(targetId); if (!view) return;
+      view.zoom = 1; view.tx = 0; view.ty = 0;
+      officialDocApplyZoom_(targetId);
+    }
+
+    function officialDocDistance_(touches){
+      return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+    }
+
+    /** ซูมแบบถ่าง 2 นิ้ว; ที่ 100% การปัด 1 นิ้วยังเลื่อนหน้าฟอร์มได้ตามปกติ */
+    function officialDocBindZoom_(targetId, stageId){
+      var stage = document.getElementById(stageId), view = officialDocZoomView_(targetId);
+      if (!stage || !view || stage.getAttribute('data-od-zoom-bound') === '1') return;
+      stage.setAttribute('data-od-zoom-bound','1');
+      var startDistance=0, startZoom=1, panning=false, lastX=0, lastY=0, lastTap=0;
+      stage.addEventListener('touchstart', function(e){
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          startDistance = officialDocDistance_(e.touches); startZoom = view.zoom || 1; panning = false;
+        } else if (e.touches.length === 1) {
+          var now = Date.now(), t = e.touches[0];
+          if (now - lastTap < 300) {
+            e.preventDefault();
+            if ((view.zoom||1) > 1) officialDocResetZoom_(targetId);
+            else { view.zoom = 2.5; officialDocApplyZoom_(targetId); }
+            lastTap = 0;
+          } else {
+            lastTap = now; panning = (view.zoom||1) > 1; lastX = t.clientX; lastY = t.clientY;
+          }
+        }
+      }, {passive:false});
+      stage.addEventListener('touchmove', function(e){
+        if (e.touches.length === 2) {
+          e.preventDefault();
+          view.zoom = officialDocClampZoom_(startZoom * (officialDocDistance_(e.touches) / (startDistance || 1)));
+          officialDocApplyZoom_(targetId);
+        } else if (e.touches.length === 1 && panning) {
+          e.preventDefault();
+          var t=e.touches[0]; view.tx=(Number(view.tx)||0)+(t.clientX-lastX); view.ty=(Number(view.ty)||0)+(t.clientY-lastY);
+          lastX=t.clientX; lastY=t.clientY; officialDocApplyZoom_(targetId);
+        }
+      }, {passive:false});
+      stage.addEventListener('touchend', function(e){ panning = e.touches.length === 1 && (view.zoom||1) > 1; });
+      stage.addEventListener('wheel', function(e){
+        if (!e.ctrlKey && Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+        e.preventDefault(); officialDocZoom_(targetId, e.deltaY < 0 ? 1.15 : 0.87);
+      }, {passive:false});
+      stage.addEventListener('dblclick', function(e){
+        e.preventDefault(); if ((view.zoom||1) > 1) officialDocResetZoom_(targetId); else { view.zoom=2.5; officialDocApplyZoom_(targetId); }
+      });
+    }
+
+    function officialDocMountImageZoom_(targetId){
+      var elementId = targetId + '_el', stageId = targetId + '_stage';
+      _officialDocImageViews[targetId] = { elementId:elementId, zoom:1, tx:0, ty:0 };
+      officialDocBindZoom_(targetId, stageId); officialDocApplyZoom_(targetId);
     }
 
     /** วาด PDF ด้วย PDF.js เพราะ LINE Android WebView ไม่รองรับ embed/iframe ของ data/blob PDF */
@@ -3925,12 +4048,14 @@
         if (old && old.loadingTask && old.loadingTask.destroy) { try { old.loadingTask.destroy(); } catch (_) {} }
         host.innerHTML = '<div class="od-pdf-state">📄 กำลังสร้างภาพตัวอย่าง PDF...</div>';
         var loadingTask = window.pdfjsLib.getDocument({ data: officialDocPdfBytes_(file.base64) });
-        var view = { file:file, loadingTask:loadingTask, pdf:null, page:1, pages:0, renderTask:null, renderId:0 };
+        var view = { file:file, loadingTask:loadingTask, pdf:null, page:1, pages:0, renderTask:null, renderId:0,
+          elementId:targetId + '_canvas', zoom:1, tx:0, ty:0 };
         _officialDocPdfViews[targetId] = view;
         loadingTask.promise.then(function(pdf){
           if (_officialDocPdfViews[targetId] !== view || !document.getElementById(targetId)) return;
           view.pdf = pdf; view.pages = Number(pdf.numPages) || 1;
           host = document.getElementById(targetId); host.innerHTML = officialDocPdfShell_(targetId);
+          officialDocBindZoom_(targetId, targetId + '_stage');
           officialDocPdfRenderPage_(targetId, Math.max(1, Math.min(view.pages, Number(pageNo) || 1)));
         }).catch(function(err){
           if (_officialDocPdfViews[targetId] !== view) return;
@@ -3960,14 +4085,17 @@
         var wrap = canvas && canvas.parentElement;
         if (!canvas || !wrap) return;
         var baseViewport = page.getViewport({scale:1});
-        var cssWidth = Math.max(260, Math.min(900, (wrap.clientWidth || host.clientWidth || 340) - 20));
+        var cssWidth = Math.max(160, Math.min(900, (wrap.clientWidth || host.clientWidth || 340) - 20));
+        var cssHeight = Math.max(120, (wrap.clientHeight || 0) - 20);
         var scale = cssWidth / baseViewport.width;
+        if (cssHeight > 140) scale = Math.min(scale, cssHeight / baseViewport.height);
         var viewport = page.getViewport({scale:scale});
         var ratio = Math.max(1, Math.min(2, Number(window.devicePixelRatio) || 1));
         canvas.width = Math.floor(viewport.width * ratio);
         canvas.height = Math.floor(viewport.height * ratio);
         canvas.style.width = Math.floor(viewport.width) + 'px';
         canvas.style.height = Math.floor(viewport.height) + 'px';
+        officialDocApplyZoom_(targetId);
         var ctx = canvas.getContext('2d', {alpha:false});
         view.renderTask = page.render({canvasContext:ctx, viewport:viewport, transform:ratio === 1 ? null : [ratio,0,0,ratio,0,0]});
         return view.renderTask.promise;
@@ -3982,6 +4110,19 @@
       var view = _officialDocPdfViews[targetId];
       if (!view || !view.pdf) return;
       officialDocPdfRenderPage_(targetId, view.page + Number(delta || 0));
+    }
+
+    function officialDocTogglePin_(){
+      _officialDoc.sourcePinned = _officialDoc.sourcePinned === false;
+      var card = document.getElementById('odSourceCard'), btn = document.getElementById('odPinBtn');
+      if (card) card.classList.toggle('is-pinned', _officialDoc.sourcePinned);
+      if (btn) { btn.textContent = _officialDoc.sourcePinned ? '📌 ปักอยู่' : '📍 ปักหมุด'; btn.setAttribute('aria-pressed', _officialDoc.sourcePinned ? 'true' : 'false'); }
+      var pdf = _officialDocPdfViews.odInlinePdf;
+      if (pdf && pdf.pdf) {
+        officialDocResetZoom_('odInlinePdf');
+        setTimeout(function(){ officialDocPdfRenderPage_('odInlinePdf', pdf.page || 1); }, 40);
+      }
+      if (_officialDocImageViews.odInlineImage) officialDocResetZoom_('odInlineImage');
     }
 
     function officialDocShowSource_(file){
@@ -4082,8 +4223,11 @@
         '<button id="odCreateBtn" class="b-primary" style="width:100%;" onclick="officialDocCreateLine_()">✨ สร้างข้อความ LINE</button>' +
         '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showOfficialDocumentSummary()">เลือกไฟล์ใหม่</button>';
       var firstSource = _officialDoc.files[0];
-      if (firstSource && firstSource.base64 && firstSource.mimeType === 'application/pdf') {
-        setTimeout(function(){ officialDocMountPdf_(firstSource, 'odInlinePdf', 1); }, 0);
+      if (firstSource && firstSource.base64) {
+        setTimeout(function(){
+          if (firstSource.mimeType === 'application/pdf') officialDocMountPdf_(firstSource, 'odInlinePdf', 1);
+          else officialDocMountImageZoom_('odInlineImage');
+        }, 0);
       }
     }
 
