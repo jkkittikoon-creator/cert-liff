@@ -1936,13 +1936,17 @@
       showCalendar();
     }
 
-    function trSubmit(btn){
+    /* allowDuplicate = true เมื่อผู้ใช้ยืนยันแล้วว่าตั้งใจเพิ่มกิจกรรมซ้ำ
+       ส่งมาจากการกดยืนยันเท่านั้น ไม่เก็บไว้ในฟอร์ม กดลงปฏิทินใหม่จึงถามซ้ำเสมอ
+       (พฤติกรรมเดียวกับหน้าเว็บ ดู submitTraining ใน Index.html) */
+    function trSubmit(btn, allowDuplicate){
       if (_trBusy) return;
       var g = function(n){ var el = document.getElementById('tr_' + n); return el ? el.value.trim() : ''; };
       var data = {};
       TR_FIELDS.forEach(function(f){ data[f.n] = g(f.n); });
       data.posterFileId = _trDraft ? _trDraft.posterFileId : '';
       data.aiResultJson = _trDraft ? _trDraft.aiResultJson : '';
+      if (allowDuplicate === true) data.allowDuplicate = true;
 
       var msg = document.getElementById('trMsg');
       if (!data.title || !data.startDate){
@@ -1979,6 +1983,16 @@
         .catch(function(e){
           _trBusy = false;
           if (btn) btn.disabled = false;
+          // "มีกิจกรรมนี้อยู่แล้ว" ไม่ใช่ระบบพัง แต่เป็นทางแยกที่ต้องถามก่อน
+          if (e && e.code === 'TRAINING_DUPLICATE'){
+            hideSaveOverlay();
+            liffConfirm({
+              title: 'กิจกรรมนี้มีในปฏิทินแล้ว',
+              message: e.message + '\n\nต้องการเพิ่มซ้ำอีกรายการใช่ไหม?',
+              okLabel: 'เพิ่มซ้ำ'
+            }, function(){ trSubmit(btn, true); });
+            return;
+          }
           setSaveOverlayError(e.message, function(){ hideSaveOverlay(); trSubmit(btn); });
           msg.innerHTML = '<div class="msg err">' + esc(e.message) + '</div>';
         });
