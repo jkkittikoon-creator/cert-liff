@@ -3709,7 +3709,7 @@
     function aiLiffAsk(btn){
       var q=(document.getElementById('aiLiffQ')||{}).value||'';q=q.trim();if(!q){liffToast('กรุณาพิมพ์คำถามก่อน','warn');return;}
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังคำนวณจากข้อมูลจริง...</div>';
-      aiLiffApi_('aiask',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
+      aiLiffApi_('aiportfolio',{question:q}).then(function(d){aiLiffBusy(btn,false);var groups=d.result&&d.result.groups?Object.keys(d.result.groups).map(function(k){return '<li>'+esc(k)+': <b>'+d.result.groups[k]+'</b></li>';}).join(''):'';aiLiffBox().innerHTML='<div class="card"><b>'+esc(d.answer||'')+'</b>'+(groups?'<ul>'+groups+'</ul>':'')+'<div class="note">'+esc(d.disclaimer||'')+'</div>'+aiLiffProvenanceHtml_(d.provenance)+aiLiffFeedbackHtml_(d)+'</div>';aiLiffRefreshQuota();}).catch(function(e){aiLiffFail(e,btn);});
     }
     function aiLiffReport(btn){
       aiLiffBusy(btn,true);aiLiffBox().innerHTML='<div class="center">กำลังร่างบทสรุป...</div>';
