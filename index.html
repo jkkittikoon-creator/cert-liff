@@ -5974,7 +5974,7 @@
         '<div class="card preview">'+prev+'</div>'+
         dupHtml+
         summary+
-        '<div class="card"><button class="b-second" id="aiReviewBtn" onclick="aiLiffReview(this)">✨ ให้ AI ช่วยชี้จุดที่ควรตรวจ</button><div class="note">ใช้ผล AI เดิม ไม่หักโควตาเพิ่ม และไม่แก้ข้อมูลเอง</div><div id="aiReviewBox"></div></div>'+
+        '<div class="card"><button class="b-second" id="documentQualityBtn" onclick="liffDocumentQuality(this,false)">ตรวจคุณภาพข้อมูล</button><div class="note">ตรวจด้วยกฎของระบบก่อน โดยไม่เรียก AI และไม่แก้ข้อมูลเอง</div><div id="documentQualityBox"></div></div>'+
         '<div class="card">'+fieldsHtml+qrBtn+'</div>'+
         // ปุ่มหลักติดล่างจอ: เลื่อนดูฟิลด์ยาว ๆ อยู่ก็ยังกดยืนยันได้ทันที ไม่ต้องเลื่อนกลับลงมาสุด
         '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
@@ -5982,6 +5982,34 @@
       updateBanner();
     }
 
+    function liffDocumentQualityLabel_(result){
+      var labels={GOOD:'ข้อมูลพร้อมใช้งาน',REVIEW_RECOMMENDED:'ควรทบทวนบางจุด',NEEDS_REVIEW:'ควรตรวจทานก่อนใช้งาน',INCOMPLETE:'ข้อมูลยังไม่ครบ'};
+      return labels[String(result||'')]||String(result||'');
+    }
+    function liffDocumentQualityRender_(d,withAi){
+      var score=Math.max(0,Math.min(100,Number(d&&d.score||0)));
+      var rule=(d&&d.issues||[]).filter(function(x){return String(x.code||'')!=='DQ-012';});
+      var advisory=(d&&d.issues||[]).filter(function(x){return String(x.code||'')==='DQ-012';});
+      var ruleHtml=rule.map(function(x){return '<li><b>'+esc(x.code||'')+'</b> — '+esc(x.message||'')+(Number(x.deduction||0)?' <span class="note">(-'+Number(x.deduction||0)+' คะแนน)</span>':'')+'</li>';}).join('');
+      var aiHtml=advisory.map(function(x){var note=x.evidence&&x.evidence.note?'<br><span class="note">หลักฐานประกอบ: '+esc(x.evidence.note)+'</span>':'';return '<li>'+esc(x.message||'')+note+'</li>';}).join('');
+      var html='<p><b>คะแนนคุณภาพข้อมูล '+score+'/100</b> · '+esc(liffDocumentQualityLabel_(d&&d.result))+'</p>'+(ruleHtml?'<b>ผลตรวจตามกฎ</b><ul>'+ruleHtml+'</ul>':'<p class="t-ok">ไม่พบจุดที่กฎของระบบแนะนำให้แก้ไข</p>');
+      if(withAi){
+        if(d&&d.aiUnavailable)html+='<div class="msg">AI ใช้งานไม่ได้ชั่วคราว แต่คะแนนและผลตรวจตามกฎด้านบนยังใช้ได้</div>';
+        else if(d&&d.aiUsed)html+=aiHtml?'<b>ข้อสังเกตจาก AI</b><ul>'+aiHtml+'</ul>':'<div class="note">AI ไม่พบความกำกวมเพิ่มเติม</div>';
+        else html+='<div class="note">รอบนี้ระบบไม่ได้เรียก AI ตามเงื่อนไขความปลอดภัยของรายการ</div>';
+      }else{
+        html+='<button class="b-second" style="margin-top:8px;" onclick="liffDocumentQuality(this,true)">ใช้ AI ตรวจความกำกวมเพิ่ม</button><div class="note">AI ให้ข้อสังเกตเพิ่มเท่านั้น และไม่เปลี่ยนคะแนนข้างต้น</div>';
+      }
+      return html+'<div class="note">คะแนนคำนวณจากข้อมูลที่บันทึกไว้ในระบบ ณ ตอนตรวจ และ AI ไม่สามารถเปลี่ยนคะแนนได้</div>';
+    }
+    function liffDocumentQuality(btn,useAi){
+      if(!curCert||!curCert.certificateId)return;
+      var box=document.getElementById('documentQualityBox');if(!box)return;
+      aiLiffBusy(btn,true);box.innerHTML='<div class="center">'+(useAi?'กำลังตรวจความกำกวมเพิ่มเติมด้วย AI...':'กำลังตรวจคุณภาพข้อมูลด้วยกฎของระบบ...')+'</div>';
+      api('documentquality',{certificateId:curCert.certificateId,useAi:useAi===true}).then(function(d){aiLiffBusy(btn,false);box.innerHTML=liffDocumentQualityRender_(d||{},useAi===true);}).catch(function(e){aiLiffBusy(btn,false);box.innerHTML='<div class="msg err">'+esc(e&&e.message?e.message:e)+'</div>';});
+    }
+
+    // Legacy v302 review copilot remains callable for backward compatibility.
     function aiLiffReview(btn){
       if(!curCert||!curCert.certificateId)return;
       var box=document.getElementById('aiReviewBox');aiLiffBusy(btn,true);box.innerHTML='<div class="center">กำลังตรวจ confidence และหลักฐาน...</div>';
