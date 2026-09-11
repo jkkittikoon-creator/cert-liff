@@ -835,6 +835,27 @@
       .od-pdf-gesture-hint { display: none; }
     }
 
+    /* ---------- Onboarding 5 นาที (V11.0 post-release) ---------- */
+    .onb-offer { border-color: var(--nx-line-hot); }
+    .onb-offer-top { display:flex; gap:10px; align-items:flex-start; }
+    .onb-offer-ico { flex:none; font-size:28px; line-height:1; }
+    .onb-offer-copy { flex:1; min-width:0; }
+    .onb-shell { max-width:640px; margin:0 auto; padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
+    .onb-card { overflow:hidden; }
+    .onb-progress-row { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:8px; font-size:12.5px; color:var(--text-2); }
+    .onb-progress-track { height:8px; overflow:hidden; border-radius:999px; background:var(--bg-inset); border:1px solid var(--nx-line); }
+    .onb-progress-fill { height:100%; border-radius:inherit; background:var(--nx-blue); transition:width .2s ease; }
+    .onb-title { margin:18px 0 7px; font-family:var(--font-display); font-size:22px; font-weight:800; line-height:1.3; }
+    .onb-copy { font-size:14.5px; line-height:1.75; color:var(--text-2); overflow-wrap:anywhere; }
+    .onb-note { margin-top:12px; padding:10px 12px; border:1px solid var(--nx-line); border-radius:13px; background:var(--nx-surface-2); font-size:13px; line-height:1.65; color:var(--text-2); }
+    .onb-check { margin:12px 0 0; padding-left:0; list-style:none; }
+    .onb-check li { margin:7px 0; line-height:1.55; }
+    .onb-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; margin-top:18px; }
+    .onb-actions button { min-height:46px; width:100%; white-space:normal; }
+    .onb-secondary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .onb-secondary button { min-width:0; }
+    @media (max-width:360px) { .onb-secondary { grid-template-columns:minmax(0,1fr); } }
+
     /* ผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ในเครื่อง — ปิดอนิเมชันทั้งหมด */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
@@ -2408,7 +2429,7 @@
       var proudBottom = (PW_HOME && PW_HOME.position === 'bottom') ? proudCard : '';
 
       // อากาศวางไว้หลังงานค้าง — งานที่ต้องลงมือทำสำคัญกว่า อากาศเป็นข้อมูลประกอบ
-      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + proudTop + todo + '<div id="wxBox"></div>' + kpis +
+      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + onboardingHomeCardHtml_() + proudTop + todo + '<div id="wxBox"></div>' + kpis +
         '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚡ เมนูด่วน</div>' + actions + '</div>' +
         // ข้อความด่วนวางต่อจากเมนูด่วน: ทั้งคู่คือ "ทางลัด" เหมือนกัน ต่างกันแค่ปลายทาง
         // (ในแอป vs. ตอบกลับในแชต) วางติดกันจะได้ไม่ต้องเดาว่าปุ่มไหนอยู่ไหน
@@ -2592,6 +2613,148 @@
                  : 'ผู้ใช้ทุกบทบาทคุยกับน้องชาโปรได้ · เปิดจากแชต LINE จะกดส่งได้ทันที ตอนนี้ระบบจะคัดลอกข้อความให้ไปวางในแชต') +
         '</div>' + rows + '</div>';
     }
+
+    /* ================= Onboarding 5 นาที — client-side state เท่านั้น =================
+       ไม่เก็บ token / LINE userId / ข้อมูลเอกสาร และไม่เพิ่ม endpoint ใหม่
+       CTA ทุกตัวกระโดดไปฟังก์ชันจริงที่ผ่าน route audit แล้ว; ถ้าฟังก์ชันหายให้ fail closed ไม่ทำปุ่มหลอก */
+    var ONBOARDING_KEY = {
+      started: 'cert-liff-onboarding-v11-started',
+      step: 'cert-liff-onboarding-v11-step',
+      completed: 'cert-liff-onboarding-v11-completed',
+      completedAt: 'cert-liff-onboarding-v11-completed-at'
+    };
+    var _onboardingMemory = null;
+
+    function onboardingDefaultState_(){
+      return { started:false, step:1, completed:false, completedAt:'' };
+    }
+    function onboardingClampStep_(step){
+      step = Number(step);
+      return isFinite(step) && step >= 1 && step <= 8 ? Math.floor(step) : 1;
+    }
+    function getOnboardingState_(){
+      var fallback = _onboardingMemory || onboardingDefaultState_();
+      try {
+        var started = localStorage.getItem(ONBOARDING_KEY.started);
+        var step = localStorage.getItem(ONBOARDING_KEY.step);
+        var completed = localStorage.getItem(ONBOARDING_KEY.completed);
+        var completedAt = localStorage.getItem(ONBOARDING_KEY.completedAt) || '';
+        return {
+          started: started === '1' || started === 'true',
+          step: onboardingClampStep_(step || 1),
+          completed: completed === '1' || completed === 'true',
+          completedAt: String(completedAt)
+        };
+      } catch(e) {
+        return { started:!!fallback.started, step:onboardingClampStep_(fallback.step), completed:!!fallback.completed, completedAt:String(fallback.completedAt || '') };
+      }
+    }
+    function saveOnboardingState_(state){
+      var safe = {
+        started: !!state.started,
+        step: onboardingClampStep_(state.step),
+        completed: !!state.completed,
+        completedAt: String(state.completedAt || '')
+      };
+      _onboardingMemory = safe;
+      try {
+        localStorage.setItem(ONBOARDING_KEY.started, safe.started ? '1' : '0');
+        localStorage.setItem(ONBOARDING_KEY.step, String(safe.step));
+        localStorage.setItem(ONBOARDING_KEY.completed, safe.completed ? '1' : '0');
+        if (safe.completedAt) localStorage.setItem(ONBOARDING_KEY.completedAt, safe.completedAt);
+        else localStorage.removeItem(ONBOARDING_KEY.completedAt);
+      } catch(e) { /* storage ถูกปิด → จำเฉพาะรอบนี้ ไม่กระทบการใช้งานหลัก */ }
+      return safe;
+    }
+    function shouldOfferOnboarding_(){ return !getOnboardingState_().completed; }
+    function onboardingHomeCardHtml_(){
+      var s = getOnboardingState_();
+      if (s.completed) return '';
+      var resume = s.started && s.step > 1;
+      return '<div class="card onb-offer"><div class="onb-offer-top">' +
+        '<div class="onb-offer-ico">🐶</div><div class="onb-offer-copy">' +
+        '<div style="font-weight:800;font-size:16px;">' + (resume ? 'ทำคู่มือเริ่มต้นต่อ' : 'เริ่มใช้งานระบบใน 5 นาที') + '</div>' +
+        '<div class="note" style="margin-top:4px;">รู้วิธีส่งเอกสาร ตรวจ AI ค้นหา ดูสรุป และใช้ AI ผู้ช่วยงานแบบสั้น ๆ</div>' +
+        '</div></div><button type="button" class="b-primary" style="width:100%;margin-top:12px;" onclick="showOnboarding(' + (resume ? s.step : 1) + ')">' +
+        (resume ? 'ทำต่อจากขั้นที่ ' + s.step : 'เริ่มคู่มือ 5 นาที') + '</button></div>';
+    }
+    function onboardingStepData_(step){
+      var steps = {
+        1:{ ico:'👋', title:'เริ่มใช้ระบบใน 5 นาที', copy:'น้องชาโปรช่วยเก็บเอกสาร อ่านข้อมูลด้วย AI ค้นหา และสรุปผลงานให้คุณ เริ่มจากเอกสารจริง 1 ใบก็พอ', cta:'เริ่มใช้งาน', action:'next' },
+        2:{ ico:'🔗', title:'เชื่อมบัญชีก่อนใช้งาน', copy:'✅ บัญชี LINE นี้เชื่อมกับระบบแล้ว จึงเปิดข้อมูลและเมนูตามสิทธิ์ของคุณได้', cta:'ต่อไป', action:'next', note:'การยืนยันตัวตนและสิทธิ์ยังตรวจฝั่งเซิร์ฟเวอร์เหมือนเดิม คู่มือนี้ไม่เก็บ token ไว้ในเครื่อง' },
+        3:{ ico:'📤', title:'ส่งเอกสารใบแรก', copy:'ถ้าเป็นเกียรติบัตรหรือวุฒิบัตร ให้ส่งรูปหรือ PDF เข้าแชตน้องชาโปร บอทจะแยกประเภทและส่งเข้า AI ให้อัตโนมัติ', cta:'ดูวิธีส่งเอกสาร', action:'sendhelp', note:'หนังสือราชการสามารถเข้าเมนู AI สรุปหนังสือราชการใน LIFF ได้โดยตรง' },
+        4:{ ico:'🕒', title:'AI อ่านแล้ว ต้องตรวจอีกครั้ง', copy:'เปิด “รอตรวจ” เทียบข้อมูลกับต้นฉบับ แก้จุดที่ผิด แล้วกดยืนยันก่อนเก็บเข้าระบบ', cta:'เปิดรายการรอตรวจ', action:'pending' },
+        5:{ ico:'🔍', title:'หาเอกสารเก่าได้ทันที', copy:'ค้นด้วยชื่อกิจกรรม หน่วยงาน ประเภท หรือปีการศึกษา แล้วเปิดเอกสารจริงจากผลค้นหาได้', cta:'ลองค้นหา', action:'search' },
+        6:{ ico:'📊', title:'ดูภาพรวมของตัวเอง', copy:'ดูจำนวนเอกสาร ชั่วโมงอบรม เป้าหมาย กราฟ และไปสร้างรายงานต่อจากหน้าสรุปได้', cta:'ดูสรุปและรายงาน', action:'dash' },
+        7:{ ico:'✨', title:'ถาม AI ผู้ช่วยงานได้', copy:'ใช้ AI ช่วยสรุปข้อมูล ร่างรายงาน วางแผนพัฒนา หรือดูข้อมูลตามสิทธิ์ของคุณ', cta:'เปิด AI ผู้ช่วยงาน', action:'ai', note:'AI ช่วยคิดและช่วยร่าง แต่ไม่ส่ง LINE แทนคุณเอง' },
+        8:{ ico:'🎉', title:'พร้อมใช้งานแล้ว', copy:'คุณรู้เส้นทางหลักที่ใช้บ่อยครบแล้ว ต่อจากนี้เปิดคู่มือฉบับเต็มเมื่ออยากดูรายละเอียดเพิ่มเติมได้ตลอด', cta:'เริ่มใช้งานระบบ', action:'complete' }
+      };
+      return steps[onboardingClampStep_(step)];
+    }
+    function showOnboarding(step){
+      step = onboardingClampStep_(step);
+      var s = getOnboardingState_();
+      s.started = true;
+      s.step = step;
+      saveOnboardingState_(s);
+      setNav('home');
+      window.scrollTo(0, 0);
+      var d = onboardingStepData_(step);
+      var progressText = step <= 7 ? ('ขั้นที่ ' + step + ' จาก 7') : 'ครบ 7 ขั้น';
+      var pct = step <= 7 ? Math.round((step / 7) * 100) : 100;
+      var checklist = step === 8 ? '<ul class="onb-check">' +
+        '<li>✅ รู้วิธีส่งเอกสาร</li><li>✅ รู้ว่าต้องตรวจข้อมูล AI ก่อนยืนยัน</li>' +
+        '<li>✅ รู้วิธีค้นหาเอกสาร</li><li>✅ รู้ตำแหน่งสรุป/รายงาน</li><li>✅ รู้จัก AI ผู้ช่วยงาน</li></ul>' : '';
+      var mainClick = d.action === 'next' ? 'nextOnboardingStep_()' :
+        (d.action === 'complete' ? 'completeOnboarding_()' : ('openOnboardingAction_(\'' + d.action + '\')'));
+      var secondary = step === 8
+        ? '<div class="onb-secondary"><button type="button" class="b-second" onclick="showOnboarding(7)">← ย้อนกลับ</button><button type="button" class="b-second" onclick="completeOnboardingToGuide_()">เปิดคู่มือฉบับเต็ม</button></div>'
+        : '<div class="onb-secondary">' + (step > 1 ? '<button type="button" class="b-second" onclick="showOnboarding(' + (step - 1) + ')">← ย้อนกลับ</button>' : '') +
+          '<button type="button" class="b-second" onclick="skipOnboarding_()">ไว้ทีหลัง</button></div>';
+      app.innerHTML = pageHead('คู่มือเริ่มต้น 5 นาที', "goTab('home')") + '<div class="onb-shell">' +
+        '<div class="card onb-card"><div class="onb-progress-row"><b>' + esc(progressText) + '</b><span>' + pct + '%</span></div>' +
+        '<div class="onb-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + esc(progressText) + '"><div class="onb-progress-fill" style="width:' + pct + '%;"></div></div>' +
+        '<div class="onb-title">' + d.ico + ' ' + esc(d.title) + '</div><div class="onb-copy">' + esc(d.copy) + '</div>' + checklist +
+        (d.note ? '<div class="onb-note">' + esc(d.note) + '</div>' : '') +
+        '<div class="onb-actions"><button type="button" class="b-primary" onclick="' + mainClick + '">' + esc(d.cta) + '</button>' + secondary + '</div></div></div>';
+    }
+    function nextOnboardingStep_(){
+      var s = getOnboardingState_();
+      showOnboarding(Math.min(8, onboardingClampStep_(s.step) + 1));
+    }
+    function skipOnboarding_(){
+      /* ไม่ mark completed: จำ step ไว้ให้การ์ด Home แสดง “ทำต่อ” แต่ไม่บังคับเปิดเอง */
+      showHome();
+    }
+    function onboardingCanOpen_(action){
+      if (action === 'sendhelp') return typeof showSendHelp === 'function';
+      if (action === 'pending' || action === 'search') return typeof goTab === 'function';
+      if (action === 'dash') return typeof showDash === 'function';
+      if (action === 'ai') return typeof showAiCenter === 'function';
+      return false;
+    }
+    function openOnboardingAction_(action){
+      if (!onboardingCanOpen_(action)) {
+        liffAlert('เมนูนี้ยังไม่พร้อมใน runtime ปัจจุบัน คู่มือจะไม่พาไปหน้าจำลอง', {title:'ยังเปิดเมนูนี้ไม่ได้'});
+        return;
+      }
+      var s = getOnboardingState_();
+      s.started = true;
+      s.step = Math.min(8, onboardingClampStep_(s.step) + 1);
+      saveOnboardingState_(s);
+      if (action === 'sendhelp') { showHome(); showSendHelp(); return; }
+      if (action === 'pending') { goTab('pending'); return; }
+      if (action === 'search') { goTab('search'); return; }
+      if (action === 'dash') { showDash(); return; }
+      if (action === 'ai') { showAiCenter(); return; }
+    }
+    function markOnboardingCompleted_(){
+      var s = getOnboardingState_();
+      s.started = true; s.step = 8; s.completed = true; s.completedAt = new Date().toISOString();
+      saveOnboardingState_(s);
+    }
+    function completeOnboarding_(){ markOnboardingCompleted_(); showHome(true); }
+    function completeOnboardingToGuide_(){ markOnboardingCompleted_(); showGuide(); }
 
     /* ================= คู่มือใช้งาน =================
        เดิมคู่มืออยู่ในแชตอย่างเดียว (พิมพ์ "คู่มือ") ซึ่งเลื่อนหาย่อยยากและหาย้อนหลังยาก
@@ -3373,7 +3536,8 @@
 
         '<div class="card"><div style="font-weight:800;font-size:15px;">เริ่มจากงานที่ต้องการ</div>' +
           '<div class="guide-actions">' +
-            guideAction_('📤', 'ส่งเอกสารเข้าบอท', 'บอทแยกประเภทให้อัตโนมัติ', 'showSendHelp()', true) +
+            guideAction_('🐶', 'คู่มือเริ่มต้น 5 นาที', 'ทำตามทีละขั้นสำหรับผู้ใช้ใหม่', 'showOnboarding(1)', true) +
+            guideAction_('📤', 'ส่งเอกสารเข้าบอท', 'บอทแยกประเภทให้อัตโนมัติ', 'showSendHelp()', false) +
             guideAction_('📄', 'สรุปหนังสือราชการ', 'อัปโหลดจาก LIFF โดยตรง', 'showOfficialDocumentSummary()', false) +
             guideAction_('🕒', 'ตรวจเกียรติบัตร', 'เปิดรายการที่ยังรอยืนยัน', 'goTab(\'pending\')', false) +
             guideAction_('✨', 'ถาม AI ผู้ช่วยงาน', 'วิเคราะห์ข้อมูลตามสิทธิ์ของคุณ', 'showAiCenter()', false) +
@@ -4583,6 +4747,7 @@
         '<button type="button" class="act" onclick="showMyOrg()"><span class="ico">🏫</span>โรงเรียนของฉัน</button>' +
         '<button type="button" class="act" onclick="showAiCenter()"><span class="ico">✨</span>AI ผู้ช่วยงาน</button>' +
         '<button type="button" class="act" onclick="showOfficialDocumentSummary()"><span class="ico">📄</span>AI สรุปหนังสือราชการ</button>' +
+        '<button type="button" class="act" onclick="showOnboarding(1)"><span class="ico">🐶</span>คู่มือเริ่มต้น 5 นาที</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '<button type="button" class="act primary" onclick="showSendHelp()"><span class="ico">📤</span>วิธีส่งเอกสารให้บอท</button>' +
         '</div></div>' +
