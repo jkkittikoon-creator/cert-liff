@@ -3918,6 +3918,12 @@
 
     /* ================= สุขภาพระบบและผู้ช่วยดูแล (ADMIN) ================= */
     var LIFF_HEALTH_BADGE = { OK:'ปกติ', WARN:'ต้องดูแล', FAIL:'มีปัญหา' };
+    var LIFF_HEALTH_FIX_LABELS = {
+      repairSheets:'🧰 ซ่อมโครงสร้าง', repairDriveRoot:'📁 สร้างโฟลเดอร์หลัก',
+      backupNow:'💾 สำรองเดี๋ยวนี้', healthTrigger:'🔔 เปิดแจ้งเตือน',
+      retentionTrigger:'🗓️ เปิดตัดบันทึกอัตโนมัติ', triageErrors:'🔎 วินิจฉัยและดูแล',
+      closeGhostJobs:'🧹 ล้างงานผี'
+    };
     function showSystemCare(){
       setNav('account'); liffBackFn_ = "goTab('account')";
       app.innerHTML = pageHead('🩺 ดูแลสุขภาพระบบ', "goTab('account')") + '<div class="center">กำลังตรวจสุขภาพระบบ...</div>';
@@ -3936,9 +3942,12 @@
           '<div class="note" style="margin-top:7px;">'+esc(c.message)+'</div></div>';
       }).join('');
       var guide = plan.map(function(p){
-        return '<div class="card"><div style="font-weight:700;">🧭 '+esc(p.component)+'</div>'+
+        var autoBtn = (p.mode === 'AUTO' && p.action)
+          ? '<button class="b-primary" style="width:100%;margin-top:10px;" data-fix="'+esc(p.action)+'" onclick="runSystemCareFixLiff(this.dataset.fix)">'+esc(LIFF_HEALTH_FIX_LABELS[p.action]||'🛠️ แก้ให้เลย')+'</button>'
+          : '';
+        return '<div class="card"><div style="font-weight:700;">'+(p.mode === 'AUTO'?'🔄 ':'🧭 ')+esc(p.component)+'</div>'+
           '<div class="note" style="margin:6px 0;">'+esc(p.message||'')+'</div>'+
-          '<ol>'+(p.steps||[]).map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></div>';
+          '<ol>'+(p.steps||[]).map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol>'+autoBtn+'</div>';
       }).join('');
       var actions = result && result.actions && result.actions.length
         ? '<div class="card"><div style="font-weight:700;margin-bottom:8px;">ผลการดูแลอัตโนมัติ</div>'+
@@ -3951,6 +3960,18 @@
         (guide ? '<div style="font-weight:700;margin:14px 2px 8px;">ขั้นตอนที่ต้องทำต่อ</div>'+guide : '')+
         '<button class="b-second" style="width:100%;" onclick="showSystemCare()">🔄 ตรวจใหม่</button>'+
         '<button class="b-second" style="width:100%;margin-top:8px;" onclick="goTab(\'account\')">กลับหน้าบัญชี</button>';
+    }
+    function runSystemCareFixLiff(action){
+      action = String(action || '');
+      if(!action) return;
+      showSaveOverlay('กำลังแก้ไขรายการสุขภาพระบบ...', 'เมื่อเสร็จแล้วระบบจะตรวจซ้ำให้ทันที');
+      api('healthfix', {fixAction:action}).then(function(r){
+        hideSaveOverlay();
+        renderSystemCareLiff_({health:r.health, carePlan:r.carePlan}, r);
+        if(r && r.message) liffAlert(r.message, {title:'✅ แก้ไขเรียบร้อย'});
+      }).catch(function(e){
+        setSaveOverlayError((e&&e.message)||String(e), function(){ runSystemCareFixLiff(action); });
+      });
     }
     function runSystemCareLiff(){
       liffConfirm({
