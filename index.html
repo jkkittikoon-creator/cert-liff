@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>ตรวจและยืนยันเอกสาร</title>
   <!-- ฟอนต์ไทย: Prompt (หัวข้อ) + Sarabun (เนื้อหา) — โทนเดียวกับเว็บหลัก -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -242,7 +242,15 @@
       display: flex; align-items: center; justify-content: center; padding: 16px;
       -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
     }
-    .lf-modal-box { background: var(--bg-card); border-radius: 14px; padding: 22px 20px; width: 100%; max-width: 400px; box-shadow: var(--shadow-modal); }
+    .lf-modal-box { background: var(--bg-card); border-radius: 14px; padding: 22px 20px; width: 100%; max-width: 400px; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; box-shadow: var(--shadow-modal); }
+    .docs-tools label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .docs-tools input, .docs-tools select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+    .docs-tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .docs-tools-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .docs-tools-actions button { flex: 1; min-height: 44px; }
+    #app input[type="text"], #app input[type="search"], #app textarea { min-width: 0; font-size: 16px; }
+    #app .doc-item[role="button"] { cursor: pointer; }
+    @media (max-width: 480px) { .docs-tools-grid { grid-template-columns: 1fr; } }
     .lf-modal-title { font-size: 16px; font-weight: bold; color: var(--text-1); }
     .lf-modal-msg { font-size: 14px; line-height: 1.7; color: var(--text-2); margin-top: 8px; white-space: pre-line; }
     /* ล็อกการเลื่อนพื้นหลังตอนกล่องยืนยันเปิดอยู่ */
@@ -1154,12 +1162,62 @@
     var docsMineOnly = true;    // ค่าเริ่มต้น: แสดงเฉพาะของฉัน (ให้ตรงกับชื่อหน้า "เอกสารของฉัน")
     var _docsSelectMode = false; // ก้อนที่ 100: โหมดเลือกลบหลายใบ (เฉพาะแท็บรอตรวจ)
     var _docsSelected = {};      // certificateId ที่ติ๊กเลือกไว้
+    var _savedDocsOptions = { query:'', type:'', sort:'created_desc' };
+    function savedDocsDateValue_(value){
+      var text = String(value || '').trim().replace(/[๐-๙]/g, function(ch){ return '๐๑๒๓๔๕๖๗๘๙'.indexOf(ch); });
+      if (/^\d{4}-\d{2}-\d{2}T/.test(text)) { var time = Date.parse(text); return isNaN(time) ? null : time; }
+      var iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text), slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text);
+      if (!iso && !slash) return null;
+      var y = Number(iso ? iso[1] : slash[3]), m = Number(iso ? iso[2] : slash[2]), d = Number(iso ? iso[3] : slash[1]);
+      if (y >= 2400) y -= 543;
+      var result = Date.UTC(y, m - 1, d), date = new Date(result);
+      return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d ? result : null;
+    }
+    function savedDocsView_(docs){
+      var opts = _savedDocsOptions, q = opts.query.trim().toLocaleLowerCase('th');
+      var parts = opts.sort.split('_'), field = {created:'createdAt',type:'documentType',recipient:'recipientName',activity:'activityName'}[parts[0]] || 'createdAt';
+      var dir = parts[1] === 'asc' ? 1 : -1;
+      return docs.filter(function(d){
+        var text = [d.activityName,d.fileName,d.recipientName,d.documentType,d.academicYear,d.ownerName].join(' ').toLocaleLowerCase('th');
+        return (!opts.type || String(d.documentType || '') === opts.type) && (!q || text.indexOf(q) !== -1);
+      }).sort(function(a,b){
+        var av = field === 'createdAt' ? savedDocsDateValue_(a[field]) : String(a[field] || '');
+        var bv = field === 'createdAt' ? savedDocsDateValue_(b[field]) : String(b[field] || '');
+        if (av === null || av === '') return bv === null || bv === '' ? 0 : 1;
+        if (bv === null || bv === '') return -1;
+        return dir * (field === 'createdAt' ? av - bv : av.localeCompare(bv,'th',{numeric:true,sensitivity:'base'}));
+      });
+    }
+    function savedDocsTools_(docs, count){
+      function option(value,label,current){ return '<option value="'+esc(value)+'"'+(value===current?' selected':'')+'>'+esc(label)+'</option>'; }
+      var types = docs.map(function(d){ return String(d.documentType || ''); }).filter(function(t,i,a){ return t && a.indexOf(t) === i; }).sort();
+      if (_savedDocsOptions.type && types.indexOf(_savedDocsOptions.type) === -1) types.push(_savedDocsOptions.type);
+      return '<div class="card docs-tools"><label for="savedDocsQuery">ค้นหาในเอกสารที่บันทึกแล้ว</label>' +
+        '<input type="search" id="savedDocsQuery" value="'+esc(_savedDocsOptions.query)+'" placeholder="ชื่อกิจกรรม ชื่อไฟล์ ประเภท หรือปี" enterkeyhint="search" oninput="if(!event.isComposing)setSavedDocsOption_(\'query\',this.value,this)" onkeydown="if(event.key===\'Enter\'&&!event.isComposing){event.preventDefault();this.blur();}">' +
+        '<div class="docs-tools-grid"><div><label for="savedDocsType">ประเภทเอกสาร</label><select id="savedDocsType" data-nodirty="1" onchange="setSavedDocsOption_(\'type\',this.value,this)">' +
+        option('','ทุกประเภท',_savedDocsOptions.type) + types.map(function(t){ return option(t,t,_savedDocsOptions.type); }).join('') + '</select></div>' +
+        '<div><label for="savedDocsSort">เรียงเอกสาร</label><select id="savedDocsSort" data-nodirty="1" onchange="setSavedDocsOption_(\'sort\',this.value,this)">' +
+        [['created_desc','วันที่บันทึก ใหม่ → เก่า'],['created_asc','วันที่บันทึก เก่า → ใหม่'],['activity_asc','กิจกรรม ก → ฮ'],['activity_desc','กิจกรรม ฮ → ก'],['type_asc','ประเภท ก → ฮ'],['type_desc','ประเภท ฮ → ก'],['recipient_asc','ชื่อผู้รับ ก → ฮ'],['recipient_desc','ชื่อผู้รับ ฮ → ก']].map(function(o){return option(o[0],o[1],_savedDocsOptions.sort);}).join('') +
+        '</select></div></div><div class="docs-tools-actions"><button type="button" class="b-second" onclick="resetSavedDocsOptions_()">ล้างตัวกรอง</button><button type="button" class="b-second" onclick="showList(\'saved\')">↻ รีเฟรชรายการ</button></div>' +
+        '<div class="note" role="status" aria-live="polite" style="margin-top:8px;">แสดง '+count+' จาก '+docs.length+' รายการ · '+(docsMineOnly?'เฉพาะของฉัน':'ตามสิทธิ์ที่ดูได้')+'</div></div>';
+    }
+    function setSavedDocsOption_(key,value,control){
+      if (['query','type','sort'].indexOf(key) === -1) return;
+      _savedDocsOptions[key] = String(value || '');
+      var id = control && control.id, cursor = key === 'query' && control ? control.selectionStart : null;
+      renderDocs(_docsCache,'saved');
+      var el = id && document.getElementById(id);
+      if (el) { el.focus({preventScroll:true}); if (cursor !== null) { try { el.setSelectionRange(cursor,cursor); } catch (_) {} } }
+    }
+    function resetSavedDocsOptions_(){ _savedDocsOptions = {query:'',type:'',sort:'created_desc'}; renderDocs(_docsCache,'saved'); }
     function showList(which){
       lastList = which || 'pending';
-      app.innerHTML = '<div class="center">กำลังโหลด...</div>';
-      api(lastList==='saved' ? 'listsaved' : 'list')
-        .then(function(docs){ _docsCache = docs || []; renderDocs(_docsCache, lastList); })
-        .catch(function(e){ showErr(e, function(){ showList(lastList); }); });
+      var requested = lastList;
+      app.innerHTML = tabsBar(requested) + '<div id="docsLoading" class="center" role="status">กำลังโหลดรายการ...</div>';
+      var loading = document.getElementById('docsLoading');
+      api(requested==='saved' ? 'listsaved' : 'list')
+        .then(function(docs){ if (!loading.isConnected) return; _docsCache = docs || []; renderDocs(_docsCache, requested); })
+        .catch(function(e){ if (loading.isConnected) showErr(e, function(){ showList(requested); }); });
     }
     /* ปุ่มสลับมุมมอง ADMIN/REVIEWER — โผล่เฉพาะเมื่อมีเอกสารของครูท่านอื่นในรายการ
        (ครูทั่วไปเห็นแต่ของตัวเอง isMine=true ทุกใบ ปุ่มจึงไม่ขึ้น) กรองจาก _docsCache ไม่เรียกเซิร์ฟเวอร์ */
@@ -1292,7 +1350,8 @@
         if (b) { if (t === tab) b.classList.add('on'); else b.classList.remove('on'); }
       });
     }
-    function goTab(tab){
+    function goTab(tab, confirmed){
+      if (!confirmed && !liffGuardNavigation_(function(){ goTab(tab,true); })) return;
       window.scrollTo(0, 0);
       if (tab === 'home') showHome();
       else if (tab === 'pending') showList('pending');
@@ -1316,7 +1375,7 @@
         var empty = which==='saved'
           ? 'ยังไม่มีเอกสารที่บันทึกแล้วครับ 🐶'
           : 'ตอนนี้ไม่มีเอกสารค้างตรวจแล้วครับเจ้านาย เก่งมาก! 🐶🎉<br>ส่งรูปเกียรติบัตรมาที่แชตน้องชาโปรได้เลยน้า';
-        app.innerHTML = tabs + '<div class="msg">'+empty+'</div>' + closeBtn;
+        app.innerHTML = tabs + '<div class="msg">'+empty+'</div>' + '<button type="button" class="b-second" style="min-height:44px;" onclick="showList('+esc(JSON.stringify(which))+')">↻ รีเฟรชรายการ</button>' + closeBtn;
         return;
       }
       var badge = { AI_REVIEW:'<span class="badge b-ai">AI อ่านแล้ว</span>', MANUAL_REVIEW:'<span class="badge b-manual">กรอกเอง</span>',
@@ -1332,6 +1391,11 @@
       var intro = (which==='saved'?'เลือกเอกสารที่ต้องการแก้ไข':'เลือกเอกสารที่ต้องการตรวจและยืนยัน');
       var html = tabs + '<div class="msg">'+intro+'</div>';
       if (hasOthers) html += docsScopeBar(mineCount, docs.length);
+      if (which === 'saved') {
+        var scoped = shown;
+        shown = savedDocsView_(scoped);
+        html += savedDocsTools_(scoped, shown.length);
+      } else html += '<button type="button" class="b-second" style="min-height:44px;margin-bottom:10px;" onclick="showList(\'pending\')">↻ รีเฟรชรายการรอตรวจ</button>';
 
       // ก้อนที่ 100: ปุ่มสลับ "โหมดเลือกลบหลายใบ" — เฉพาะแท็บรอตรวจ (ตรงกับ bulk delete ฝั่งเว็บ)
       var selMode = _docsSelectMode && which === 'pending';
@@ -1343,7 +1407,7 @@
 
       if (!shown.length){
         // มีของครูท่านอื่น แต่กรอง "เฉพาะของฉัน" แล้วของเราไม่มีในหมวดนี้
-        app.innerHTML = html + '<div class="msg">คุณยังไม่มีเอกสารในหมวดนี้ครับ กด “ทั้งหมด” ด้านบนเพื่อดูของครูท่านอื่น 🐶</div>' + closeBtn;
+        app.innerHTML = html + '<div class="msg">'+(which==='saved' ? 'ไม่พบเอกสารในมุมมองนี้ ลองใช้คำสั้นลง เปลี่ยนประเภท หรือกด “ล้างตัวกรอง”' : 'คุณยังไม่มีเอกสารในหมวดนี้ครับ กด “ทั้งหมด” ด้านบนเพื่อดูของครูท่านอื่น 🐶')+'</div>' + closeBtn;
         return;
       }
 
@@ -1375,7 +1439,7 @@
             '<div class="note">'+note+otherTag+'</div></div>'+(badge[d.status]||'')+'</div>';
         } else {
           html += '<div class="doc-item' + (busy ? ' is-busy' : '') + '"' +
-            (busy ? '' : ' onclick="openDoc(\''+d.certificateId+'\')"') + '>'+
+            (busy ? '' : ' role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}" onclick="openDoc('+esc(JSON.stringify(d.certificateId))+')"') + '>'+
             '<div class="doc-main"><div class="doc-title">'+esc(title)+expiryBadgeHtml(d.expiryDate)+'</div>'+
             '<div class="note">'+note+otherTag+'</div></div>'+
             (badge[d.status]||'')+'</div>';
@@ -2349,10 +2413,11 @@
     function showHome(force){
       setNav('home');
       if (_homeCache && !force) { renderHome(_homeCache); return; }
-      app.innerHTML = homeSkeleton();
+      app.innerHTML = '<div id="homeLoading" role="status">'+homeSkeleton()+'</div>';
+      var loading = document.getElementById('homeLoading');
       api('dashboard')
-        .then(function(s){ _homeCache = s; renderHome(s); })
-        .catch(function(e){ showErr(e, function(){ showHome(true); }); });
+        .then(function(s){ if (!loading.isConnected) return; _homeCache = s; renderHome(s); })
+        .catch(function(e){ if (loading.isConnected) showErr(e, function(){ showHome(true); }); });
     }
 
     function heroHtml(){
@@ -2429,7 +2494,7 @@
       var proudBottom = (PW_HOME && PW_HOME.position === 'bottom') ? proudCard : '';
 
       // อากาศวางไว้หลังงานค้าง — งานที่ต้องลงมือทำสำคัญกว่า อากาศเป็นข้อมูลประกอบ
-      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + onboardingHomeCardHtml_() + proudTop + todo + '<div id="wxBox"></div>' + kpis +
+      app.innerHTML = pageHead('หน้าหลัก') + heroHtml() + onboardingHomeCardHtml_() + '<button type="button" class="b-second" style="min-height:44px;margin-bottom:10px;" onclick="showHome(true)">↻ รีเฟรชภาพรวมและงานค้าง</button>' + proudTop + todo + '<div id="wxBox"></div>' + kpis +
         '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚡ เมนูด่วน</div>' + actions + '</div>' +
         // ข้อความด่วนวางต่อจากเมนูด่วน: ทั้งคู่คือ "ทางลัด" เหมือนกัน ต่างกันแค่ปลายทาง
         // (ในแอป vs. ตอบกลับในแชต) วางติดกันจะได้ไม่ต้องเดาว่าปุ่มไหนอยู่ไหน
@@ -2684,7 +2749,7 @@
         2:{ ico:'🔗', title:'เชื่อมบัญชีก่อนใช้งาน', copy:'✅ บัญชี LINE นี้เชื่อมกับระบบแล้ว จึงเปิดข้อมูลและเมนูตามสิทธิ์ของคุณได้', cta:'ต่อไป', action:'next', note:'การยืนยันตัวตนและสิทธิ์ยังตรวจฝั่งเซิร์ฟเวอร์เหมือนเดิม คู่มือนี้ไม่เก็บ token ไว้ในเครื่อง' },
         3:{ ico:'📤', title:'ส่งเอกสารใบแรก', copy:'ถ้าเป็นเกียรติบัตรหรือวุฒิบัตร ให้ส่งรูปหรือ PDF เข้าแชตน้องชาโปร บอทจะแยกประเภทและส่งเข้า AI ให้อัตโนมัติ', cta:'ดูวิธีส่งเอกสาร', action:'sendhelp', note:'หนังสือราชการสามารถเข้าเมนู AI สรุปหนังสือราชการใน LIFF ได้โดยตรง' },
         4:{ ico:'🕒', title:'AI อ่านแล้ว ต้องตรวจอีกครั้ง', copy:'เปิด “รอตรวจ” เทียบข้อมูลกับต้นฉบับ แก้จุดที่ผิด แล้วกดยืนยันก่อนเก็บเข้าระบบ', cta:'เปิดรายการรอตรวจ', action:'pending' },
-        5:{ ico:'🔍', title:'หาเอกสารเก่าได้ทันที', copy:'ค้นด้วยชื่อกิจกรรม หน่วยงาน ประเภท หรือปีการศึกษา แล้วเปิดเอกสารจริงจากผลค้นหาได้', cta:'ลองค้นหา', action:'search' },
+        5:{ ico:'🔍', title:'หาเอกสารเก่าได้ทันที', copy:'เปิดเมนู “เอกสาร” แล้วพิมพ์ชื่อกิจกรรม ชื่อไฟล์ หรือปี กรองประเภทและเรียงรายการได้ ถ้าต้องการค้นจากหน่วยงานให้ใช้เมนู “ค้นหา”', cta:'เปิดเอกสารของฉัน', action:'saved' },
         6:{ ico:'📊', title:'ดูภาพรวมของตัวเอง', copy:'ดูจำนวนเอกสาร ชั่วโมงอบรม เป้าหมาย กราฟ และไปสร้างรายงานต่อจากหน้าสรุปได้', cta:'ดูสรุปและรายงาน', action:'dash' },
         7:{ ico:'✨', title:'ถาม AI ผู้ช่วยงานได้', copy:'ใช้ AI ช่วยสรุปข้อมูล ร่างรายงาน วางแผนพัฒนา หรือดูข้อมูลตามสิทธิ์ของคุณ', cta:'เปิด AI ผู้ช่วยงาน', action:'ai', note:'AI ช่วยคิดและช่วยร่าง แต่ไม่ส่ง LINE แทนคุณเอง' },
         8:{ ico:'🎉', title:'พร้อมใช้งานแล้ว', copy:'คุณรู้เส้นทางหลักที่ใช้บ่อยครบแล้ว ต่อจากนี้เปิดคู่มือฉบับเต็มเมื่ออยากดูรายละเอียดเพิ่มเติมได้ตลอด', cta:'เริ่มใช้งานระบบ', action:'complete' }
@@ -2728,7 +2793,7 @@
     }
     function onboardingCanOpen_(action){
       if (action === 'sendhelp') return typeof showSendHelp === 'function';
-      if (action === 'pending' || action === 'search') return typeof goTab === 'function';
+      if (action === 'pending' || action === 'search' || action === 'saved') return typeof goTab === 'function';
       if (action === 'dash') return typeof showDash === 'function';
       if (action === 'ai') return typeof showAiCenter === 'function';
       return false;
@@ -2745,6 +2810,7 @@
       if (action === 'sendhelp') { showHome(); showSendHelp(); return; }
       if (action === 'pending') { goTab('pending'); return; }
       if (action === 'search') { goTab('search'); return; }
+      if (action === 'saved') { goTab('saved'); return; }
       if (action === 'dash') { showDash(); return; }
       if (action === 'ai') { showAiCenter(); return; }
     }
@@ -3226,12 +3292,15 @@
     /* ---------- โปรไฟล์ของฉัน (ก้อนที่ 80) ----------
        แก้ชื่อ-สกุลกับตำแหน่งของตัวเองได้จากมือถือ — เดิมไม่มีที่ไหนแก้ได้เลย
        ทั้งที่หน้าตรวจเอกสารเขียนว่า "หากไม่ถูกต้องแก้ที่โปรไฟล์" */
-    function showMyProfile(){
+    function showMyProfile(confirmed){
+      if (!confirmed && !liffGuardNavigation_(function(){ showMyProfile(true); })) return;
       setNav('account');
       app.innerHTML = pageHead('โปรไฟล์ของฉัน', 'goTab(\'account\')') +
-        '<div class="card"><div class="note">กำลังโหลด...</div></div>';
+        '<div id="pfLoading" class="card"><div class="note" role="status">กำลังโหลด...</div></div>';
+      var loading = document.getElementById('pfLoading');
 
       api('myprofile', {}).then(function(p){
+        if (!loading.isConnected) return;
         app.innerHTML = pageHead('โปรไฟล์ของฉัน', 'goTab(\'account\')') +
           '<div class="card">' +
             '<div class="note" style="margin-bottom:10px;">' + esc(p.email) + ' · ' + esc(p.role || '-') + '</div>' +
@@ -3249,29 +3318,33 @@
           '</div>' +
           '<button class="b-primary" style="width:100%;" onclick="saveMyProfileLiff(this)">บันทึกโปรไฟล์</button>' +
           '<button class="b-second" style="width:100%;margin-top:8px;" onclick="goTab(\'account\')">กลับ</button>';
+        liffPersonalRemember_(['pfName','pfPos']);
       }).catch(function(e){
-        showErr(e, showMyProfile);
+        if (loading.isConnected) showErr(e, showMyProfile);
       });
     }
 
     function saveMyProfileLiff(btn){
+      if (_liffPersonalForm && _liffPersonalForm.busy) return;
       var nameEl = document.getElementById('pfName');
       var posEl  = document.getElementById('pfPos');
       var msg    = document.getElementById('pfMsg');
       if (!nameEl) return;
+      liffPersonalSaving_(true);
 
       if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
       if (msg) { msg.textContent = ''; msg.style.color = ''; }
 
       api('saveprofile', { data: { displayName: nameEl.value, position: posEl ? posEl.value : '' } })
         .then(function(){
+          liffPersonalRemember_(['pfName','pfPos'], true);
           if (btn) { btn.disabled = false; btn.textContent = 'บันทึกโปรไฟล์'; }
           if (msg) { msg.textContent = '✅ บันทึกแล้วครับเจ้านาย'; msg.style.color = 'var(--nx-green)'; }
         })
         .catch(function(e){
           if (btn) { btn.disabled = false; btn.textContent = 'บันทึกโปรไฟล์'; }
           if (msg) { msg.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ'; msg.style.color = 'var(--nx-danger)'; }
-        });
+        }).then(function(){ liffPersonalSaving_(false); });
     }
 
     /* ---------- โรงเรียนของฉัน บนมือถือ (ก้อนที่ 85) ----------
@@ -3287,12 +3360,15 @@
       { key: 'teacherTitle',  label: 'ตำแหน่งผู้รายงาน (ค่าตั้งต้น)' }
     ];
 
-    function showMyOrg(){
+    function showMyOrg(confirmed){
+      if (!confirmed && !liffGuardNavigation_(function(){ showMyOrg(true); })) return;
       setNav('account');
       app.innerHTML = pageHead('โรงเรียนของฉัน', 'goTab(\'account\')') +
-        '<div class="card"><div class="note">กำลังโหลด...</div></div>';
+        '<div id="moLoading" class="card"><div class="note" role="status">กำลังโหลด...</div></div>';
+      var loading = document.getElementById('moLoading');
 
       api('myorg', {}).then(function(res){
+        if (!loading.isConnected) return;
         var mine = res.mine || {};
         var def = res.systemDefault || {};
         var src = mine._source || {};
@@ -3322,19 +3398,23 @@
           '<button class="b-primary" style="width:100%;" onclick="saveMyOrgLiff(this)">บันทึก</button>' +
           '<div class="note" style="text-align:center;margin:10px 0;">ตราโรงเรียนเปลี่ยนได้ที่เว็บระบบ · เมนูโปรไฟล์ของฉัน</div>' +
           '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
-      }).catch(function(e){ showErr(e, showMyOrg); });
+        liffPersonalRemember_(MY_ORG_FIELDS_LIFF.map(function(f){ return 'mo_' + f.key; }));
+      }).catch(function(e){ if (loading.isConnected) showErr(e, showMyOrg); });
     }
 
     function saveMyOrgLiff(btn){
+      if (_liffPersonalForm && _liffPersonalForm.busy) return;
       var payload = {};
       MY_ORG_FIELDS_LIFF.forEach(function(f){
         var el = document.getElementById('mo_' + f.key);
         payload[f.key] = el ? el.value : '';
       });
       var msg = document.getElementById('moMsg');
+      liffPersonalSaving_(true);
       if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
 
       api('savemyorg', { data: payload }).then(function(){
+        liffPersonalRemember_(MY_ORG_FIELDS_LIFF.map(function(f){ return 'mo_' + f.key; }), true);
         if (btn) { btn.disabled = false; btn.textContent = 'บันทึก'; }
         if (msg) { msg.textContent = '✅ บันทึกแล้ว — รายงานฉบับถัดไปจะใช้ค่านี้'; msg.style.color = 'var(--nx-green)'; }
         ORG_BRANDING = null;      // ให้โหลดตรา/ชื่อใหม่รอบหน้า ไม่ค้างของเก่า
@@ -3342,7 +3422,7 @@
       }).catch(function(e){
         if (btn) { btn.disabled = false; btn.textContent = 'บันทึก'; }
         if (msg) { msg.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ'; msg.style.color = 'var(--nx-danger)'; }
-      });
+      }).then(function(){ liffPersonalSaving_(false); });
     }
 
     /* ---------- คู่มือแอดมิน (ก้อนที่ 79) ----------
@@ -3531,7 +3611,7 @@
           '<img class="mascot-corner" src="' + MASCOT_URL + '" alt="น้องชาโปร" onerror="this.style.display=\'none\';">' +
           '<div class="guide-hero-title">🐶 คู่มือน้องชาโปร<br>ฉบับทำตามได้เลยครับเจ้านาย</div>' +
           '<div class="note" style="margin-top:5px;padding-right:52px;">รวมของใหม่และวิธีใช้จริงใน LIFF ตั้งแต่ส่งไฟล์จนถึงตรวจและยืนยัน</div>' +
-          '<div class="guide-updated">✨ ปรับปรุงล่าสุด 14 สิงหาคม 2569</div>' +
+          '<div class="guide-updated">✨ ปรับปรุงล่าสุด 14 ตุลาคม 2569</div>' +
         '</div>' +
 
         '<div class="card"><div style="font-weight:800;font-size:15px;">เริ่มจากงานที่ต้องการ</div>' +
@@ -3540,11 +3620,16 @@
             guideAction_('📤', 'ส่งเอกสารเข้าบอท', 'บอทแยกประเภทให้อัตโนมัติ', 'showSendHelp()', false) +
             guideAction_('📄', 'สรุปหนังสือราชการ', 'อัปโหลดจาก LIFF โดยตรง', 'showOfficialDocumentSummary()', false) +
             guideAction_('🕒', 'ตรวจเกียรติบัตร', 'เปิดรายการที่ยังรอยืนยัน', 'goTab(\'pending\')', false) +
+            guideAction_('📂', 'ค้นหาในเอกสารของฉัน', 'พิมพ์คำสั้น ๆ กรองประเภทและเรียงรายการ', 'goTab(\'saved\')', false) +
             guideAction_('✨', 'ถาม AI ผู้ช่วยงาน', 'วิเคราะห์ข้อมูลตามสิทธิ์ของคุณ', 'showAiCenter()', false) +
             guideAction_('📊', 'ดูสรุปและรายงาน', 'ชั่วโมง กราฟ PDF และ Word', 'showDash()', false) +
           '</div></div>' +
 
         '<div class="card"><div style="font-weight:800;font-size:16px;margin-bottom:10px;">✨ มีอะไรเพิ่มมาแล้วบ้าง</div>' +
+          guideNew_('🔍', '<b>ค้นหาในเอกสารของฉัน</b> — พิมพ์ชื่อกิจกรรม ชื่อไฟล์ ประเภท หรือปี กรองประเภทและเรียงตามวันที่บันทึก ชื่อผู้รับ หรือกิจกรรมได้ กด “ล้างตัวกรอง” เพื่อกลับรายการเต็ม') +
+          guideNew_('↻', '<b>รีเฟรชโดยคงคำค้น</b> — กด “รีเฟรชรายการ” เพื่อโหลดข้อมูลล่าสุดโดยเก็บคำค้น ตัวกรอง และมุมมองเดิม งานค้างบนหน้าหลักมีปุ่มรีเฟรชภาพรวม') +
+          guideNew_('✍️', '<b>กันข้อมูลที่กรอกค้างหาย</b> — เมื่อเปลี่ยนหน้าจากฟอร์มที่ยังไม่บันทึก ระบบถามก่อน กด “กรอกต่อ” หรือ Escape เพื่อเก็บข้อมูลไว้ในหน้าปัจจุบัน ข้อมูลนี้ยังไม่บันทึกถาวรและอาจหายเมื่อปิด LINE') +
+          guideNew_('📎', '<b>เตรียมไฟล์บางใบไม่สำเร็จ?</b> — ไฟล์ที่เปิดสำเร็จยังอยู่ กด “ลองใหม่เฉพาะไฟล์ที่ไม่สำเร็จ” หรือ “ข้ามไฟล์ที่ไม่สำเร็จ” ก่อนอ่านด้วย AI') +
           guideNew_('🧠', '<b>บอทแยกประเภทเอกสารเอง</b> — โยนไฟล์เข้าแชตได้เลย เกียรติบัตรไปทางเก็บผลงาน ส่วนหนังสือราชการไปทางอ่านและร่างข้อความแจ้ง ผอ.') +
           guideNew_('📌', '<b>ต้นฉบับหนังสือราชการปักหมุดและซูมได้</b> — เลื่อนแก้ข้อมูลด้านล่างไปพร้อมกับเทียบต้นฉบับ ถ่าง 2 นิ้ว ซูมด้วยปุ่ม หรือลากภาพหลังซูม') +
           guideNew_('📎', '<b>แนบหน้าหรือสิ่งที่ส่งมาด้วยภายหลังได้</b> — กด “แนบเอกสารเพิ่ม” แล้วให้น้องชาโปรอ่านเอกสารเดิมกับไฟล์ใหม่ทุกหน้าเป็นเรื่องเดียวกัน') +
@@ -3611,7 +3696,7 @@
         guideDetails_('🧭', 'เมนูล่าง 6 ปุ่มและเมนูเสริม', [
           gLine_('🏠 <b>หน้าหลัก</b> — สรุปตัวเลข งานค้าง อากาศ เมนูด่วน และเอกสารล่าสุด'),
           gLine_('🕒 <b>รอตรวจ</b> — เกียรติบัตรที่ต้องตรวจและยืนยัน เลขแดงคือจำนวนที่ค้าง'),
-          gLine_('📂 <b>เอกสาร</b> — เอกสารที่บันทึกแล้ว ดู QR เปิด Drive ดาวน์โหลด หรือแนบไฟล์ย้อนหลัง'),
+          gLine_('📂 <b>เอกสาร</b> — ค้นหา กรองประเภท เรียงตามวันที่บันทึก/ประเภท/ชื่อผู้รับ/กิจกรรม และเปิดเอกสารที่บันทึกแล้วเพื่อดู QR เปิด Drive ดาวน์โหลด หรือแนบไฟล์ย้อนหลัง'),
           gLine_('🗓️ <b>ปฏิทิน</b> — กิจกรรมอบรม พยากรณ์อากาศ และเลขเตือนกิจกรรมที่ยังขาดเอกสาร'),
           gLine_('🔍 <b>ค้นหา</b> — ค้นตามชื่อกิจกรรม หน่วยงาน ประเภท และปีการศึกษา'),
           gLine_('👤 <b>บัญชี</b> — โปรไฟล์ โรงเรียน ธีม AI ผู้ช่วย หนังสือราชการ รายงาน ผลงานเด่น ถังขยะ การแจ้งเตือน และคู่มือนี้')
@@ -3647,6 +3732,7 @@
 
     /* ================= ค้นหา ================= */
     var SEARCH_HIST_KEY = 'cert-liff-recent-q';
+    var _searchQuery = '', _searchRequest = 0;
     function searchHist(){
       try { return JSON.parse(localStorage.getItem(SEARCH_HIST_KEY) || '[]'); } catch(e) { return []; }
     }
@@ -3683,10 +3769,10 @@
       app.innerHTML = pageHead('ค้นหาเอกสาร') +
         '<div class="card">' +
         '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-        '<input type="search" id="sq" class="in-txt" style="flex:1;" placeholder="ชื่อกิจกรรม หน่วยงาน ปี..." ' +
-        'onkeydown="if(event.key===\'Enter\')runSearch()">' +
+        '<input type="search" id="sq" class="in-txt" style="flex:1;" aria-label="คำค้นเอกสาร" value="'+esc(_searchQuery)+'" placeholder="ชื่อกิจกรรม หน่วยงาน ปี..." enterkeyhint="search" ' +
+        'onkeydown="if(event.key===\'Enter\'&&!event.isComposing){event.preventDefault();runSearch();this.blur();}">' +
         '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runSearch()">ค้นหา</button>' +
-        '</div><div class="chips">' + chipHtml + '</div></div>' +
+        '</div><div class="docs-tools-actions"><button type="button" class="b-second" onclick="runSearch(\'\')">ล้างคำค้น</button><button type="button" class="b-second" onclick="runSearch()">↻ ค้นอีกครั้ง</button></div><div class="chips">' + chipHtml + '</div></div>' +
         histHtml +
         // ก้อนที่ 101: ถาม AI (semantic search) — แยกการ์ดจาก keyword search ด้านบน ไม่แตะของเดิม
         '<div class="card"><div style="font-weight:600;margin-bottom:6px;">🤖 ถาม AI เกี่ยวกับเอกสาร</div>' +
@@ -3697,15 +3783,17 @@
         '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runAiSearch()">ถาม</button>' +
         '</div><div id="aires"></div></div>' +
         '<div id="sres"></div>';
-      var el = document.getElementById('sq');
-      if (el) el.focus();
+      if (_searchQuery) runSearch(_searchQuery);
     }
 
     function runSearch(preset){
       var el = document.getElementById('sq');
       var q = preset != null ? String(preset) : ((el && el.value) || '').trim();
+      _searchQuery = q;
+      var request = ++_searchRequest;
       if (el) el.value = q;
       var box = document.getElementById('sres');
+      if (!box) return;
       if (!q) {
         box.innerHTML = '<div class="card"><div class="state"><div class="em">🔍</div>' +
           '<div class="ttl">พิมพ์คำค้นเพื่อเริ่มต้น</div>' +
@@ -3715,6 +3803,7 @@
       box.innerHTML = '<div class="card"><div class="sk" style="height:64px;"></div><div class="sk" style="height:64px;"></div></div>';
       api('search', { query: q })
         .then(function(docs){
+          if (request !== _searchRequest || !box.isConnected) return;
           pushHist(q);
           if (!docs.length) {
             box.innerHTML = '<div class="card"><div class="state"><div class="em">🐶</div>' +
@@ -3726,6 +3815,7 @@
             (docs.length >= 20 ? ' (แสดงสูงสุด 20)' : '') + '</div>' + dashDocsHtml(docs, '') + '</div>';
         })
         .catch(function(e){
+          if (request !== _searchRequest || !box.isConnected) return;
           box.innerHTML = '<div class="card"><div class="state"><div class="em">⚠️</div>' +
             '<div class="ttl">ค้นหาไม่สำเร็จ</div><div class="txt">' + esc(e.message) + '</div>' +
             '<button class="b-primary" onclick="runSearch()">ลองใหม่</button></div></div>';
@@ -4104,14 +4194,21 @@
       _officialDoc.localBusy = true;
       if (appendMode) showSaveOverlay('📎 กำลังแนบเอกสารเพิ่ม...', 'ไฟล์เดิมจะยังอยู่และยังไม่เรียก AI จนกว่าเตรียมไฟล์ครบ');
       else officialDocSetProgress_('📂 กำลังเตรียมไฟล์...');
-      Promise.all(incoming.map(officialDocReadLocalFile_)).then(function(items){
+      _officialDoc.failedFiles = [];
+      _officialDoc.failedMode = mode || '';
+      officialDocRenderFiles_();
+      Promise.all(incoming.map(function(file){
+        return officialDocReadLocalFile_(file).then(function(item){ return {item:item}; },function(e){ return {file:file,error:(e && e.message) || 'เปิดไฟล์ไม่ได้'}; });
+      })).then(function(results){
         _officialDoc.localBusy = false;
         if (appendMode) hideSaveOverlay(); else officialDocSetProgress_('');
+        var items = results.filter(function(r){return !!r.item;}).map(function(r){return r.item;});
+        _officialDoc.failedFiles = results.filter(function(r){return !!r.file;});
         _officialDoc.files = _officialDoc.files.concat(items);
         if (appendMode) {
           officialDocRenderReview_();
           officialDocLoadInlinePreview_();
-          setTimeout(officialDocConfirmCombinedRead_, 0);
+          if (!_officialDoc.failedFiles.length) setTimeout(officialDocConfirmCombinedRead_, 0);
         } else officialDocRenderFiles_();
       }).catch(function(e){
         _officialDoc.localBusy = false;
@@ -4119,6 +4216,26 @@
         else { officialDocSetProgress_(''); officialDocRenderFiles_(); }
         liffAlert((e && e.message) || 'เปิดไฟล์ไม่ได้ กรุณาเลือกไฟล์ใหม่', {title:'อ่านไฟล์ไม่สำเร็จ'});
       });
+    }
+
+    function officialDocFailedFilesHtml_(){
+      var failed = _officialDoc.failedFiles || [];
+      if (!failed.length) return '';
+      return '<div class="msg err" role="alert">เตรียมไฟล์ไม่สำเร็จ '+failed.length+' ไฟล์ · ไฟล์ที่สำเร็จยังอยู่' +
+        '<ul>'+failed.map(function(r){return '<li>'+esc(r.file.name)+' — '+esc(r.error)+'</li>';}).join('')+'</ul>' +
+        '<button type="button" class="b-second" style="min-height:44px;" onclick="officialDocRetryFiles_()">ลองใหม่เฉพาะไฟล์ที่ไม่สำเร็จ</button>' +
+        '<button type="button" class="b-second" style="min-height:44px;margin-top:8px;" onclick="officialDocSkipFailedFiles_()">ข้ามไฟล์ที่ไม่สำเร็จ</button>' +
+        '<div class="note">ขั้นนี้ยังไม่เรียก AI หากยังเปิดไม่ได้ให้เลือกไฟล์ใหม่</div></div>';
+    }
+    function officialDocRetryFiles_(){
+      if (_officialDoc.busy || _officialDoc.localBusy) return;
+      var failed = _officialDoc.failedFiles || [];
+      if (failed.length) officialDocChoose_(failed.map(function(r){return r.file;}),_officialDoc.failedMode);
+    }
+    function officialDocSkipFailedFiles_(){
+      if (_officialDoc.busy || _officialDoc.localBusy) return;
+      _officialDoc.failedFiles = [];
+      if (_officialDoc.documents.length) officialDocRenderReview_(); else officialDocRenderFiles_();
     }
 
     function officialDocReadLocalFile_(file){
@@ -4154,8 +4271,8 @@
           '<div class="od-file-meta">' + esc(kind) + pages + ' · ' + esc(fmtBytes_(f.size)) + '</div></div>' +
           '<button type="button" class="b-second od-file-view" onclick="officialDocOpenSource_(' + i + ')" aria-label="ดูต้นฉบับ ' + esc(f.fileName) + '">👁️ ดู</button>' +
           '<button class="b-second od-file-remove" onclick="officialDocRemove_(' + i + ')" aria-label="ลบไฟล์">✕</button></div>';
-      }).join('');
-      if (btn) btn.disabled = !_officialDoc.files.length || _officialDoc.busy || _officialDoc.localBusy;
+      }).join('') + officialDocFailedFilesHtml_();
+      if (btn) btn.disabled = !_officialDoc.files.length || _officialDoc.busy || _officialDoc.localBusy || !!(_officialDoc.failedFiles && _officialDoc.failedFiles.length);
     }
 
     function officialDocRemove_(index){
@@ -4481,7 +4598,8 @@
     }
 
     function officialDocRead_(){
-      if (_officialDoc.busy || !_officialDoc.files.length) return;
+      if (_officialDoc.busy || _officialDoc.localBusy || !_officialDoc.files.length) return;
+      if (_officialDoc.failedFiles && _officialDoc.failedFiles.length) { liffAlert('กรุณาลองเปิดไฟล์ที่ไม่สำเร็จ หรือเลือกไฟล์ใหม่ก่อนอ่านด้วย AI'); return; }
       _officialDoc.busy = true;
       var requestId = ++_officialDoc.requestId;
       officialDocRenderFiles_(); officialDocSetProgress_('🔍 กำลังอ่านเอกสารทุกหน้า...');
@@ -4551,7 +4669,7 @@
           (pending ? '<button id="odMergeReadBtn" type="button" class="b-primary" onclick="officialDocReadCombined_()">✨ สรุปรวมใหม่ (' + pending + ' ไฟล์)</button>' : '') +
         '</div>' +
         (pending ? '<div class="od-warning" style="margin-top:10px;">ไฟล์ใหม่ยังไม่ถูกรวมในผลด้านล่าง กด “สรุปรวมใหม่” ก่อนสร้างข้อความ LINE</div>' : '') +
-        '</div>';
+        '</div>' + officialDocFailedFilesHtml_();
     }
 
     function officialDocRemovePending_(index){
@@ -4575,7 +4693,8 @@
     }
 
     function officialDocReadCombined_(){
-      if (_officialDoc.busy) return;
+      if (_officialDoc.busy || _officialDoc.localBusy) return;
+      if (_officialDoc.failedFiles && _officialDoc.failedFiles.length) { liffAlert('กรุณาลองเปิดไฟล์ที่ไม่สำเร็จ หรือเลือกไฟล์ใหม่ก่อนสรุปรวม'); return; }
       var pending = Math.max(0, _officialDoc.files.length - Number(_officialDoc.analyzedFileCount || 0));
       if (!pending) { liffAlert('กรุณาแนบเอกสารเพิ่มก่อนสรุปรวมใหม่'); return; }
       officialDocCollectReview_();
@@ -6404,20 +6523,37 @@
     /* ---------- กล่องยืนยันในหน้า แทน window.confirm ----------
        confirm() ของเบราว์เซอร์บน LIFF โผล่เป็นกล่องระบบที่หน้าตาไม่เข้ากับแอปเลย
        และบางรุ่นถูกบล็อกจนกดยืนยันไม่ได้ — ใช้กล่องของเราเองจะแน่นอนกว่า */
+    var _liffConfirmFocus = null;
+    function liffConfirmFocus_(){
+      if (!_liffConfirmFocus) _liffConfirmFocus = document.activeElement;
+      var first = document.querySelector('#confirmRoot button');
+      if (first) first.focus();
+    }
+    document.addEventListener('keydown', function(e){
+      var root = document.getElementById('confirmRoot');
+      if (!root || !root.firstElementChild) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); liffConfirmClose(); return; }
+      if (e.key !== 'Tab') return;
+      var buttons = Array.prototype.slice.call(root.querySelectorAll('button')).filter(function(b){ return !b.disabled && b.getClientRects().length; });
+      var i = buttons.indexOf(document.activeElement);
+      e.preventDefault();
+      if (buttons.length) buttons[(i + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+    }, true);
     function liffConfirm(opts, onYes){
       var root = document.getElementById('confirmRoot');
       if(!root){ root = document.createElement('div'); root.id = 'confirmRoot'; document.body.appendChild(root); }
       root.innerHTML =
         '<div class="lf-modal-backdrop" onclick="if(event.target===this)liffConfirmClose()">' +
-          '<div class="lf-modal-box">' +
-            '<div class="lf-modal-title">'+esc(opts.title || 'ยืนยันการทำรายการ')+'</div>' +
-            '<div class="lf-modal-msg">'+esc(opts.message || '')+'</div>' +
+          '<div class="lf-modal-box" role="dialog" aria-modal="true" aria-labelledby="lfConfirmTitle" aria-describedby="lfConfirmMessage">' +
+            '<div class="lf-modal-title" id="lfConfirmTitle">'+esc(opts.title || 'ยืนยันการทำรายการ')+'</div>' +
+            '<div class="lf-modal-msg" id="lfConfirmMessage">'+esc(opts.message || '')+'</div>' +
             '<div class="save-actions">' +
               '<button type="button" class="b-second" onclick="liffConfirmClose()">'+esc(opts.cancelLabel || 'ยกเลิก')+'</button>' +
               '<button type="button" class="b-primary" id="lfConfirmOk">'+esc(opts.okLabel || 'ยืนยัน')+'</button>' +
             '</div>' +
           '</div></div>';
       document.body.classList.add('modal-open');
+      liffConfirmFocus_();
       document.getElementById('lfConfirmOk').onclick = function(){
         liffConfirmClose();
         if(onYes) onYes();
@@ -6427,6 +6563,8 @@
       var root = document.getElementById('confirmRoot');
       if(root) root.innerHTML = '';
       document.body.classList.remove('modal-open');
+      var focus = _liffConfirmFocus; _liffConfirmFocus = null;
+      if (focus && focus.isConnected) focus.focus({preventScroll:true});
       liffExitAsking_ = false;   // กล่อง "ปิดหน้านี้?" ถูกปิดแล้ว — ปัดกลับรอบหน้าถามใหม่ได้
     }
 
@@ -6439,14 +6577,15 @@
       if(!root){ root = document.createElement('div'); root.id = 'confirmRoot'; document.body.appendChild(root); }
       root.innerHTML =
         '<div class="lf-modal-backdrop" onclick="if(event.target===this)liffConfirmClose()">' +
-          '<div class="lf-modal-box" role="alertdialog" aria-modal="true">' +
-            '<div class="lf-modal-title">'+esc(opts.title || 'แจ้งให้ทราบ')+'</div>' +
-            '<div class="lf-modal-msg">'+esc(message || '')+'</div>' +
+          '<div class="lf-modal-box" role="alertdialog" aria-modal="true" aria-labelledby="lfConfirmTitle" aria-describedby="lfConfirmMessage">' +
+            '<div class="lf-modal-title" id="lfConfirmTitle">'+esc(opts.title || 'แจ้งให้ทราบ')+'</div>' +
+            '<div class="lf-modal-msg" id="lfConfirmMessage">'+esc(message || '')+'</div>' +
             '<div class="save-actions">' +
               '<button type="button" class="b-primary" onclick="liffConfirmClose()">'+esc(opts.okLabel || 'รับทราบ')+'</button>' +
             '</div>' +
           '</div></div>';
       document.body.classList.add('modal-open');
+      liffConfirmFocus_();
     }
 
 
@@ -6563,8 +6702,8 @@
     }
 
     function closeOrHome(){
-      if (liff.isInClient()) liff.closeWindow();
-      else start();
+      var go = function(){ if (liff.isInClient()) liff.closeWindow(); else start(); };
+      if (liffGuardNavigation_(go)) go();
     }
 
     /* ---------- กันปิดหน้าโดยไม่ตั้งใจ (ชุดเดียวกับหน้าเว็บ) ----------
@@ -6577,6 +6716,9 @@
     var liffExitAsking_ = false;   // กล่องยืนยัน "ปิดหน้านี้?" เปิดค้างอยู่ (กันเปิดซ้อนตอนปัดรัว)
 
     /** ช่องกรอกที่ถูกแตะจะติดป้ายไว้ที่ตัวมันเอง — พอเปลี่ยนหน้า (app.innerHTML ใหม่) ป้ายหายเอง */
+    document.addEventListener('compositionend', function(e){
+      if (e.target && e.target.id === 'savedDocsQuery') setSavedDocsOption_('query',e.target.value,e.target);
+    }, true);
     document.addEventListener('input', function(e){
       var t = e.target;
       if (!t || !t.tagName) return;
@@ -6587,8 +6729,32 @@
       t.setAttribute('data-dirty', '1');
     }, true);
 
+    var _liffPersonalForm = null;
+    function liffPersonalRemember_(ids, busy){
+      _liffPersonalForm = { ids:ids, values:ids.map(function(id){ var el=document.getElementById(id); if(el) el.removeAttribute('data-dirty'); return el ? el.value : ''; }), busy:!!busy };
+    }
+    function liffPersonalSaving_(on){
+      if (!_liffPersonalForm) return;
+      if (_liffPersonalForm.busy !== !!on) liffSaving_ = Math.max(0,liffSaving_ + (on ? 1 : -1));
+      _liffPersonalForm.busy = !!on;
+      _liffPersonalForm.ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.disabled=!!on; });
+    }
     function liffHasUnsaved_(){
-      return liffSaving_ > 0 || !!document.querySelector('#app [data-dirty="1"]');
+      if (liffSaving_ > 0) return true;
+      var form = _liffPersonalForm;
+      if (form && form.ids.some(function(id,i){ var el=document.getElementById(id); return el && el.value !== form.values[i]; })) return true;
+      return Array.prototype.some.call(document.querySelectorAll('#app [data-dirty="1"]'), function(el){ return !form || form.ids.indexOf(el.id) === -1; });
+    }
+    function liffGuardNavigation_(go){
+      if (liffSaving_ > 0 || (_officialDoc && (_officialDoc.busy || _officialDoc.localBusy))) { liffToast('กำลังประมวลผลอยู่ครับ รอสักครู่ก่อนเปลี่ยนหน้า'); return false; }
+      function leave(){
+        _liffPersonalForm = null;
+        Array.prototype.forEach.call(document.querySelectorAll('#app [data-dirty="1"]'),function(el){ el.removeAttribute('data-dirty'); });
+        go();
+      }
+      if (!liffHasUnsaved_()) { _liffPersonalForm = null; return true; }
+      liffConfirm({title:'ยังไม่ได้บันทึก',message:'ข้อมูลที่กรอกไว้จะหายไป ต้องการออกจากหน้านี้ไหมครับ',okLabel:'ออกโดยไม่บันทึก',cancelLabel:'กรอกต่อ'},leave);
+      return false;
     }
 
     function liffPushGuard_(){
@@ -6599,12 +6765,7 @@
     function liffRunBack_(){
       var fn = liffBackFn_;
       var go = function(){ liffBackFn_ = ''; try { new Function(fn)(); } catch (e) { showHome(); } };
-      if (!liffHasUnsaved_()) { go(); return; }
-      liffConfirm({
-        title: 'ยังไม่ได้บันทึก',
-        message: 'ข้อมูลที่กรอกไว้จะหายไป ต้องการออกจากหน้านี้ไหมครับ',
-        okLabel: 'ออกโดยไม่บันทึก', cancelLabel: 'กรอกต่อ'
-      }, go);
+      if (liffGuardNavigation_(go)) go();
     }
 
     window.addEventListener('beforeunload', function(e){
