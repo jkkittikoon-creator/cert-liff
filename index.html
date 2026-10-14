@@ -228,6 +228,7 @@
     .save-overlay.show { opacity: 1; pointer-events: auto; }
     .save-card { background: var(--bg-card); border-radius: 14px; padding: 28px 36px; text-align: center; min-width: 220px; box-shadow: var(--shadow-modal); }
     .save-spinner { width: 40px; height: 40px; border: 4px solid var(--border); border-top-color: var(--line); border-radius: 50%; margin: 0 auto 14px; animation: save-spin .8s linear infinite; }
+    .save-overlay.is-deleting .save-spinner { border-top-color: var(--err); }
     @keyframes save-spin { to { transform: rotate(360deg); } }
     .save-check { font-size: 40px; margin-bottom: 10px; }
     .save-text { font-size: 15px; color: var(--text-1); font-weight: bold; }
@@ -1475,6 +1476,7 @@
       if (btn){ btn.disabled = n===0; btn.textContent = n ? '🗑️ ลบที่เลือก ('+n+')' : '🗑️ ลบที่เลือก'; }
     }
     function confirmBulkDelete(){
+      if (liffSaving_ > 0) return;
       var ids = Object.keys(_docsSelected);
       if (!ids.length) return;
       liffConfirm({
@@ -1482,7 +1484,8 @@
         message: 'ลบ '+ids.length+' ฉบับ ย้ายไปถังขยะ (กู้คืนได้ภายหลัง) ยืนยันไหมครับ',
         okLabel: 'ลบที่เลือก', cancelLabel: 'ยกเลิก'
       }, function(){
-        api('discard', { certificateIds: ids }).then(function(){
+        if (liffSaving_ > 0) return;
+        liffDeleteProgress_('discard', { certificateIds: ids }, 'กำลังลบเอกสาร '+ids.length+' รายการ...').then(function(){
           _docsSelectMode = false; _docsSelected = {};
           showList('pending');
         }).catch(function(e){ showErr(e, function(){ showList('pending'); }); });
@@ -1734,6 +1737,7 @@
     }
 
     function calDelete(id, verb){
+      if (liffSaving_ > 0) return;
       var t = calFind(id);
       if (!t) return;
       liffConfirm({
@@ -1745,15 +1749,14 @@
           '\n\nข้อมูลเกียรติบัตรที่เก็บไว้แล้วไม่ได้รับผลกระทบ',
         okLabel: verb, cancelLabel: 'ยกเลิก'
       }, function(){
-        showSaveOverlay('กำลังดำเนินการ...', 'รอสักครู่นะครับ 🐾');
-        api('trainingdelete', { trainingId: id })
+        if (liffSaving_ > 0) return;
+        liffDeleteProgress_('trainingdelete', { trainingId: id }, 'กำลังดำเนินการกับกิจกรรม...')
           .then(function(){
-            hideSaveOverlay();
             liffToast(verb + 'เรียบร้อย ✅', 2400);
             _calCache = null;                 // บังคับโหลดใหม่ ไม่งั้นรายการที่ลบยังค้างอยู่
             showCalendar(true);
           })
-          .catch(function(e){ setSaveOverlayError(e.message, hideSaveOverlay); });
+          .catch(liffErr_);
       });
     }
 
@@ -5321,6 +5324,7 @@
 
     // ลบไปถังขยะ (soft-delete) — ยืนยันก่อน แล้วแถวเปลี่ยนเป็นข้อความ "ลบแล้ว" พร้อมปุ่มกู้คืน (undo ได้ทันที)
     function deleteDoc(certId){
+      if (liffSaving_ > 0) return;
       var d = _dashDocs[certId] || {};
       liffConfirm({
         title: 'ลบ "'+(d.name||'เอกสารนี้')+'" ไปที่ถังขยะ?',
@@ -5330,9 +5334,10 @@
     }
     /** ส่วนลบจริง — แยกจากกล่องยืนยันเพื่อให้อ่านง่ายและเรียกซ้ำได้ */
     function doDeleteDoc_(certId, d){
+      if (liffSaving_ > 0) return;
       var row = document.getElementById('dd_'+certId);
       if(row) row.innerHTML = '<div class="note">กำลังลบ... 🐾</div>';
-      api('delete', { certificateId: certId })
+      liffDeleteProgress_('delete', { certificateId: certId }, 'กำลังย้ายเอกสารไปถังขยะ...')
         .then(function(){
           _dashLatest = _dashLatest.filter(function(x){ return x.certificateId!==certId; });
           // เอกสารที่ถูกลบอาจเคยผูกกับกิจกรรมอบรมอยู่ → กิจกรรมนั้นกลับมาเป็น "ยังไม่เก็บเอกสาร"
@@ -5629,6 +5634,7 @@
     }
 
     function rcDelete(id){
+      if (liffSaving_ > 0) return;
       var r = rcFind(id); if(!r) return;
       liffConfirm({
         title: 'ลบรายงาน "'+r.label+'" ออกจากคลัง?',
@@ -5637,9 +5643,10 @@
       }, function(){ doRcDelete_(id, r); });
     }
     function doRcDelete_(id, r){
+      if (liffSaving_ > 0) return;
       var row = document.getElementById('rc_'+id);
       if(row) row.innerHTML = '<div class="note">กำลังลบ... 🐾</div>';
-      api('reportdelete', { reportId: id })
+      liffDeleteProgress_('reportdelete', { reportId: id }, 'กำลังลบรายงาน...')
         .then(function(){
           _reports = _reports.filter(function(x){ return x.reportId!==id; });
           if(row) row.innerHTML = '<div class="note">🗑️ ลบรายงาน "'+esc(r.label)+'" แล้ว (ไฟล์อยู่ในถังขยะ Drive 30 วัน)</div>';
@@ -6047,12 +6054,14 @@
     }
 
     function pwmDelete(id){
+      if (liffSaving_ > 0) return;
       liffConfirm({
         title: 'ลบภาพผลงานนี้?',
         message: 'ไฟล์จะย้ายลงถังขยะ กู้คืนได้จาก Google Drive ภายใน 30 วัน',
         okLabel: '🗑️ ลบภาพ'
       }, function(){
-        api('prouddelete', { workId: id })
+        if (liffSaving_ > 0) return;
+        liffDeleteProgress_('prouddelete', { workId: id }, 'กำลังลบภาพผลงาน...')
           .then(function(){ liffToast('ลบภาพผลงานแล้ว 🗑️', 'ok'); return pwmReload_(); })
           .catch(liffErr_);
       });
@@ -6465,13 +6474,38 @@
       st.addEventListener('dblclick', function(e){ zDouble(e.clientX,e.clientY,st); });
     }
 
+    /* ใช้ภาพรอเดิมกับคำขอลบ — ส่งเพียงครั้งเดียว ไม่มี retry อัตโนมัติ */
+    function liffDeleteProgress_(action, payload, text){
+      var focus = document.activeElement;
+      showSaveOverlay(text || 'กำลังลบข้อมูล...', 'กรุณารอสักครู่ อย่าเพิ่งปิดหน้านี้');
+      var el = document.getElementById('saveOverlay');
+      el.classList.add('is-deleting');
+      el.setAttribute('role','status');
+      el.setAttribute('aria-live','polite');
+      el.setAttribute('aria-busy','true');
+      el.setAttribute('aria-hidden','false');
+      el.setAttribute('tabindex','-1');
+      el.focus({preventScroll:true});
+      function done(){
+        hideSaveOverlay();
+        el.setAttribute('aria-busy','false');
+        el.setAttribute('aria-hidden','true');
+        el.removeAttribute('tabindex');
+        if (focus && focus.isConnected) focus.focus({preventScroll:true});
+      }
+      var request;
+      try { request = api(action,payload); } catch(e) { done(); return Promise.reject(e); }
+      return request.then(function(r){ done(); return r; },function(e){ done(); throw e; });
+    }
+
     /* ---------- โอเวอร์เลย์ "กำลังบันทึก" ---------- */
     function showSaveOverlay(text, sub){
       var el = document.getElementById('saveOverlay');
       if(!el){ el = document.createElement('div'); el.id = 'saveOverlay'; document.body.appendChild(el); }
       if (el.className.indexOf('show') === -1) liffSaving_++;   // กำลังส่ง = ห้ามให้หน้าปิดไปเงียบ ๆ
       el.className = 'save-overlay show';
-      el.innerHTML = '<div class="save-card"><div class="save-spinner"></div>' +
+      el.removeAttribute('aria-hidden');
+      el.innerHTML = '<div class="save-card"><div class="save-spinner" aria-hidden="true"></div>' +
         '<div class="save-text">'+esc(text)+'</div>' +
         (sub ? '<div class="save-sub">'+esc(sub)+'</div>' : '') + '</div>';
     }
@@ -6530,6 +6564,11 @@
       if (first) first.focus();
     }
     document.addEventListener('keydown', function(e){
+      var wait = document.getElementById('saveOverlay');
+      if (wait && wait.classList.contains('is-deleting') && wait.classList.contains('show')) {
+        if (e.key === 'Tab' || e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); }
+        return;
+      }
       var root = document.getElementById('confirmRoot');
       if (!root || !root.firstElementChild) return;
       if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); liffConfirmClose(); return; }
@@ -6783,7 +6822,7 @@
     };
     window.addEventListener('popstate', function(){
       if (confirmOpen_()) { liffPushGuard_(); liffConfirmClose(); return; }   // ปิดกล่องยืนยันก่อน
-      if (liffSaving_ > 0) { liffPushGuard_(); liffToast('กำลังบันทึกอยู่ครับ รอสักครู่นะ'); return; }
+      if (liffSaving_ > 0) { liffPushGuard_(); liffToast('กำลังประมวลผลอยู่ครับ รอสักครู่นะ'); return; }
       if (liffBackFn_) { liffPushGuard_(); liffRunBack_(); return; }          // ยังมีที่ให้ย้อนในแอป
       // อยู่หน้าแรกแล้ว = ปัดครั้งนี้จะปิดแอป → ถามด้วยกล่องยืนยันของแอป (ชุดเดียวกับหน้าเว็บ)
       liffPushGuard_();
