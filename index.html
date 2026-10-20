@@ -956,9 +956,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V6';
+    var LIFF_VERSION = 'V7';
     var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'หน้าตรวจเอกสารมีปุ่ม "📌 ตรึงรูป" ให้รูปเกียรติบัตรค้างด้านบนขณะเลื่อนกรอก และคำเตือนปีแสดงใต้ช่องวันที่ด้วย';
+    var LIFF_VERSION_NOTE = 'กดปุ่มย้อนกลับของมือถือตอนกำลังพิมพ์ในช่อง จะแค่เก็บคีย์บอร์ด อยู่หน้าเดิม ไม่หลุดออกจากหน้า';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -7434,8 +7434,27 @@
       var r = document.getElementById('confirmRoot');
       return !!(r && r.innerHTML);
     };
+    /* กดย้อนกลับตอนเคอร์เซอร์ยังกระพริบอยู่ในช่องกรอก = แค่ออกจากช่อง (คีย์บอร์ดหุบ) อยู่หน้าเดิม
+       เพราะคนส่วนใหญ่กดเพื่อ "เก็บคีย์บอร์ด" ไม่ได้ตั้งใจออกจากหน้า · กดอีกครั้งจึงย้อนตามปกติ */
+    function liffBlurTypingField_(){
+      var el = document.activeElement;
+      if (!el || el === document.body) return false;
+      var tag = el.tagName;
+      var typing = el.isContentEditable || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        (tag === 'INPUT' && !/^(button|submit|reset|checkbox|radio|file|range|color|image|hidden)$/i.test(el.type || ''));
+      if (!typing) return false;
+      try { el.blur(); } catch (e) { return false; }
+      return true;
+    }
     window.addEventListener('popstate', function(){
       if (confirmOpen_()) { liffPushGuard_(); liffConfirmClose(); return; }   // ปิดกล่องยืนยันก่อน
+      if (liffBlurTypingField_()) {
+        liffPushGuard_();
+        liffToast(!liffBackFn_ ? 'กดย้อนกลับอีกครั้งเพื่อปิดหน้านี้'
+          : /showList/.test(liffBackFn_) ? 'กดย้อนกลับอีกครั้งเพื่อกลับหน้ารายการ'
+          : 'กดย้อนกลับอีกครั้งเพื่อกลับหน้าก่อนหน้า', 2500);
+        return;
+      }
       if (liffSaving_ > 0) { liffPushGuard_(); liffToast('กำลังประมวลผลอยู่ครับ รอสักครู่นะ'); return; }
       if (liffBackFn_) { liffPushGuard_(); liffRunBack_(); return; }          // ยังมีที่ให้ย้อนในแอป
       // อยู่หน้าแรกแล้ว = ปัดครั้งนี้จะปิดแอป → ถามด้วยกล่องยืนยันของแอป (ชุดเดียวกับหน้าเว็บ)
