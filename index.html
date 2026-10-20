@@ -206,7 +206,8 @@
     .field { margin-bottom: 12px; padding-left: 10px; border-left: 4px solid transparent; }
     .field label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
     .field input, .field select, .other-in, .in-txt {
-      width: 100%; padding: 9px 10px; font-size: 15px; border: 1px solid var(--border-strong); border-radius: 10px;
+      /* 16px: iPhone ซูมหน้าเองเมื่อแตะช่องที่ตัวอักษรเล็กกว่า 16px (V8 — เดิม 15px โดนเฉพาะช่องวันที่/dropdown) */
+      width: 100%; padding: 9px 10px; font-size: 16px; border: 1px solid var(--border-strong); border-radius: 10px;
       background: var(--bg-card); color: var(--text-1); font-family: var(--font-body);
     }
     .field input:focus, .field select:focus, .other-in:focus, .in-txt:focus {
@@ -811,6 +812,9 @@
     .od-pdf-zoom-label { min-width: 48px; text-align: center; font-weight: 800; font-size: 12px; }
     .od-pdf-canvas-wrap { min-height: 180px; max-height: 68vh; overflow: hidden; display: grid; place-items: center;
       padding: 10px; background: #d9e0ea; overscroll-behavior: contain; }
+    /* V8: PDF ในหน้าตรวจเอกสาร — ให้กรอบมีความสูงแน่นอน PDF.js จะย่อทั้งหน้าลงกรอบ ไม่ดันฟอร์มลงไปไกล */
+    .cert-pdf-preview { border-radius: 10px; overflow: hidden; }
+    .cert-pdf-preview .od-pdf-canvas-wrap { height: min(50vh, 420px); max-height: none; min-height: 220px; }
     .od-pdf-canvas { display: block; max-width: 100%; max-height: 100%; height: auto; background: #fff;
       box-shadow: 0 2px 12px rgba(15,23,42,.24); transform-origin: center center; user-select: none;
       -webkit-user-select: none; will-change: transform; }
@@ -956,9 +960,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V7';
+    var LIFF_VERSION = 'V8';
     var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'กดปุ่มย้อนกลับของมือถือตอนกำลังพิมพ์ในช่อง จะแค่เก็บคีย์บอร์ด อยู่หน้าเดิม ไม่หลุดออกจากหน้า';
+    var LIFF_VERSION_NOTE = 'หน้าตรวจเอกสารแสดงเกียรติบัตรที่เป็น PDF ได้ในแอป (ซูมและเปลี่ยนหน้าได้) · ปุ่ม Enter บนคีย์บอร์ดพาไปช่องถัดไป · iPhone แตะช่องวันที่แล้วหน้าไม่ซูมเอง';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -6742,8 +6746,10 @@
       var isSaved = c.status === 'SAVED'; // เอกสารบันทึกยืนยันแล้ว → ใช้โหมด "บันทึกการแก้ไข"
       // F3+F8: เก็บ src รูปไว้ให้ตัวดูซูม + แตะรูปเปิดตัวดูได้
       window.imgSrc = isImage ? ('data:'+c.mimeType+';base64,'+data.previewBase64) : '';
-      var prev = isPdf
-        ? '<embed src="data:'+c.mimeType+';base64,'+data.previewBase64+'" type="application/pdf" height="320">'
+      // V8: PDF วาดด้วย PDF.js ลง canvas (ตัวเดียวกับหนังสือราชการ) — <embed> data: PDF เป็นกรอบขาวใน WebView ของ LINE บน Android
+      var hasPdf = isPdf && !!data.previewBase64;
+      var prev = hasPdf
+        ? '<div id="certPdfPreview" class="cert-pdf-preview od-pdf-view"><div class="od-pdf-state">📄 กำลังเปิด PDF...</div></div>'
         : (isImage
           ? '<div class="pin-row"><button type="button" class="b-second pin-btn" id="certPinBtn" aria-pressed="false" onclick="toggleCertPin()">📌 ตรึงรูป</button></div>'+
             '<img src="'+window.imgSrc+'" onclick="openViewer()"><div class="cert-hint">🔍 แตะรูปเพื่อขยาย/ซูมดูรายละเอียด</div>'
@@ -6791,12 +6797,47 @@
         yearHtml+
         summary+
         '<div class="card"><button class="b-second" id="documentQualityBtn" onclick="liffDocumentQuality(this,false)">ตรวจคุณภาพข้อมูล</button><div class="note">ตรวจด้วยกฎของระบบก่อน โดยไม่เรียก AI และไม่แก้ข้อมูลเอง</div><div id="documentQualityBox"></div></div>'+
-        '<div class="card">'+fieldsHtml+qrBtn+delBtn+'</div>'+
+        '<div class="card" id="certFields">'+fieldsHtml+qrBtn+delBtn+'</div>'+
         // ปุ่มหลักติดล่างจอ: เลื่อนดูฟิลด์ยาว ๆ อยู่ก็ยังกดยืนยันได้ทันที ไม่ต้องเลื่อนกลับลงมาสุด
         '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
         floatBtn;
       updateBanner();
       if(isImage) certPinApply_(certPinGet_());
+      if(hasPdf) officialDocMountPdf_({ base64: data.previewBase64, mimeType: c.mimeType }, 'certPdfPreview', 1);
+      certFormKeyNav_();
+    }
+
+    /* V8: ปุ่ม Enter บนคีย์บอร์ดในหน้าตรวจเอกสาร = ไปช่องพิมพ์ถัดไป · ช่องสุดท้าย = เสร็จ (หุบคีย์บอร์ด)
+       ข้าม dropdown และช่องวันที่ (แตะแล้วเปิดตัวเลือก ไม่ใช่คีย์บอร์ด) · ไม่กดบันทึกให้เอง
+       ติดตัวดักครั้งเดียวที่ document เพราะฟอร์มถูกวาดใหม่ทุกครั้งที่เปิดเอกสาร */
+    var certKeyNavBound_ = false;
+    function certTypingFields_(){
+      var box = document.getElementById('certFields');
+      if (!box) return [];
+      return Array.prototype.filter.call(box.querySelectorAll('input'), function(el){
+        return /^(text|number|search)$/i.test(el.type || 'text') && !el.disabled && !el.readOnly && el.offsetParent !== null;
+      });
+    }
+    function certNextField_(el){
+      var list = certTypingFields_(), i = list.indexOf(el);
+      return i === -1 ? null : (list[i + 1] || null);
+    }
+    function certFormKeyNav_(){
+      if (certKeyNavBound_) return;
+      certKeyNavBound_ = true;
+      document.addEventListener('focusin', function(e){
+        var el = e.target;
+        if (!el || !el.closest || el.tagName !== 'INPUT' || !el.closest('#certFields')) return;
+        el.setAttribute('enterkeyhint', certNextField_(el) ? 'next' : 'done');
+      });
+      document.addEventListener('keydown', function(e){
+        var el = e.target;
+        if (e.key !== 'Enter' || e.isComposing || !el || !el.closest || el.tagName !== 'INPUT' || !el.closest('#certFields')) return;
+        e.preventDefault();
+        var next = certNextField_(el);
+        if (next) next.focus();
+        else el.blur();
+      });
     }
 
     // V6 ตรึงรูป — ค่าเริ่มต้นไม่ตรึง · จำค่าที่ครูเลือกไว้ในเครื่อง (localStorage ใช้ไม่ได้ = จำเฉพาะรอบนี้)
