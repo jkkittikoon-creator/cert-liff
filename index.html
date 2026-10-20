@@ -173,6 +173,17 @@
        ต้องยกเลิก :active ด้วย ไม่งั้นแถวยังกะพริบตอบสนองการแตะ ทั้งที่ไม่มีอะไรเกิดขึ้น */
     .doc-item.is-busy { cursor: default; opacity: .62; }
     .doc-item.is-busy:active { background: none; }
+    /* V9: ปุ่มให้ AI อ่าน/อ่านซ้ำ ใต้แถวเอกสาร (อยู่นอกแถวที่กดเปิดเอกสาร) */
+    .doc-item.has-ai-act { border-bottom: none; padding-bottom: 6px; }
+    .doc-ai-act { padding: 0 12px 12px; border-bottom: 1px solid var(--border); }
+    .doc-ai-act:last-child { border-bottom: none; }
+    /* V9: การ์ดตราโรงเรียน — พื้นขาวเสมอ (ตราส่วนใหญ่ออกแบบบนพื้นขาว) ทั้งโหมดสว่าง/มืด */
+    .mo-logo-box { width: 88px; height: 88px; flex: none; border-radius: 14px; border: 1px solid var(--border-strong);
+      background: #fff; display: grid; place-items: center; overflow: hidden; }
+    .mo-logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .mo-logo-box .note { font-size: 11px; text-align: center; color: #64748b; }
+    .mo-logo-pick { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; cursor: pointer; }
+    .doc-ai-act button { width: auto; min-height: 40px; padding: 6px 14px; font-size: 14px; }
     /* ชื่อกิจกรรมยาวได้ ต้องตัดคำลงบรรทัดใหม่ ไม่ดันป้ายสถานะตกขอบจอ */
     .doc-item .doc-main { flex: 1 1 auto; min-width: 0; }
     .doc-item .doc-title { font-weight: 600; line-height: 1.5; overflow-wrap: break-word; word-break: normal; }
@@ -960,9 +971,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V8';
+    var LIFF_VERSION = 'V9';
     var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'หน้าตรวจเอกสารแสดงเกียรติบัตรที่เป็น PDF ได้ในแอป (ซูมและเปลี่ยนหน้าได้) · ปุ่ม Enter บนคีย์บอร์ดพาไปช่องถัดไป · iPhone แตะช่องวันที่แล้วหน้าไม่ซูมเอง';
+    var LIFF_VERSION_NOTE = 'ตั้งตราโรงเรียนจากมือถือได้แล้ว (หน้าโรงเรียนของฉัน) · เอกสารที่ค้างในคิวกด "ให้ AI อ่านซ้ำ" ได้เอง';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1506,11 +1517,19 @@
             '<div class="doc-main" style="flex:1;"><div class="doc-title">'+esc(title)+'</div>' +
             '<div class="note">'+note+otherTag+'</div></div>'+(badge[d.status]||'')+'</div>';
         } else {
-          html += '<div class="doc-item' + (busy ? ' is-busy' : '') + '"' +
+          var aiAct = which !== 'saved' && (busy || d.status === 'FILE_STORED');   // V9
+          html += '<div class="doc-item' + (busy ? ' is-busy' : '') + (aiAct ? ' has-ai-act' : '') + '"' +
             (busy ? '' : ' role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}" onclick="openDoc('+esc(JSON.stringify(d.certificateId))+')"') + '>'+
             '<div class="doc-main"><div class="doc-title">'+esc(title)+expiryBadgeHtml(d.expiryDate)+'</div>'+
             '<div class="note">'+note+otherTag+'</div></div>'+
             (badge[d.status]||'')+'</div>';
+          // V9: ให้ AI อ่านจากมือถือได้เหมือนเว็บ — ยังไม่เข้าคิว = "ให้ AI อ่าน" · ค้างในคิว = "อ่านซ้ำ"
+          // ปุ่มอยู่นอกแถว (แถวเป็นปุ่มเปิดเอกสาร) กันกดพลาด · server กันสั่งซ้ำขณะ AI อ่านจริงอยู่แล้ว
+          if (aiAct) {
+            html += '<div class="doc-ai-act"><button type="button" class="b-second" ' +
+              'onclick="liffAiRead_(' + esc(JSON.stringify(d.certificateId)) + ',\'' + (busy ? 'requeue' : 'enqueue') + '\',this)">' +
+              (busy ? '🔄 ค้างนาน? ให้ AI อ่านซ้ำ' : '🤖 ให้ AI อ่านเอกสารนี้') + '</button></div>';
+          }
         }
       });
       html += '</div>';
@@ -1523,6 +1542,22 @@
       }
       html += closeBtn;
       app.innerHTML = html;
+    }
+
+    /* V9: ส่งให้ AI อ่าน (aienqueue) / อ่านซ้ำเมื่อค้าง (airequeue) — แกนกลางเดียวกับปุ่มบนเว็บ
+       เป็นคำสั่งเขียน ไม่ retry อัตโนมัติ · สำเร็จแล้วปลุกคิวทันที (aikick, ไม่รอผล) แทนรอ trigger รายนาที */
+    function liffAiRead_(certificateId, mode, btn){
+      if (btn && btn.disabled) return;
+      var old = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = 'กำลังสั่ง...'; }
+      api(mode === 'requeue' ? 'airequeue' : 'aienqueue', { certificateId: certificateId }).then(function(){
+        liffToast(mode === 'requeue' ? 'สั่งให้ AI อ่านใหม่แล้ว 🤖' : 'ส่งให้ AI อ่านแล้ว 🤖', 'ok');
+        api('aikick', {}).catch(function(){ /* ไม่ทันก็ไม่เป็นไร trigger รายนาทีจะหยิบไปเอง */ });
+        showList('pending');
+      }).catch(function(e){
+        if (btn) { btn.disabled = false; btn.textContent = old; }
+        liffErr_(e);
+      });
     }
 
     /* ก้อนที่ 100: โหมดเลือกลบหลายใบบนมือถือ — เรียก action 'discard' (แกนกลาง discardCertificatesForUser_) */
@@ -3419,7 +3454,7 @@
 
     /* ---------- โรงเรียนของฉัน บนมือถือ (ก้อนที่ 85) ----------
        เว้นช่องว่าง = ใช้ค่าเริ่มต้นของระบบ จึงต้องบอกให้ชัดว่าช่องไหนเป็นของตัวเอง
-       ตราไม่ให้อัปจากมือถือในรอบนี้ — ให้ไปทำที่เว็บ (เขียนบอกไว้ท้ายหน้า) */
+       V9: ตราตั้งจากมือถือได้แล้ว (การ์ด moLogoCard ท้ายหน้า · ดู moLogoCardHtml_) */
     var MY_ORG_FIELDS_LIFF = [
       { key: 'schoolName',    label: 'ชื่อโรงเรียน/หน่วยงาน' },
       { key: 'schoolAddress', label: 'ที่อยู่' },
@@ -3466,7 +3501,7 @@
             '<div id="moMsg" class="note" style="margin-top:6px;"></div>' +
           '</div>' +
           '<button class="b-primary" style="width:100%;" onclick="saveMyOrgLiff(this)">บันทึก</button>' +
-          '<div class="note" style="text-align:center;margin:10px 0;">ตราโรงเรียนเปลี่ยนได้ที่เว็บระบบ · เมนูโปรไฟล์ของฉัน</div>' +
+          '<div class="card" id="moLogoCard" style="margin-top:14px;">' + moLogoCardHtml_(mine) + '</div>' +
           '<button class="b-second" style="width:100%;" onclick="goTab(\'account\')">กลับ</button>';
         liffPersonalRemember_(MY_ORG_FIELDS_LIFF.map(function(f){ return 'mo_' + f.key; }));
       }).catch(function(e){ if (loading.isConnected) showErr(e, showMyOrg); });
@@ -3493,6 +3528,147 @@
         if (btn) { btn.disabled = false; btn.textContent = 'บันทึก'; }
         if (msg) { msg.textContent = (e && e.message) ? e.message : 'บันทึกไม่สำเร็จ'; msg.style.color = 'var(--nx-danger)'; }
       }).then(function(){ liffPersonalSaving_(false); });
+    }
+
+    /* ---------- V9: ตราโรงเรียนของฉัน บนมือถือ ----------
+       แกนกลางเดียวกับเว็บ (action myorglogo / deletemyorglogo · Apps Script v341) · ตั้งเฉพาะตราหน้าจอเหมือนเว็บ
+       รูปจากกล้องมือถือมัก 3–8 MB เกินเพดาน 3 MB ของ server → ย่อในเครื่องก่อนส่ง (ด้านยาวสุด 800px)
+       PNG ส่งเป็น PNG (รักษาพื้นใสของตรา) นอกนั้นส่งเป็น JPEG · ยังไม่บันทึกจนกว่าจะกดปุ่ม */
+    var MO_LOGO_MAX_SIDE = 800;
+    var MO_LOGO_MAX_BYTES = 2.8 * 1024 * 1024;   // ต่ำกว่าเพดาน server (3 MB) เผื่อไว้
+    var _moLogoPending = null, _moLogoBusy = false;
+
+    /** ตราของตัวเอง = แถวของผู้ใช้มีค่า logoFileId (ดู _source เหมือนเว็บ ไม่ดูจากรูปที่อาจยืมของระบบมา) */
+    function moHasOwnLogo_(mine){
+      var s = (mine && mine._source) || {};
+      return s.logoFileId === 'user' || s.logoDocFileId === 'user';
+    }
+    function moLogoCardHtml_(mine){
+      var own = moHasOwnLogo_(mine);
+      var img = mine && mine.logoDataUriPreview;
+      return '<div style="font-weight:700;margin-bottom:4px;">🎖️ ตราโรงเรียนของฉัน</div>' +
+        '<div class="note" style="margin-bottom:10px;">' + (own ? '<b>ใช้ตราของฉัน</b>' : 'ใช้ตราของระบบ') +
+          ' · แสดงบนหัวแอปและหัวกระดาษรายงานของคุณ</div>' +
+        '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">' +
+          '<div id="moLogoPreview" class="mo-logo-box">' +
+            (img ? '<img src="' + esc(img) + '" alt="ตราที่ใช้อยู่">' : '<span class="note">ยังไม่มีตรา</span>') +
+          '</div>' +
+          '<div style="flex:1;min-width:170px;">' +
+            '<label class="b-second mo-logo-pick">📷 เลือกรูปตรา' +
+              '<input type="file" id="moLogoInput" accept="image/*" onchange="moLogoPick(event)" style="display:none;"></label>' +
+            '<div class="note" style="margin-top:6px;">เลือกจากคลังรูปหรือถ่ายใหม่ · ระบบย่อรูปให้เอง · เห็นตัวอย่างก่อนบันทึก</div>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="b-primary" id="moLogoSave" style="width:100%;margin-top:10px;display:none;" onclick="moLogoSave(this)">💾 บันทึกตรา</button>' +
+        (own ? '<button type="button" class="b-second" id="moLogoDel" style="width:100%;margin-top:8px;" onclick="moLogoDelete(this)">ใช้ตราของระบบแทน</button>' : '') +
+        '<div id="moLogoMsg" class="note" role="status" style="margin-top:6px;"></div>';
+    }
+    function moLogoMsg_(text, kind){
+      var m = document.getElementById('moLogoMsg');
+      if (!m) return;
+      m.textContent = text || '';
+      m.style.color = kind === 'err' ? 'var(--nx-danger)' : kind === 'ok' ? 'var(--nx-green)' : '';
+    }
+
+    /** ย่อรูปลง canvas → { mimeType, base64, name } · รูปที่ WebView เปิดไม่ได้ (เช่น HEIC บางรุ่น) แจ้งเป็นภาษาไทย */
+    function moLogoResize_(file){
+      return new Promise(function(resolve, reject){
+        if (!file || !/^image\//.test(file.type || '')) { reject(new Error('กรุณาเลือกไฟล์รูปภาพ')); return; }
+        var reader = new FileReader();
+        reader.onerror = function(){ reject(new Error('อ่านไฟล์รูปไม่สำเร็จ กรุณาเลือกใหม่')); };
+        reader.onload = function(){
+          var img = new Image();
+          img.onerror = function(){ reject(new Error('เปิดรูปนี้ไม่ได้ ลองเลือกรูปแบบ JPG หรือ PNG')); };
+          img.onload = function(){
+            var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+            if (!w || !h) { reject(new Error('เปิดรูปนี้ไม่ได้ ลองเลือกรูปแบบ JPG หรือ PNG')); return; }
+            var scale = Math.min(1, MO_LOGO_MAX_SIDE / Math.max(w, h));
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(w * scale));
+            canvas.height = Math.max(1, Math.round(h * scale));
+            var png = file.type === 'image/png';
+            var ctx = canvas.getContext('2d');
+            if (!png) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }   // JPEG ไม่มีพื้นใส
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            var mime = png ? 'image/png' : 'image/jpeg';
+            var dataUri = canvas.toDataURL(mime, 0.9);
+            var base64 = dataUri.split(',')[1] || '';
+            if (!base64 || base64.length * 3 / 4 > MO_LOGO_MAX_BYTES) { reject(new Error('รูปยังใหญ่เกินไปหลังย่อ ลองเลือกรูปอื่น')); return; }
+            var name = String(file.name || 'logo').replace(/\.[^.]*$/, '') + (png ? '.png' : '.jpg');
+            resolve({ mimeType: mime, base64: base64, name: name, dataUri: dataUri });
+          };
+          img.src = String(reader.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function moLogoPick(ev){
+      if (_moLogoBusy) return;
+      var input = ev && ev.target, file = input && input.files && input.files[0];
+      if (!file) return;
+      _moLogoPending = null;
+      moLogoMsg_('กำลังเตรียมรูป...');
+      moLogoResize_(file).then(function(r){
+        if (document.getElementById('moLogoInput') !== input) return;   // ออกจากหน้าไปแล้ว
+        _moLogoPending = r;
+        var box = document.getElementById('moLogoPreview');
+        if (box) box.innerHTML = '<img src="' + r.dataUri + '" alt="ตราใหม่ (ยังไม่บันทึก)">';
+        var save = document.getElementById('moLogoSave');
+        if (save) save.style.display = '';
+        moLogoMsg_('ตัวอย่างตราใหม่ — กด "บันทึกตรา" เพื่อใช้จริง');
+      }).catch(function(e){
+        input.value = ''; input.removeAttribute('data-dirty');
+        moLogoMsg_(e && e.message ? e.message : 'เตรียมรูปไม่สำเร็จ', 'err');
+      });
+    }
+
+    /** หลังบันทึก/ลบ: วาดการ์ดใหม่จากค่าจริงของ server + ให้หัวแอปโหลดตราใหม่ (ช่องข้อความด้านบนไม่ถูกแตะ) */
+    function moLogoRefresh_(okText){
+      return api('myorg', {}).then(function(res){
+        var card = document.getElementById('moLogoCard');
+        if (card) card.innerHTML = moLogoCardHtml_(res.mine || {});
+        moLogoMsg_(okText, 'ok');
+      }).catch(function(){ moLogoMsg_(okText, 'ok'); }).then(function(){
+        ORG_BRANDING = null;
+        loadOrgBranding_();
+      });
+    }
+    function moLogoBusy_(on, btn, label){
+      _moLogoBusy = !!on;
+      liffSaving_ = Math.max(0, liffSaving_ + (on ? 1 : -1));   // กันออกจากหน้าระหว่างส่ง
+      if (btn) { btn.disabled = !!on; if (label) btn.textContent = label; }
+    }
+    function moLogoSave(btn){
+      if (_moLogoBusy || !_moLogoPending) return;
+      var p = _moLogoPending;
+      moLogoBusy_(true, btn, 'กำลังบันทึก...');
+      api('myorglogo', { fileName: p.name, mimeType: p.mimeType, base64: p.base64 }).then(function(){
+        _moLogoPending = null;
+        moLogoBusy_(false);
+        liffToast('บันทึกตราของคุณแล้ว', 'ok');
+        return moLogoRefresh_('✅ บันทึกตราแล้ว — รายงานฉบับถัดไปจะใช้ตรานี้');
+      }).catch(function(e){
+        if (_moLogoBusy) moLogoBusy_(false, btn, '💾 บันทึกตรา');
+        moLogoMsg_(e && e.message ? e.message : 'บันทึกตราไม่สำเร็จ', 'err');
+      });
+    }
+    function moLogoDelete(btn){
+      if (_moLogoBusy) return;
+      liffConfirm({ title:'ใช้ตราของระบบแทน', message:'ตราของคุณจะถูกย้ายลงถังขยะ (กู้คืนได้ 30 วัน) แล้วกลับไปใช้ตราของระบบ ยืนยันไหมครับ',
+        okLabel:'ใช้ตราของระบบ', cancelLabel:'ยกเลิก' }, function(){
+        if (_moLogoBusy) return;
+        moLogoBusy_(true, btn, 'กำลังเปลี่ยน...');
+        api('deletemyorglogo', {}).then(function(){
+          _moLogoPending = null;
+          moLogoBusy_(false);
+          liffToast('กลับไปใช้ตราของระบบแล้ว', 'ok');
+          return moLogoRefresh_('✅ ใช้ตราของระบบแล้ว');
+        }).catch(function(e){
+          if (_moLogoBusy) moLogoBusy_(false, btn, 'ใช้ตราของระบบแทน');
+          moLogoMsg_(e && e.message ? e.message : 'เปลี่ยนตราไม่สำเร็จ', 'err');
+        });
+      });
     }
 
     /* ---------- คู่มือแอดมิน (ก้อนที่ 79) ----------
