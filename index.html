@@ -940,6 +940,11 @@
       participationRole: ['ผู้เข้าร่วม','ผู้เข้าแข่งขัน','ผู้เข้ารับการอบรม','วิทยากร','คณะกรรมการ','ครูผู้ควบคุม/ผู้ฝึกสอน','ผู้จัดกิจกรรม'],
       academicYear: (function(){ var y=new Date().getFullYear()+543,a=[]; for(var i=0;i<8;i++)a.push(String(y-i)); return a; })()
     };
+    /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
+       ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
+    var LIFF_VERSION = 'V1';
+    var LIFF_VERSION_DATE = '20 ต.ค. 2569';
+    var LIFF_VERSION_NOTE = 'เริ่มนับเวอร์ชัน · ค้นหาอัจฉริยะ + ตรวจเอกสารก่อนสร้างรายงาน';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -2546,7 +2551,7 @@
         // ข้อความด่วนวางต่อจากเมนูด่วน: ทั้งคู่คือ "ทางลัด" เหมือนกัน ต่างกันแค่ปลายทาง
         // (ในแอป vs. ตอบกลับในแชต) วางติดกันจะได้ไม่ต้องเดาว่าปุ่มไหนอยู่ไหน
         quickMsgCardHtml() +
-        recent + proudBottom;
+        recent + proudBottom + liffVersionHtml_();
       startClock();
       loadWeather();
       pwMountHome_();
@@ -5038,6 +5043,7 @@
         '<div id="acctExport"></div>' +
 
         quickMsgCardHtml() +
+        liffVersionHtml_(true) +
 
         '<button class="b-second" style="width:100%;" onclick="closeOrHome()">ปิดหน้าต่าง</button>';
 
@@ -7197,10 +7203,31 @@
     /* ---------- เปิดจาก Rich Menu ปุ่ม "รายงานผลงาน" (?tab=report): เข้าศูนย์รายงานผลงาน ---------- */
     function autoReport(){ showReportCenter(); }
 
+    /* ป้ายเวอร์ชัน: หน้าหลักแสดงบรรทัดเล็กท้ายหน้า · หน้าบัญชี (detail=true) แสดงการ์ดพร้อมสิ่งที่เปลี่ยน */
+    function liffVersionHtml_(detail){
+      if (detail) {
+        return '<div class="card"><div style="font-weight:600;">📦 เวอร์ชันแอป: ' + esc(LIFF_VERSION) + '</div>' +
+          '<div class="note">อัปเดต ' + esc(LIFF_VERSION_DATE) + ' · ' + esc(LIFF_VERSION_NOTE) + '</div>' +
+          '<div class="note">ถ้ายังเห็นเลขเดิมหลังมีประกาศอัปเดต ให้ปิดหน้านี้แล้วเปิดใหม่จาก LINE</div></div>';
+      }
+      return '<div class="note" style="text-align:center;margin:12px 0 4px;">📦 แอปเวอร์ชัน ' + esc(LIFF_VERSION) +
+        ' · อัปเดต ' + esc(LIFF_VERSION_DATE) + '</div>';
+    }
+    /* แจ้งครั้งเดียวเมื่อเครื่องนี้เพิ่งได้เวอร์ชันใหม่ (จำเลขล่าสุดที่เห็นไว้ในเครื่อง · LINE บางรุ่นปิด localStorage ก็แค่ไม่แจ้ง) */
+    var LIFF_VERSION_SEEN_KEY = 'cert-liff-version-seen';
+    function liffVersionNotice_(){
+      var seen = null;
+      try { seen = localStorage.getItem(LIFF_VERSION_SEEN_KEY); } catch (e) { return; }
+      if (seen === LIFF_VERSION) return;
+      try { localStorage.setItem(LIFF_VERSION_SEEN_KEY, LIFF_VERSION); } catch (e) { return; }
+      liffToast('✨ อัปเดตแอปเป็น ' + LIFF_VERSION + ' แล้ว (' + LIFF_VERSION_DATE + ')', 'ok', 4500);
+    }
+
     /* ---------- เริ่มทำงาน ---------- */
     function start(){
       var cert = getCertParam(), tab = getTabParam(), officialDraft = getOfficialDraftParam();
       app.innerHTML = homeSkeleton();
+      liffVersionNotice_();
       // ลิงก์ร่างจาก LINE Bot ต้องมาก่อนคำขอประกอบทั้งหมด: Apps Script อาจรับคำขอพร้อมกันเป็นคิว
       // ถ้ายิง branding/ผลงาน/ปฏิทินพร้อมกัน ร่างที่ผู้ใช้กำลังรออาจเริ่มช้าและชน timeout ทั้งที่ backend สำเร็จ
       // หน้าตรวจร่างไม่ใช้ข้อมูลทั้งสามชุดนี้ จึงข้ามได้โดยไม่กระทบเนื้อหาหรือสิทธิ์ของเอกสาร
