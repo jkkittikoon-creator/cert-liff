@@ -196,6 +196,13 @@
     .preview img, .preview embed { width: 100%; max-height: 320px; object-fit: contain; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-inset); }
     .preview img { cursor: zoom-in; }
     .cert-hint { font-size: 12px; color: var(--text-3); text-align: center; margin-top: 6px; }
+    /* V6 ตรึงรูป: ค้างบนสุดขณะเลื่อนฟอร์ม สูงไม่เกิน ~35% จอ · ระหว่างพิมพ์ (คีย์บอร์ดขึ้น) ปล่อยกลับที่เดิม (sticky→static ไม่ทำให้หน้าเด้ง) */
+    .pin-row { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+    .pin-btn { flex: none; width: auto; padding: 4px 12px; font-size: 12px; }
+    .preview.is-pinned { position: sticky; top: 0; z-index: 80; padding: 8px; background: var(--bg-card); box-shadow: 0 8px 22px rgba(0,0,0,0.28); }
+    .preview.is-pinned img { max-height: 35vh; max-height: 35dvh; }
+    .preview.is-pinned .cert-hint { display: none; }
+    .preview.is-pinned.kb-open { position: static; box-shadow: none; }
     .field { margin-bottom: 12px; padding-left: 10px; border-left: 4px solid transparent; }
     .field label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 4px; }
     .field input, .field select, .other-in, .in-txt {
@@ -949,9 +956,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V5';
+    var LIFF_VERSION = 'V6';
     var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'หน้าตรวจเอกสารเตือนเมื่อปีของวันที่อาจผิด (AI อ่านเลขไทย ๙ เป็น ๔ หรือ ๗) พร้อมปุ่มใช้ปีปัจจุบันกดครั้งเดียว';
+    var LIFF_VERSION_NOTE = 'หน้าตรวจเอกสารมีปุ่ม "📌 ตรึงรูป" ให้รูปเกียรติบัตรค้างด้านบนขณะเลื่อนกรอก และคำเตือนปีแสดงใต้ช่องวันที่ด้วย';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -6707,7 +6714,8 @@
       } else if(name==='receivedDate'){
         // F5: วันที่ (เก็บ ค.ศ.) + หมายเหตุแสดง พ.ศ.
         input = '<input type="date" id="f_'+name+'" value="'+esc(val)+'" oninput="onDate()">'+
-          '<div class="note t-ok" id="beNote">'+(val?'📅 '+toBE(val)+' (พ.ศ.)':'')+'</div>';
+          '<div class="note t-ok" id="beNote">'+(val?'📅 '+toBE(val)+' (พ.ศ.)':'')+'</div>'+
+          yearWarnInlineHtml_(curYearWarnings_);
       } else if(name==='expiryDate'){
         // วันหมดอายุ — ไม่บังคับ และ AI ยังไม่อ่านให้ จึงไม่มีแถบสีความมั่นใจ
         cls = '';
@@ -6737,9 +6745,11 @@
       var prev = isPdf
         ? '<embed src="data:'+c.mimeType+';base64,'+data.previewBase64+'" type="application/pdf" height="320">'
         : (isImage
-          ? '<img src="'+window.imgSrc+'" onclick="openViewer()"><div class="cert-hint">🔍 แตะรูปเพื่อขยาย/ซูมดูรายละเอียด</div>'
+          ? '<div class="pin-row"><button type="button" class="b-second pin-btn" id="certPinBtn" aria-pressed="false" onclick="toggleCertPin()">📌 ตรึงรูป</button></div>'+
+            '<img src="'+window.imgSrc+'" onclick="openViewer()"><div class="cert-hint">🔍 แตะรูปเพื่อขยาย/ซูมดูรายละเอียด</div>'
           : '<div class="note" style="text-align:center;padding:20px;">ไม่มีไฟล์แนบ</div>');
 
+      curYearWarnings_ = data.yearWarnings || [];   // V6: renderField ใช้แสดงคำเตือนปีใต้ช่องวันที่
       var fieldsHtml = FIELDS.map(function(name){ return renderField(name, ai, c, dd); }).join('');
 
       // F7: แถบสรุปสี — คำนวณสด 3 สี (เติมด้วย updateBanner หลัง render)
@@ -6776,7 +6786,7 @@
         '<div id="formMsg"></div>'+
         backBtn+
         savedNotice+
-        '<div class="card preview">'+prev+'</div>'+
+        '<div class="card preview" id="certPreview">'+prev+'</div>'+
         dupHtml+
         yearHtml+
         summary+
@@ -6786,6 +6796,62 @@
         '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
         floatBtn;
       updateBanner();
+      if(isImage) certPinApply_(certPinGet_());
+    }
+
+    // V6 ตรึงรูป — ค่าเริ่มต้นไม่ตรึง · จำค่าที่ครูเลือกไว้ในเครื่อง (localStorage ใช้ไม่ได้ = จำเฉพาะรอบนี้)
+    var CERT_PIN_KEY = 'liff_cert_pin_v1', certPinMem_ = false, certPinKbBound_ = false;
+    function certPinGet_(){
+      try { var v = localStorage.getItem(CERT_PIN_KEY); if(v === '1' || v === '0') return v === '1'; } catch(e){}
+      return certPinMem_;
+    }
+    function toggleCertPin(){
+      var on = !certPinGet_();
+      certPinMem_ = on;
+      try { localStorage.setItem(CERT_PIN_KEY, on ? '1' : '0'); } catch(e){}
+      certPinApply_(on);
+    }
+    function certPinApply_(on){
+      var box = document.getElementById('certPreview'), b = document.getElementById('certPinBtn');
+      if(!box) return;
+      box.classList.toggle('is-pinned', !!on);
+      if(b){ b.textContent = on ? '📌 เลิกตรึงรูป' : '📌 ตรึงรูป'; b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+      certPinBindKb_();
+      certPinKb_();
+    }
+    // คีย์บอร์ดขึ้น = พิมพ์ในช่องข้อความ หรือจอที่มองเห็นเตี้ยลงชัดเจน → ปล่อยรูปกลับที่เดิม ไม่บังช่องที่กำลังพิมพ์
+    function certPinTyping_(){
+      var a = document.activeElement;
+      if(a && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !/^(date|checkbox|radio|button|submit|file)$/i.test(a.type || '')))) return true;
+      var vv = window.visualViewport;
+      return !!(vv && window.innerHeight - vv.height > 150);
+    }
+    function certPinKb_(){
+      var box = document.getElementById('certPreview');
+      if(box) box.classList.toggle('kb-open', box.classList.contains('is-pinned') && certPinTyping_());
+    }
+    function certPinBindKb_(){
+      if(certPinKbBound_) return;
+      certPinKbBound_ = true;
+      var later = function(){ setTimeout(certPinKb_, 60); };   // focusout เกิดก่อน activeElement เปลี่ยน
+      document.addEventListener('focusin', later);
+      document.addEventListener('focusout', later);
+      if(window.visualViewport) window.visualViewport.addEventListener('resize', later);
+    }
+
+    // V6 คำเตือนปีใต้ช่องวันที่ (ข้อความเต็มอยู่ในแถบ yearWarnBox ด้านบน) — ปุ่มตั้งค่าในฟอร์มเท่านั้น ครูกดบันทึกเอง
+    var curYearWarnings_ = [];
+    function yearWarnInlineHtml_(yws){
+      if(!yws || !yws.length) return '';
+      var sug = '';
+      yws.forEach(function(w){ if(!sug && w.suggestDate && /^\d{4}-\d{2}-\d{2}$/.test(w.suggestDate)) sug = w.suggestDate; });
+      return '<div class="note t-warn" id="yearWarnInline">⚠️ ปีของวันที่อาจไม่ถูกต้อง — เทียบกับภาพจริง'+
+        (sug ? ' <button type="button" class="b-second" style="padding:4px 10px;font-size:12px;margin-top:4px;width:auto;" onclick="applySuggestedDate(\''+sug+'\')">ใช้ปี '+(Number(sug.slice(0,4))+543)+'</button>' : '')+
+        ' <button type="button" class="b-second" style="padding:4px 10px;font-size:12px;margin-top:4px;width:auto;" onclick="showYearWarnBox_()">ดูเหตุผล</button></div>';
+    }
+    function showYearWarnBox_(){
+      var b = document.getElementById('yearWarnBox');
+      if(b) b.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function liffDocumentQualityLabel_(result){
@@ -6944,6 +7010,8 @@
       onDate();
       var box=document.getElementById('yearWarnBox');
       if(box) box.innerHTML='<b>📅 เปลี่ยนวันที่เป็นปี '+(Number(iso.slice(0,4))+543)+' แล้ว</b> — ตรวจกับภาพจริง แล้วกดบันทึกเพื่อยืนยัน';
+      var inl=document.getElementById('yearWarnInline');
+      if(inl) inl.innerHTML='📅 เปลี่ยนเป็นปี '+(Number(iso.slice(0,4))+543)+' แล้ว — กดบันทึกเพื่อยืนยัน';
     }
     function onDate(){
       var el=document.getElementById('f_receivedDate'), n=document.getElementById('beNote');
