@@ -1368,6 +1368,27 @@
       if (n > 0) { d.textContent = n > 99 ? '99+' : String(n); d.style.display = ''; }
       else d.style.display = 'none';
     }
+    /* เวลาส่งเอกสาร (createdAt) แบบสั้นสำหรับแถวรายการ — ให้ครูแยกได้ว่าใบไหนเพิ่งส่ง
+       รับ "yyyy-MM-ddTHH:mm:ss+07:00" (ค่าปกติจากเซิร์ฟเวอร์) และ "yyyy-MM-dd" (เซลล์ที่เป็นวันที่ล้วน ไม่มีเวลา)
+       อ่านตัวเลขจากข้อความตรง ๆ เมื่อเป็นเวลาไทยอยู่แล้ว จึงไม่เพี้ยนตามเขตเวลาของมือถือผู้ใช้
+       ถ้ามาเป็นเขตเวลาอื่น (เช่น ...Z) ค่อยแปลงเป็นเวลาไทยก่อน · อ่านไม่ออก = คืนค่าว่าง (ไม่แสดงอะไร) */
+    function docSentText_(v){
+      var s = String(v || '');
+      var m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(s);
+      if(!m) return '';
+      var y = +m[1], mo = +m[2], d = +m[3], hh = m[4], mm = m[5];
+      if(hh && /(Z|[+-]\d{2}:?\d{2})$/.test(s) && !/\+07:?00$/.test(s)){
+        var t = new Date(s);
+        if(isNaN(t.getTime())) return '';
+        t = new Date(t.getTime() + 7 * 3600e3);   // เลื่อนเป็นเวลาไทย แล้วอ่านด้วย getUTC*
+        y = t.getUTCFullYear(); mo = t.getUTCMonth() + 1; d = t.getUTCDate();
+        hh = ('0' + t.getUTCHours()).slice(-2); mm = ('0' + t.getUTCMinutes()).slice(-2);
+      }
+      if(mo < 1 || mo > 12 || d < 1 || d > 31) return '';
+      var mon = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'][mo - 1];
+      return 'ส่ง ' + d + ' ' + mon + ' ' + (y + 543) + (hh ? ' ' + hh + ':' + mm + ' น.' : '');
+    }
+
     function renderDocs(docs, which){
       if (which === 'pending') setPendingBadge(docs.length);   // ตัวเลขบนเมนูล่างตรงกับที่เห็นจริงเสมอ
       var tabs = tabsBar(which);
@@ -1425,6 +1446,9 @@
            ครูจะกรอกจนเสร็จแล้วค่อยโดนปฏิเสธตอนกดบันทึก = เสียเวลากรอกฟรี */
         var busy = (d.status === 'QUEUED' || d.status === 'AI_PROCESSING');
         var note = busy ? 'น้องชาโปรกำลังอ่านให้อยู่ รอสักครู่นะครับ' : esc(meta.join(' • '));
+        // เวลาส่งต่อท้ายทุกแถว (รวมใบที่ AI กำลังอ่าน) — เดิมไม่มีเลย ครูแยกไม่ออกว่าใบไหนเพิ่งส่งทาง LINE
+        var sent = docSentText_(d.createdAt);
+        if (sent) note += ' • ' + esc(sent);
         // ตอนดู "ทั้งหมด" (ผู้ดูแล) ติดป้ายบอกใบที่ไม่ใช่ของเรา จะได้ไม่สับสนว่าใบไหนของใคร
         var otherTag = (d.isMine === false)
           ? ' <span style="font-size:11px;color:#b26a00;">· ' + esc(d.ownerName ? '👤 ' + d.ownerName : 'ของครูท่านอื่น') + '</span>'
