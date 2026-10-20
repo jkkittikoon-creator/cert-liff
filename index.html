@@ -865,6 +865,26 @@
     .onb-secondary button { min-width:0; }
     @media (max-width:360px) { .onb-secondary { grid-template-columns:minmax(0,1fr); } }
 
+    /* Smart Report Preflight + ค้นหา (20 ต.ค. 2569) — ชุดชื่อคลาสเดียวกับเว็บ สีคู่ข้อความเสมอ ไม่ล้นแนวนอน */
+    .rp-chip { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; line-height:1.5; border:1px solid transparent; max-width:100%; overflow-wrap:anywhere; }
+    .rp-green { background:var(--ok-soft); color:var(--ok-text); border-color:var(--ok); }
+    .rp-yellow { background:var(--warn-soft); color:var(--warn-text); border-color:var(--warn); }
+    .rp-grey { background:var(--bg-inset); color:var(--text-2); border-color:var(--border-strong); }
+    .rp-red { background:var(--err-soft); color:var(--err-text); border-color:var(--err); }
+    .rp-chips { display:flex; flex-wrap:wrap; gap:5px; margin:5px 0; }
+    .rp-btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .rp-btns > button { flex:1 1 140px; min-width:0; min-height:44px; padding:8px 6px; font-size:13px; white-space:normal; }
+    .rp-card { margin:6px 0; border-left:4px solid var(--border-strong); overflow-wrap:anywhere; }
+    .rp-card.rp-ready { border-left-color:var(--ok); }
+    .rp-card.rp-review { border-left-color:var(--warn); }
+    .rp-card.rp-fail { border-left-color:var(--err); }
+    .rp-card label.rp-pick { display:flex; gap:10px; align-items:flex-start; font-weight:700; }
+    .rp-card label.rp-pick input { width:24px; height:24px; flex:none; margin-top:2px; }
+    .rp-order li { display:flex; gap:6px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+    .rp-order li .rp-order-name { flex:1; min-width:0; overflow-wrap:anywhere; }
+    .rp-order li button { flex:none; width:44px; min-height:40px; padding:4px; }
+    .rp-basket { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:8px 10px; border:1px solid var(--brand); border-radius:10px; background:var(--brand-soft); margin-bottom:8px; }
+
     /* ผู้ใช้ที่ตั้งค่า "ลดการเคลื่อนไหว" ไว้ในเครื่อง — ปิดอนิเมชันทั้งหมด */
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
@@ -1012,7 +1032,7 @@
     // ไม่รวมคำสั่งเขียน (ลบ/บันทึก/ยืนยัน/สร้างรายงาน/exportzip) และคำสั่ง AI (semanticsearch/posterread/trainingsuggest)
     // เพื่อกันข้อมูลซ้ำ + เปลือง AI quota · action ใหม่ที่ไม่อยู่ในรายการ = ไม่ retry (ตกไปพฤติกรรมเดิม ไม่พังเงียบ)
     var API_RETRY_SAFE = {
-      orgconfig:1, list:1, dashboard:1, search:1, fileqr:1, listsaved:1, qr:1, get:1,
+      orgconfig:1, list:1, dashboard:1, search:1, searchv2:1, reportadvisory:1, fileqr:1, listsaved:1, qr:1, get:1,
       reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
       expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
@@ -3799,7 +3819,26 @@
         '<input type="search" id="sq" class="in-txt" style="flex:1;" aria-label="คำค้นเอกสาร" value="'+esc(_searchQuery)+'" placeholder="ชื่อกิจกรรม หน่วยงาน ปี..." enterkeyhint="search" ' +
         'onkeydown="if(event.key===\'Enter\'&&!event.isComposing){event.preventDefault();runSearch();this.blur();}">' +
         '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runSearch()">ค้นหา</button>' +
-        '</div><div class="docs-tools-actions"><button type="button" class="b-second" onclick="runSearch(\'\')">ล้างคำค้น</button><button type="button" class="b-second" onclick="runSearch()">↻ ค้นอีกครั้ง</button></div><div class="chips">' + chipHtml + '</div></div>' +
+        '</div><div class="field"><label for="liffSearchSort">เรียงลำดับ</label><select id="liffSearchSort" onchange="runSearch()">' +
+        '<option value="date_desc">วันที่ได้รับใหม่สุดก่อน</option><option value="date_asc">วันที่ได้รับเก่าสุดก่อน</option>' +
+        '<option value="created_desc">บันทึกล่าสุด</option><option value="created_asc">บันทึกเก่าสุด</option>' +
+        '<option value="title_asc">ชื่อ ก–ฮ</option><option value="title_desc">ชื่อ ฮ–ก</option>' +
+        '<option value="type_asc">ประเภทเอกสาร</option><option value="issuer_asc">หน่วยงาน</option>' +
+        '<option value="hours_desc">ชั่วโมงมาก → น้อย</option><option value="hours_asc">ชั่วโมงน้อย → มาก</option></select></div>' +
+        '<div class="field"><label for="liffSearchRound">รอบประเมิน (ตามวันที่ในเอกสาร)</label><select id="liffSearchRound" onchange="runSearch()">' +
+        '<option value="">ทุกรอบ</option>' + liffRoundOptions_() + '</select></div>' +
+        '<div class="field"><label for="liffSearchDocYear">ปี พ.ศ. (ตามวันที่ในเอกสาร)</label><select id="liffSearchDocYear" onchange="runSearch()"><option value="">ทุกปี พ.ศ.</option>' +
+        liffBeYears_(2550).map(function(y){return '<option value="'+y+'">'+y+'</option>';}).join('') + '</select></div>' +
+        '<div class="field"><label for="liffSearchDateStatus">สถานะวันที่</label><select id="liffSearchDateStatus" onchange="runSearch()">' +
+        '<option value="">ทุกสถานะ</option><option value="complete">วันที่ครบถ้วน</option><option value="incomplete">วันที่ไม่ครบ / ขัดแย้ง</option></select></div>' +
+        '<div class="field"><label>ปีการศึกษา</label><select id="liffSearchYear" onchange="runSearch()"><option value="">ทุกปี</option>' +
+        (OPTIONS.academicYear || []).map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') + '</select></div>' +
+        '<div class="field"><label>ประเภทเอกสาร</label><select id="liffSearchType" onchange="runSearch()"><option value="">ทุกประเภท</option>' +
+        (typeof RC_DOCTYPES !== 'undefined' ? RC_DOCTYPES : []).map(function(t){return '<option value="'+esc(t)+'">'+esc(t)+'</option>';}).join('') + '</select></div>' +
+        '<div class="field"><label>หน่วยงาน</label><input id="liffSearchIssuer" placeholder="ชื่อหน่วยงาน" onchange="runSearch()"></div>' +
+        '<div style="display:flex;gap:6px;"><div class="field" style="flex:1;"><label>จากวันที่ได้รับ</label><input type="date" id="liffSearchFrom" onchange="runSearch()"></div>' +
+        '<div class="field" style="flex:1;"><label>ถึงวันที่ได้รับ</label><input type="date" id="liffSearchTo" onchange="runSearch()"></div></div>' +
+        '<div class="docs-tools-actions"><button type="button" class="b-second" onclick="runSearch(\'\')">ล้างคำค้น</button><button type="button" class="b-second" onclick="runSearch()">↻ ค้นอีกครั้ง</button></div><div class="chips">' + chipHtml + '</div></div>' +
         histHtml +
         // ก้อนที่ 101: ถาม AI (semantic search) — แยกการ์ดจาก keyword search ด้านบน ไม่แตะของเดิม
         '<div class="card"><div style="font-weight:600;margin-bottom:6px;">🤖 ถาม AI เกี่ยวกับเอกสาร</div>' +
@@ -3813,39 +3852,106 @@
       if (_searchQuery) runSearch(_searchQuery);
     }
 
-    function runSearch(preset){
+    var _liffSearchRows = [], _liffSearchTotal = 0;
+    /* ปี พ.ศ. ปัจจุบัน (เวลาไทย) ย้อนหลังถึงปีที่กำหนด */
+    function liffBeYears_(minYear){
+      var be = new Date(Date.now() + 7*3600e3).getUTCFullYear() + 543, out = [];
+      for (var y = be; y >= minYear; y--) out.push(y);
+      return out;
+    }
+    /* รอบประเมิน: ครั้งที่ 1 = 1 ต.ค. ปีก่อน – 31 มี.ค. · ครั้งที่ 2 = 1 เม.ย. – 30 ก.ย. (server คำนวณช่วงจริงเองเสมอ) */
+    function liffRoundOptions_(){
+      return liffBeYears_(2565).map(function(y){
+        return '<option value="'+y+'-2">ครั้งที่ 2/'+y+' (1 เม.ย. – 30 ก.ย. '+y+')</option>' +
+          '<option value="'+y+'-1">ครั้งที่ 1/'+y+' (1 ต.ค. '+(y-1)+' – 31 มี.ค. '+y+')</option>';
+      }).join('');
+    }
+    /* ตะกร้า "เลือกเข้ารายงาน" — เก็บแค่ certificateId ในหน่วยความจำของหน้า · หน้าตรวจรายงานติ๊กให้เฉพาะใบที่พร้อมใช้ */
+    var _liffBasket = [];
+    function liffBasketToggle_(id){
+      var i = _liffBasket.indexOf(id);
+      if (i >= 0) _liffBasket.splice(i, 1); else _liffBasket.push(id);
+      liffSearchPaint_();
+    }
+    function liffBasketBar_(){
+      if (!_liffBasket.length) return '';
+      return '<div class="rp-basket" role="status">🧺 เลือกเข้ารายงาน <b>' + _liffBasket.length + '</b> รายการ' +
+        '<div class="rp-btns" style="width:100%;margin-top:4px;"><button type="button" class="b-primary" onclick="showReportCenter()">ไปตรวจและสร้างรายงาน</button>' +
+        '<button type="button" class="b-second" onclick="_liffBasket=[];liffSearchPaint_()">ล้างรายการที่เลือก</button></div></div>';
+    }
+    function liffSearchCards_(docs){
+      return docs.map(function(d){
+        var lines = [
+          d.documentType || 'ไม่ระบุประเภท',
+          d.issuer || 'ไม่ระบุหน่วยงาน',
+          'วันที่ในเอกสาร: ' + (d.dateThai || d.receivedDate || 'ไม่ระบุวันที่'),
+          'ชั่วโมง: ' + (d.hours === '' || d.hours == null ? 'ไม่ระบุ' : d.hours),
+          'ปี พ.ศ.: ' + (d.beYear || '-'),
+          'รอบประเมิน: ' + (d.assessmentPeriod || '-'),
+          'ผู้ได้รับ: ' + (d.recipientName || 'ไม่ระบุ'),
+          'เลขที่: ' + (d.certificateNumber || 'ไม่ระบุ'),
+          'ปีการศึกษา: ' + (d.academicYear || 'ไม่ระบุ')
+        ];
+        var id = escJs(d.certificateId), on = _liffBasket.indexOf(d.certificateId) >= 0;
+        var status = d.dateStatus === 'complete'
+          ? '<span class="rp-chip rp-green">🟢 ' + esc(d.dateStatusLabel || 'วันที่ครบถ้วน') + '</span>'
+          : '<span class="rp-chip rp-yellow">🟡 ' + esc(d.dateStatusLabel || 'วันที่ไม่ครบ') + '</span>' +
+            '<div class="note">' + esc(d.dateStatusReason || '') + '</div>';
+        return '<div class="card" style="overflow-wrap:anywhere;"><b>' + esc(d.activityName || d.fileName || 'ไม่ระบุชื่อเอกสาร') + '</b>' +
+          '<div class="note">' + lines.map(esc).join(' • ') + '</div><div class="rp-chips">' + status + '</div>' +
+          '<div class="rp-btns"><button type="button" class="b-second" onclick="openDoc(\'' + id + '\')">ดูรายละเอียด</button>' +
+          (d.hasFile ? '<button type="button" class="b-second" onclick="openDrive(\'' + id + '\')">ดูตัวอย่างไฟล์</button>' : '') +
+          '<button type="button" class="' + (on ? 'b-second' : 'b-primary') + '" aria-pressed="' + on + '" onclick="liffBasketToggle_(\'' + id + '\')">' +
+          (on ? '✓ อยู่ในรายการรายงาน' : '➕ เลือกเข้ารายงาน') + '</button></div></div>';
+      }).join('');
+    }
+    function liffSearchPaint_(){
+      var box = document.getElementById('sres');
+      if (!box || !_liffSearchRows.length) return;
+      box.innerHTML = liffBasketBar_() +
+        '<div class="note">แสดง ' + _liffSearchRows.length + ' จาก ' + _liffSearchTotal + ' รายการ (เรียงทั้งชุดก่อนแบ่งหน้า) · ระบบมีวันที่ในเอกสารวันเดียว ไม่มีวันที่อบรมแยก</div>' +
+        liffSearchCards_(_liffSearchRows) +
+        (_liffSearchRows.length < _liffSearchTotal ?
+          '<button class="b-primary" onclick="runSearch(null,' + _liffSearchRows.length + ')">โหลดเพิ่ม</button>' : '');
+    }
+    function runSearch(preset, offset){
       var el = document.getElementById('sq');
       var q = preset != null ? String(preset) : ((el && el.value) || '').trim();
       _searchQuery = q;
+      offset = Number(offset) || 0;
       var request = ++_searchRequest;
       if (el) el.value = q;
       var box = document.getElementById('sres');
       if (!box) return;
-      if (!q) {
-        box.innerHTML = '<div class="card"><div class="state"><div class="em">🔍</div>' +
-          '<div class="ttl">พิมพ์คำค้นเพื่อเริ่มต้น</div>' +
-          '<div class="txt">ค้นได้จากชื่อกิจกรรม หน่วยงาน ปีการศึกษา ประเภทเอกสาร หรือเลขที่เอกสาร</div></div></div>';
-        return;
-      }
-      box.innerHTML = '<div class="card"><div class="sk" style="height:64px;"></div><div class="sk" style="height:64px;"></div></div>';
-      api('search', { query: q })
-        .then(function(docs){
+      if (!offset) { _liffSearchRows = []; box.innerHTML = '<div class="card">กำลังค้นหา...</div>'; }
+      var value = function(id){var x=document.getElementById(id);return x?x.value:'';};
+      var opts = {
+        q:q,academicYear:value('liffSearchYear'),documentType:value('liffSearchType'),
+        issuer:value('liffSearchIssuer'),dateFrom:value('liffSearchFrom'),dateTo:value('liffSearchTo'),
+        sortBy:value('liffSearchSort') || 'date_desc',offset:offset,pageSize:20,
+        docYear:value('liffSearchDocYear'),dateStatus:value('liffSearchDateStatus')
+      };
+      /* รอบประเมิน "ปี-ครั้ง" → ให้ server คำนวณช่วงวันที่เอง (สูตรเดียวกับเว็บ) และไม่ใช้ปีการศึกษาซ้อน */
+      var round = /^(d{4})-([12])$/.exec(value('liffSearchRound'));
+      if (round) { opts.reportKind = 'salary'; opts.assessmentYear = round[1]; opts.assessmentRound = round[2]; opts.academicYear = ''; }
+      api('searchv2',{filters:opts})
+        .then(function(result){
           if (request !== _searchRequest || !box.isConnected) return;
-          pushHist(q);
-          if (!docs.length) {
-            box.innerHTML = '<div class="card"><div class="state"><div class="em">🐶</div>' +
-              '<div class="ttl">ไม่พบเอกสารที่ตรงกับ "' + esc(q) + '"</div>' +
-              '<div class="txt">ลองใช้คำสั้นลง หรือค้นด้วยปีการศึกษา เช่น 2568</div></div></div>';
-            return;
+          if (q) pushHist(q);
+          _liffSearchTotal = result.total || 0;
+          var used = {};
+          _liffSearchRows.forEach(function(d){used[d.certificateId]=true;});
+          (result.results || []).forEach(function(d){
+            if (!used[d.certificateId]) { _liffSearchRows.push(d); used[d.certificateId]=true; }
+          });
+          if (!_liffSearchRows.length) {
+            box.innerHTML = '<div class="card">ไม่พบเอกสารตามเงื่อนไข กรุณาปรับคำค้นหรือตัวกรอง</div>';return;
           }
-          box.innerHTML = '<div class="card"><div class="note" style="margin-bottom:6px;">พบ ' + docs.length + ' รายการ' +
-            (docs.length >= 20 ? ' (แสดงสูงสุด 20)' : '') + '</div>' + dashDocsHtml(docs, '') + '</div>';
-        })
-        .catch(function(e){
+          liffSearchPaint_();
+        }).catch(function(e){
           if (request !== _searchRequest || !box.isConnected) return;
-          box.innerHTML = '<div class="card"><div class="state"><div class="em">⚠️</div>' +
-            '<div class="ttl">ค้นหาไม่สำเร็จ</div><div class="txt">' + esc(e.message) + '</div>' +
-            '<button class="b-primary" onclick="runSearch()">ลองใหม่</button></div></div>';
+          box.innerHTML = '<div class="card">ค้นหาไม่สำเร็จ: ' + esc(e.message) +
+            '<button class="b-second" onclick="runSearch()">ลองใหม่</button></div>';
         });
     }
 
@@ -5490,6 +5596,7 @@
         '<option value="doctype">🏷️ แยกตามประเภทเอกสาร</option>'+
         '<option value="devrole">🧩 แยกตามหมวดการพัฒนา (บทบาท)</option>'+
         '<option value="daterange">📆 ตามช่วงวันที่ที่กำหนดเอง</option>'+
+        '<option value="salary">🗓️ รอบประเมินเลื่อนเงินเดือน</option>'+
         '<option value="pa">🎯 สำหรับยื่น ว.PA (รอบ 1 ต.ค. – 30 ก.ย.)</option>'+
         (_rcTargets.length ? '<option value="school">🏫 สรุปภาพรวมโรงเรียน (ทุกคน)</option>' : '')+
         '</select></div>'+
@@ -5505,11 +5612,22 @@
         '<div class="note">เว้นช่องใดช่องหนึ่งได้ = เปิดปลายด้านนั้น</div></div>'+
         '<div class="field" id="rc_pa_box" style="display:none;"><label>ปีงบประมาณที่ประเมิน (พ.ศ.)</label><select id="rc_payear" onchange="rcPaNote()">'+paOpts+'</select>'+
         '<div class="note" id="rc_pa_note"></div></div>'+
+        '<div class="field" id="rc_salary_box" style="display:none;"><label>ปี พ.ศ. ที่ประเมิน</label><select id="rc_salaryyear">' +
+        OPTIONS.academicYear.map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') +
+        '</select><label>ครั้งที่</label><select id="rc_salaryround"><option value="1">1 (1 ต.ค. ปีก่อน – 31 มี.ค.)</option><option value="2">2 (1 เม.ย. – 30 ก.ย.)</option></select></div>'+
+        '<div class="field"><label>เรียงลำดับเอกสารก่อนส่งออก</label><select id="rc_sort" onchange="if(_rcReviewFilters)rcStartReview(true)">' +
+        '<option value="date_desc">วันที่ได้รับใหม่สุดก่อน</option><option value="date_asc">วันที่ได้รับเก่าสุดก่อน</option>' +
+        '<option value="title_asc">ชื่อ ก–ฮ</option><option value="title_desc">ชื่อ ฮ–ก</option>' +
+        '<option value="created_desc">วันที่บันทึกล่าสุด</option><option value="created_asc">วันที่บันทึกเก่าสุด</option>' +
+        '<option value="type_asc">ประเภทเอกสาร</option><option value="issuer_asc">หน่วยงาน</option>' +
+        '<option value="hours_desc">ชั่วโมงมาก → น้อย</option><option value="hours_asc">ชั่วโมงน้อย → มาก</option>' +
+        '<option value="manual">จัดลำดับเอง (กด ▲ ▼ ในหน้าตรวจ)</option></select></div>'+
         rcStepH('③ รูปแบบเอกสาร') +
         '<div class="note">ได้ทั้ง Word (แก้ไขต่อได้) และ PDF (พร้อมพิมพ์) — เลือกไฟล์ตอนดาวน์โหลดจากคลังด้านล่าง</div>'+
         rcStepH('④ สร้าง & ดูตัวอย่าง') +
         '<div id="rc_progress"></div>'+
-        '<button class="b-primary" id="rc_go" style="width:100%;" onclick="rcCreate()">🚀 สร้างรายงาน</button></div>';
+        '<button class="b-primary" id="rc_review" style="width:100%;" onclick="rcStartReview()">🔍 ตรวจสอบเอกสารก่อนพิมพ์</button>'+
+        '<button class="b-primary" id="rc_go" style="width:100%;display:none;" onclick="rcCreate()">🚀 ยืนยันสร้างรายงาน Word/PDF</button></div>';
 
       var latest = _reports.length ? rcThaiDate(_reports[0].createdAt) : '-';
       var summary = '<div class="msg">📄 <b>ศูนย์รายงานผลงาน</b> — มีรายงานทั้งหมด '+_reports.length+' ฉบับ'+
@@ -5537,6 +5655,9 @@
       document.getElementById('rc_devrole_box').style.display = (k==='devrole') ? '' : 'none';
       document.getElementById('rc_range_box').style.display = (k==='daterange') ? '' : 'none';
       document.getElementById('rc_pa_box').style.display = (k==='pa') ? '' : 'none';
+      document.getElementById('rc_salary_box').style.display = (k==='salary') ? '' : 'none';
+      _rcConfirmed = null;
+      var go = document.getElementById('rc_go'); if(go) go.style.display = 'none';
       if(k==='pa') rcPaNote();
     }
     // รอบ ว.PA ปี พ.ศ. X = 1 ต.ค. (X-1) ถึง 30 ก.ย. X — แสดงช่วงให้เห็นก่อนสร้าง
@@ -5678,8 +5799,9 @@
         .catch(function(e){ if(row) row.innerHTML = rcRowInner(r); liffErr_(e); });
     }
 
-    // สร้างรายงานตามตัวเลือก — แสดง progress เป็นขั้น แล้วเพิ่มเข้าในคลังทันทีเมื่อเสร็จ (ไม่ต้องรีเฟรช)
-    function rcCreate(){
+    // รายงานทั้ง LIFF/WebApp ต้องตรวจเอกสารก่อนสร้างจริง ใช้ Backend ตัวเดียวกัน
+    var _rcConfirmed = null;
+    function rcBuildFilters_(){
       var kind = document.getElementById('rc_kind').value;
       var filters = { reportKind: kind };
       if(kind==='year'){
@@ -5703,6 +5825,15 @@
         if(dt) filters.dateTo = dt;
         var lb = (df ? rcThaiDate(df) : 'เริ่มต้น')+' – '+(dt ? rcThaiDate(dt) : 'ล่าสุด');
         filters.reportLabel = 'รายงานช่วงวันที่ '+lb;
+      } else if(kind==='salary'){
+        var sy = document.getElementById('rc_salaryyear').value;
+        var sr = document.getElementById('rc_salaryround').value;
+        if (!sy || !sr) { liffToast('กรุณาเลือกปีและครั้งที่', 'warn'); return; }
+        filters.assessmentYear = sy; filters.assessmentRound = sr;
+        var ce = Number(sy) - 543;
+        filters.dateFrom = sr==='1' ? (ce-1)+'-10-01' : ce+'-04-01';
+        filters.dateTo = sr==='1' ? ce+'-03-31' : ce+'-09-30';
+        filters.reportLabel = 'รายงานการประเมินเลื่อนเงินเดือน ปี พ.ศ. ' + sy + ' ครั้งที่ ' + sr;
       } else if(kind==='pa'){
         var py = document.getElementById('rc_payear').value;
         if(!py){ liffToast('กรุณาเลือกปีที่ประเมินก่อนครับ 🐶', 'warn'); return; }
@@ -5720,7 +5851,206 @@
         var tgt = document.getElementById('rc_target');
         if(tgt && tgt.value) filters.targetOwnerId = tgt.value;   // แอดมินสร้างแทน (backend กันสิทธิ์)
       }
+      filters.sortBy = document.getElementById('rc_sort').value;
+      return filters;
+    }
 
+    /* หน้าตรวจ (Preflight) LIFF — สถานะทุกใบตัดสินที่ server (reportadvisory) หน้าจอแค่แสดงผล
+       _rcSel.ids = รายการที่เลือก "ตามลำดับที่จะพิมพ์" · _rcSel.ack = ใบที่ยืนยันคำเตือนแล้ว
+       ไม่มีใบใดถูกเลือกอัตโนมัติ ยกเว้นใบ "พร้อมใช้" ที่ผู้ใช้หยิบมาจากหน้าค้นหาเอง */
+    var _rcAdv = null, _rcSel = { ids: [], ack: {} }, _rcOnlySel = false;
+    function rcFiltersNoSort_(f){ var c = Object.assign({}, f || {}); delete c.sortBy; return JSON.stringify(c); }
+    function rcItem_(id){
+      if (!_rcAdv) return null;
+      for (var i = 0; i < _rcAdv.items.length; i++) if (_rcAdv.items[i].certificateId === id) return _rcAdv.items[i];
+      return null;
+    }
+    function rcChip_(s){
+      var icon = { green: '🟢', yellow: '🟡', grey: '⚪', red: '🔴' }[s && s.color] || '⚪';
+      return '<span class="rp-chip rp-' + esc((s && s.color) || 'grey') + '">' + icon + ' ' + esc((s && s.label) || '-') + '</span>';
+    }
+    /* keep=true: เปลี่ยนแค่การเรียง → คงรายการที่เลือกและคำยืนยันไว้ */
+    function rcStartReview(keep){
+      var f = rcBuildFilters_(); if (!f) return;
+      var carry = (keep && _rcReviewFilters && rcFiltersNoSort_(f) === rcFiltersNoSort_(_rcReviewFilters)) ? _rcSel : null;
+      _rcConfirmed = null;
+      document.getElementById('rc_go').style.display = 'none';
+      var prog = document.getElementById('rc_progress');
+      prog.textContent = 'กำลังตรวจสอบเอกสารทั้งหมด...';
+      api('reportadvisory', { filters: f }).then(function(d){
+        if (!d || !d.items) throw new Error('โหลดรายการตรวจสอบไม่สำเร็จ');
+        if (JSON.stringify(rcBuildFilters_()) !== JSON.stringify(f)) return;   // ผู้ใช้เปลี่ยนเงื่อนไขระหว่างรอ
+        _rcAdv = d; _rcReviewFilters = f; _rcOnlySel = false;
+        var basketNote = '';
+        if (carry) {
+          _rcSel = { ids: carry.ids.filter(function(id){ return !!rcItem_(id); }), ack: carry.ack };
+        } else {
+          _rcSel = { ids: [], ack: {} };
+          if (_liffBasket.length) {
+            var auto = 0, warn = 0, gone = 0;
+            _liffBasket.forEach(function(id){
+              var c = rcItem_(id);
+              if (!c) gone++;
+              else if (c.recommendation === 'ready') { _rcSel.ids.push(id); auto++; }
+              else warn++;
+            });
+            basketNote = '<div class="msg" role="status">🧺 จากหน้าค้นหา ' + _liffBasket.length + ' รายการ: ติ๊กให้แล้ว ' + auto + ' (พร้อมใช้)' +
+              (warn ? ' · มีคำเตือน ' + warn + ' รายการ ต้องติ๊กและยืนยันเอง' : '') +
+              (gone ? ' · ไม่อยู่ในเงื่อนไขรายงานนี้ ' + gone + ' รายการ' : '') + '</div>';
+          }
+        }
+        var ap = d.assessmentPeriod;
+        var html = '<div class="msg">🔍 <b>' + esc(d.reportLabel || 'ตรวจสอบเอกสารก่อนพิมพ์') + '</b>' +
+          '<div class="note">ประเภท: ' + esc(d.reportKindLabel || '-') +
+          (ap ? '<br>ปี-รอบ: ' + esc(ap.label) + ' (' + esc(ap.rangeLabel) + ')' : '') +
+          '<br>ช่วงวันที่: ' + esc(d.rangeText || '-') + '</div>' +
+          '<div class="rp-chips">' +
+          '<span class="rp-chip rp-grey">พบทั้งหมด ' + d.total + ' รายการ</span>' +
+          '<span class="rp-chip rp-green">🟢 พร้อมใช้ ' + d.ready + '</span>' +
+          '<span class="rp-chip rp-yellow">🟡 ต้องตรวจเพิ่ม ' + d.needsReview + '</span>' +
+          '<span class="rp-chip rp-grey">⚪ นอกช่วงวันที่ ' + d.outOfRange + '</span>' +
+          (d.failed ? '<span class="rp-chip rp-red">🔴 ไม่ผ่าน ' + d.failed + '</span>' : '') +
+          '<span class="rp-chip rp-grey" id="rc_sel_count" role="status">เลือกแล้ว 0</span></div>' +
+          '<div class="note">' + esc((d.criteria && d.criteria.notice) || '') + '<br>' + esc(d.notice || '') + '</div></div>' + basketNote;
+        html += '<div class="rp-btns">' +
+          '<button type="button" class="b-second" onclick="rcSelectReady_()">เลือกทั้งหมดที่พร้อมใช้ (' + d.ready + ')</button>' +
+          '<button type="button" class="b-second" onclick="rcClearSel_()">ยกเลิกการเลือกทั้งหมด</button>' +
+          '<button type="button" class="b-second" id="rc_only_btn" onclick="rcToggleOnly_()">แสดงเฉพาะที่เลือก</button>' +
+          '<button type="button" class="b-second" onclick="rcBackToFilters_()">↩ กลับไปแก้เงื่อนไข</button></div>';
+        html += '<div id="rc_cards" style="max-height:440px;overflow-y:auto;overflow-x:hidden;">' + d.items.map(function(c, i){
+          var cls = { ready: 'rp-ready', review: 'rp-review', excluded: '', fail: 'rp-fail' }[c.recommendation] || '';
+          var hours = (c.hours === '' || c.hours == null) ? 'ไม่ระบุ' : String(c.hours);
+          return '<div class="card rp-card rc-review-card ' + cls + '" data-id="' + esc(c.certificateId) + '">' +
+            '<label class="rp-pick"><input class="rc_review_item" type="checkbox" value="' + esc(c.certificateId) + '" onchange="rcToggle_(this)">' +
+            '<span>' + (i + 1) + '. ' + esc(c.activityName || 'ไม่ระบุชื่อ') + '</span></label>' +
+            '<div class="rp-chips">' + rcChip_({ color: { ready: 'green', review: 'yellow', excluded: 'grey', fail: 'red' }[c.recommendation], label: c.label }) +
+            '</div><div class="note">' +
+            'วันที่: ' + rcChip_(c.dateEligibility) + ' ' + esc(c.dateEligibility && c.dateEligibility.reason || '') +
+            '<br>เกณฑ์: ' + rcChip_(c.reportEligibility) + ' ' + esc(c.reportEligibility && c.reportEligibility.reason || '') +
+            '<br>' + esc(c.documentType || 'ไม่ระบุประเภท') + ' · ' + esc(c.issuer || 'ไม่ระบุหน่วยงาน') +
+            ' · วันที่ในเอกสาร: ' + esc(c.dateThai || 'ไม่ระบุ') + ' · ชั่วโมง: ' + esc(hours) +
+            ' · ปี พ.ศ.: ' + esc(c.beYear || '-') + ' · รอบ: ' + esc(c.assessmentPeriod || '-') +
+            ' · ไฟล์: ' + (c.hasFile ? 'มี' : (c.archived ? 'เก็บเข้าคลังแล้ว' : 'ไม่มี')) +
+            ((c.notes && c.notes.length) ? '<br>หมายเหตุ: ' + esc(c.notes.join(' • ')) : '') + '</div>' +
+            '<div class="rp-btns"><button type="button" class="b-second" onclick="openDoc(\'' + escJs(c.certificateId) + '\')">ดูรายละเอียด/ตัวอย่างเอกสาร</button></div></div>';
+        }).join('') + (d.items.length ? '' : '<div class="card">ไม่พบเอกสารตามเงื่อนไขนี้ — ลองเปลี่ยนปี/รอบประเมินหรือตัวกรอง แล้วกดตรวจสอบอีกครั้ง</div>') + '</div>';
+        html += '<div class="card"><b>ลำดับที่จะพิมพ์</b> <span class="note" id="rc_order_mode"></span>' +
+          '<ol class="rp-order" id="rc_order" style="padding-left:18px;margin:6px 0;"></ol>' +
+          '<div class="note">กด ▲ ▼ เพื่อจัดลำดับเอง (ระบบเปลี่ยนการเรียงเป็น "จัดลำดับเอง" ให้)</div></div>' +
+          '<label for="rc_review_reason" style="display:block;margin-top:8px;">เหตุผลยืนยันการเลือก <span class="note">(บังคับเมื่อเลือกใบที่มีคำเตือน อย่างน้อย 5 ตัวอักษร)</span></label>' +
+          '<textarea id="rc_review_reason" maxlength="500" rows="2" style="width:100%;" placeholder="ตรวจสอบเกียรติบัตรและความเกี่ยวข้องแล้ว"></textarea>' +
+          '<div id="rc_review_status" class="note" role="status"></div>' +
+          '<button type="button" class="b-primary" id="rc_confirm_btn" style="width:100%;" onclick="rcConfirmReview()">✅ ยืนยันรายการและดู Preview จริง</button>';
+        prog.innerHTML = html;
+        rcUpdateSel_();
+      }).catch(function(e){ prog.innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; });
+    }
+    var _rcReviewFilters = null;
+    function rcUpdateSel_(){
+      if (!_rcAdv) return;
+      var chosen = {};
+      _rcSel.ids.forEach(function(id){ chosen[id] = true; });
+      Array.prototype.forEach.call(document.querySelectorAll('.rc-review-card'), function(card){
+        var x = card.querySelector('.rc_review_item'), on = !!(x && chosen[x.value]);
+        if (x) x.checked = on;
+        card.style.display = (_rcOnlySel && !on) ? 'none' : '';
+      });
+      var warned = _rcSel.ids.filter(function(id){ var c = rcItem_(id); return c && c.needsAcknowledge; }).length;
+      var cnt = document.getElementById('rc_sel_count');
+      if (cnt) cnt.textContent = 'เลือกแล้ว ' + _rcSel.ids.length + (warned ? ' (มีคำเตือน ' + warned + ')' : '');
+      var mode = document.getElementById('rc_order_mode');
+      if (mode) mode.textContent = (_rcReviewFilters && _rcReviewFilters.sortBy === 'manual') ? '· จัดลำดับเอง' : '· เรียงอัตโนมัติตามที่เลือกไว้';
+      var list = document.getElementById('rc_order');
+      if (list) list.innerHTML = _rcSel.ids.length ? _rcSel.ids.map(function(id, i){
+        var c = rcItem_(id) || {}, last = i === _rcSel.ids.length - 1;
+        return '<li><span class="rp-order-name">' + esc(c.activityName || id) + (c.needsAcknowledge ? ' <span class="rp-chip rp-yellow">⚠ เลือกเอง</span>' : '') + '</span>' +
+          '<button type="button" class="b-second" aria-label="เลื่อนขึ้น" ' + (i ? '' : 'disabled') + ' onclick="rcMove_(\'' + escJs(id) + '\',-1)">▲</button>' +
+          '<button type="button" class="b-second" aria-label="เลื่อนลง" ' + (last ? 'disabled' : '') + ' onclick="rcMove_(\'' + escJs(id) + '\',1)">▼</button></li>';
+      }).join('') : '<li class="note">ยังไม่ได้เลือกรายการ</li>';
+    }
+    /* ติ๊กใบที่มีคำเตือน (เหลือง/เทา/แดง) ต้องยืนยันก่อนทุกครั้ง — ไม่เข้ารายงานอัตโนมัติ */
+    function rcToggle_(cb){
+      var id = cb.value, c = rcItem_(id);
+      if (!c) return;
+      if (!cb.checked) { var i = _rcSel.ids.indexOf(id); if (i >= 0) _rcSel.ids.splice(i, 1); rcUpdateSel_(); return; }
+      if (c.needsAcknowledge && !_rcSel.ack[id]) {
+        cb.checked = false;
+        liffConfirm({
+          title: 'เลือกรายการที่มีคำเตือน?', okLabel: 'ยืนยันเลือกเข้ารายงาน',
+          message: '"' + (c.activityName || 'ไม่ระบุชื่อ') + '" — สถานะ: ' + c.label + ' · เหตุผล: ' + c.reason +
+            ' · รายการนี้ระบบไม่เลือกให้อัตโนมัติ หากยืนยัน รายงานจะบันทึกว่าคุณเลือกเองพร้อมเหตุผลที่กรอก'
+        }, function(){ _rcSel.ack[id] = true; if (_rcSel.ids.indexOf(id) < 0) _rcSel.ids.push(id); rcUpdateSel_(); });
+        return;
+      }
+      if (_rcSel.ids.indexOf(id) < 0) _rcSel.ids.push(id);
+      rcUpdateSel_();
+    }
+    function rcSelectReady_(){
+      if (!_rcAdv) return;
+      _rcAdv.items.forEach(function(c){
+        if (c.recommendation === 'ready' && _rcSel.ids.indexOf(c.certificateId) < 0) _rcSel.ids.push(c.certificateId);
+      });
+      rcUpdateSel_();
+    }
+    function rcClearSel_(){ _rcSel.ids = []; rcUpdateSel_(); }
+    function rcToggleOnly_(){
+      _rcOnlySel = !_rcOnlySel; rcUpdateSel_();
+      var b = document.getElementById('rc_only_btn'); if (b) b.textContent = _rcOnlySel ? 'แสดงทั้งหมด' : 'แสดงเฉพาะที่เลือก';
+    }
+    function rcBackToFilters_(){
+      var k = document.getElementById('rc_kind');
+      if (k) { k.scrollIntoView({ behavior: 'smooth', block: 'center' }); k.focus(); }
+    }
+    /* ย้ายลำดับ = เปลี่ยนเป็น "จัดลำดับเอง" (เงื่อนไขอื่นคงเดิม ไม่โหลดรายการใหม่) */
+    function rcMove_(id, delta){
+      var sort = document.getElementById('rc_sort');
+      if (sort && sort.value !== 'manual') {
+        sort.value = 'manual';
+        if (_rcReviewFilters) _rcReviewFilters.sortBy = 'manual';
+      }
+      var i = _rcSel.ids.indexOf(id), j = i + delta;
+      if (i < 0 || j < 0 || j >= _rcSel.ids.length) return;
+      _rcSel.ids[i] = _rcSel.ids[j]; _rcSel.ids[j] = id;
+      rcUpdateSel_();
+    }
+    function rcConfirmReview(){
+      var f = _rcReviewFilters; if (!f) return;
+      if (JSON.stringify(rcBuildFilters_()) !== JSON.stringify(f)) { rcStartReview(true); return; }
+      var ids = _rcSel.ids.slice();
+      var ack = ids.filter(function(id){ var c = rcItem_(id); return c && c.needsAcknowledge; });
+      var reason = ((document.getElementById('rc_review_reason') || {}).value || '').trim();
+      var st = document.getElementById('rc_review_status');
+      if (!ids.length) { liffToast('กรุณาเลือกอย่างน้อย 1 รายการ', 'warn'); return; }
+      if (ack.length && reason.length < 5) {
+        if (st) st.textContent = 'มีรายการที่เลือกเองทั้งที่มีคำเตือน ' + ack.length + ' รายการ กรุณาระบุเหตุผล (อย่างน้อย 5 ตัวอักษร)';
+        var r = document.getElementById('rc_review_reason'); if (r) r.focus();
+        return;
+      }
+      var btn = document.getElementById('rc_confirm_btn'); if (btn) btn.disabled = true;
+      if (st) st.textContent = 'กำลังยืนยันข้อมูลต้นฉบับและลำดับ...';
+      api('reportprepare', { filters: f, selectedIds: ids, reason: reason, acknowledgedIds: ack }).then(function(proof){
+        if (JSON.stringify(rcBuildFilters_()) !== JSON.stringify(f)) { if (btn) btn.disabled = false; return; }
+        _rcConfirmed = { filters: f, ticket: proof.reviewTicket };
+        if (btn) btn.disabled = false;
+        if (st) st.innerHTML = '<div class="msg ok">✅ Preview ที่จะพิมพ์จริง (ลำดับเดียวกับไฟล์): ' + proof.total + ' รายการ / ' + proof.totalHours + ' ชั่วโมง' +
+          (proof.warnedCount ? ' · เลือกเองพร้อมคำเตือน ' + proof.warnedCount + ' รายการ' : '') +
+          '<div class="note">' + (proof.items || []).map(function(x, i){
+            return (i + 1) + '. ' + esc(x.activityName || '-') + ' — ' + esc(x.dateThai || x.receivedDate || 'ไม่ระบุวันที่');
+          }).join('<br>') + '</div>' +
+          '<p class="note">' + esc(proof.note || '') + ' · ตั๋วยืนยันใช้ครั้งเดียว มีอายุ 10 นาที หากเปลี่ยนข้อมูลต้องตรวจใหม่</p></div>';
+        document.getElementById('rc_go').style.display = '';
+      }).catch(function(e){
+        _rcConfirmed = null; if (btn) btn.disabled = false;
+        if (st) st.innerHTML = '<div class="msg err">' + esc(e.message) + '</div>';
+      });
+    }
+    // สร้างรายงานจากตั๋วยืนยันเพียงครั้งเดียว
+    function rcCreate(){
+      if(!_rcConfirmed){liffToast('กรุณาตรวจสอบเอกสารก่อนพิมพ์','warn');return;}
+      var f=rcBuildFilters_();
+      if(JSON.stringify(f)!==JSON.stringify(_rcConfirmed.filters)){_rcConfirmed=null;rcStartReview();return;}
+      var filters=Object.assign({},f,{reviewTicket:_rcConfirmed.ticket}),kind=f.reportKind;
+      _rcConfirmed=null;
       var go = document.getElementById('rc_go'), prog = document.getElementById('rc_progress');
       go.disabled = true;
       var steps = ['🔍 กำลังดึงข้อมูลเอกสาร...', '📄 กำลังจัดหน้ารายงานราชการ...', '🖨️ กำลังแปลงเป็น PDF และ Word...'];
