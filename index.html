@@ -942,9 +942,9 @@
     };
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V2';
+    var LIFF_VERSION = 'V3';
     var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'คู่มือใหม่: ค้นหาอัจฉริยะ ตรวจเอกสารก่อนสร้างรายงาน ลำดับคิว · ตัวกรองรอบประเมินในหน้าค้นหาใช้ได้แล้ว';
+    var LIFF_VERSION_NOTE = 'รายงานเป็นไฟล์ส่วนตัว ระบบเปิดลิงก์ให้เฉพาะไฟล์ที่กดเปิด (PDF / Word / QR / คัดลอกลิงก์)';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -5574,7 +5574,7 @@
     function showReportCenter(){
       app.innerHTML = '<div class="center">📄 กำลังเปิดศูนย์รายงานผลงาน...</div>';
       Promise.all([
-        api('reportlist'),
+        api('reportlist', { p2: true }),
         api('reporttargets').catch(function(){ return { users: [] }; }),
         api('dropdownoptions', { category: 'documentType' }).catch(function(){ return { data: null }; })
       ])
@@ -5770,11 +5770,43 @@
       document.getElementById('rc_list').innerHTML = rcListHtml(list);
     }
 
+    // P2 (เจ้าของตัดสิน 20 ต.ค. 2569): ไฟล์รายงานเป็นส่วนตัวจนกว่าจะกดเปิด — กดครั้งแรกขอ server แชร์เฉพาะไฟล์นั้น
+    // (reportlink + Audit) แล้วจำลิงก์ไว้ในแถว · fmt: 'view' ลิงก์ดู PDF (QR/คัดลอก/เปิดดู) · 'pdf' ดาวน์โหลด PDF · 'word' ดาวน์โหลด Word
+    // คืน '' เมื่อไม่มีไฟล์หรือเตรียมลิงก์ไม่สำเร็จ (แจ้งผู้ใช้แล้ว)
+    function rcLink(id, fmt){
+      var r = rcFind(id); if(!r) return Promise.resolve('');
+      var word = (fmt === 'word' || fmt === 'docx');
+      var have = word ? r.wordUrl : (fmt === 'pdf' ? r.pdfUrl : r.viewUrl);
+      if(have) return Promise.resolve(have);
+      // Word ต้องได้ไฟล์ .docx เท่านั้น — รายงานที่ไม่มีไฟล์ Word แจ้งผู้ใช้ตรงๆ ไม่ส่ง PDF แทน
+      if(word ? r.hasDocx === false : r.hasPdf === false){
+        liffAlert(word ? 'รายงานฉบับนี้ไม่มีไฟล์ Word (.docx) ครับ 🐶\nดาวน์โหลดเป็น PDF ได้จากปุ่ม ⬇️ PDF' : 'รายงานฉบับนี้ไม่มีไฟล์ PDF ครับ 🐶',
+          { title: word ? 'ไม่มีไฟล์ Word' : 'ไม่มีไฟล์ PDF' });
+        return Promise.resolve('');
+      }
+      liffToast('🔗 กำลังเตรียมลิงก์…');
+      return api('reportlink', { reportId: id, format: fmt }).then(function(d){
+        if(word){ r.wordUrl = (d && d.downloadUrl) || ''; return r.wordUrl; }
+        r.viewUrl = (d && d.viewUrl) || ''; r.pdfUrl = (d && d.downloadUrl) || '';
+        return fmt === 'pdf' ? r.pdfUrl : r.viewUrl;
+      }).catch(function(e){
+        liffAlert((e && e.message) || 'เตรียมลิงก์ไม่สำเร็จ ลองกดใหม่อีกครั้งครับ', { title: 'เปิดรายงานไม่ได้' });
+        return '';
+      });
+    }
+    // ปุ่ม "เปิดดูรายงาน" หลังสร้างเสร็จ — ไม่เปิดเอง เพราะแชร์เฉพาะตอนผู้ใช้กด (P2 ข้อ 3.5 ก)
+    function rcOpenNew(id){
+      rcLink(id, 'view').then(function(url){ if(url) liffOpen(url); });
+    }
+
     // QR เปิดดูรายงาน — สแกนแล้วพาไปลิงก์ Google Drive ของไฟล์ PDF รายงานโดยตรง + บันทึกรูป QR ลงเครื่องได้
-    // (ใช้ _qrUrl/saveQrImage ชุดเดียวกับ QR เกียรติบัตร ไม่ต้องเรียกเซิร์ฟเวอร์เพราะ viewUrl มีอยู่แล้ว)
+    // (ใช้ _qrUrl/saveQrImage ชุดเดียวกับ QR เกียรติบัตร · กดครั้งแรกระบบเปิดลิงก์ให้เฉพาะไฟล์ PDF ฉบับนี้)
     function rcQr(id){
-      var r = rcFind(id); if(!r || !r.viewUrl) return;
-      _qrUrl = 'https://quickchart.io/qr?size=520&margin=2&text='+encodeURIComponent(r.viewUrl);
+      rcLink(id, 'view').then(function(url){ if(url) rcQrShow(id, url); });
+    }
+    function rcQrShow(id, url){
+      var r = rcFind(id); if(!r) return;
+      _qrUrl = 'https://quickchart.io/qr?size=520&margin=2&text='+encodeURIComponent(url);
       _qrName = 'QR-' + r.reportId + '.png';
       document.getElementById('viewerRoot').innerHTML =
         '<div class="cv-overlay" style="flex-direction:column;background:rgba(0,0,0,0.85);">'+
@@ -5787,26 +5819,25 @@
         '<div class="note" style="margin-top:6px;font-size:11px;">หากไม่บันทึกอัตโนมัติ กดค้างที่รูป QR แล้วเลือก "บันทึกรูป"</div></div>'+
         '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
     }
-    function rcPdf(id){ var r = rcFind(id); if(r && r.pdfUrl) liffOpen(r.pdfUrl); }
-    // Word ต้องได้ไฟล์ .docx เท่านั้น — รายงานที่ไม่มีไฟล์ Word แจ้งผู้ใช้ตรงๆ ไม่ส่ง PDF แทน
+    function rcPdf(id){
+      rcLink(id, 'pdf').then(function(url){ if(url) liffOpen(url); });
+    }
+    // Word ต้องได้ไฟล์ .docx เท่านั้น — rcLink แจ้งผู้ใช้เองเมื่อรายงานไม่มีไฟล์ Word
     function rcWord(id){
-      var r = rcFind(id); if(!r) return;
-      if(!r.wordUrl){
-        liffAlert('รายงานฉบับนี้ไม่มีไฟล์ Word (.docx) ครับ 🐶\nดาวน์โหลดเป็น PDF ได้จากปุ่ม ⬇️ PDF', { title: 'ไม่มีไฟล์ Word' });
-        return;
-      }
-      liffOpen(r.wordUrl);
+      rcLink(id, 'word').then(function(url){ if(url) liffOpen(url); });
     }
 
     // คัดลอกลิงก์เปิดดูรายงาน (ลิงก์ Drive /view ของ PDF — ลิงก์เดียวกับ QR) ไว้แชร์ให้ผู้บริหารเปิดได้โดยไม่ต้องล็อกอิน
     function rcCopy(id){
-      var r = rcFind(id); if(!r || !r.viewUrl) return;
-      function done(){ liffToast('คัดลอกลิงก์รายงานแล้ว 🔗 วางส่งให้ผู้บริหารเปิดดูได้เลย', 'ok'); }
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(r.viewUrl).then(done).catch(function(){ window.prompt('คัดลอกลิงก์นี้:', r.viewUrl); });
-      } else {
-        window.prompt('คัดลอกลิงก์นี้:', r.viewUrl);
-      }
+      rcLink(id, 'view').then(function(url){
+        if(!url) return;
+        function done(){ liffToast('คัดลอกลิงก์รายงานแล้ว 🔗 วางส่งให้ผู้บริหารเปิดดูได้เลย', 'ok'); }
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(url).then(done).catch(function(){ window.prompt('คัดลอกลิงก์นี้:', url); });
+        } else {
+          window.prompt('คัดลอกลิงก์นี้:', url);
+        }
+      });
     }
 
     function rcDelete(id){
@@ -6097,18 +6128,21 @@
       paint();
       _rcTimer = setInterval(function(){ if(si < steps.length-1){ si++; paint(); } }, 15000);
 
-      api('report', { filters: filters })
+      api('report', { filters: filters, p2: true })
         .then(function(d){
           clearInterval(_rcTimer); go.disabled = false;
-          prog.innerHTML = '<div class="msg ok">✅ สร้าง "'+esc(filters.reportLabel)+'" สำเร็จ ('+(d.total||0)+' รายการ) — กำลังเปิดพรีวิว...</div>';
+          // P2: ไม่เปิดพรีวิวเอง — ไฟล์ยังเป็นส่วนตัวจนกว่าผู้ใช้กดเปิด (ระบบแชร์เฉพาะไฟล์ที่กด)
+          prog.innerHTML = '<div class="msg ok">✅ สร้าง "'+esc(filters.reportLabel)+'" สำเร็จ ('+(d.total||0)+' รายการ)'+
+            '<button class="b-primary" style="width:100%;margin-top:8px;" onclick="rcOpenNew(\''+d.reportId+'\')">👁 เปิดดูรายงาน</button>'+
+            '<div class="note" style="margin-top:6px;">ไฟล์ยังเป็นส่วนตัว ระบบเปิดลิงก์ให้เฉพาะไฟล์ที่คุณกดเปิดหรือกดสร้าง QR</div></div>';
           _reports.unshift({
             reportId: d.reportId, label: filters.reportLabel, kind: kind, total: d.total||0,
             status: 'COMPLETED', createdAt: new Date().toISOString().slice(0,10),
+            hasPdf: d.hasPdf !== false, hasDocx: d.hasDocx !== false,
             viewUrl: d.viewUrl||'', pdfUrl: d.pdfUrl||'', wordUrl: d.wordUrl||''
           });
           var box = document.getElementById('rc_list');
           if(box) box.innerHTML = rcListHtml(_reports);
-          if(d.viewUrl) liffOpen(d.viewUrl);
         })
         .catch(function(e){
           clearInterval(_rcTimer); go.disabled = false;
