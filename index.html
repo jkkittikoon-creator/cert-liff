@@ -949,9 +949,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V4';
+    var LIFF_VERSION = 'V5';
     var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'หน้าค้นหามีปุ่มเลือกเข้ารายงานทั้งหมด · ศูนย์รายงานติดป้าย New กระพริบเฉพาะรายงานใหม่สุด · เอกสารล่าสุดบอกวันและเวลาที่สร้าง · ลบเอกสารที่บันทึกแล้วได้จากหน้าเปิดเอกสาร · ช่องชั่วโมงเลือกจากรายการหรือพิมพ์เอง เกียรติบัตรที่ไม่ระบุชั่วโมงใส่ 1 ให้ก่อน';
+    var LIFF_VERSION_NOTE = 'หน้าตรวจเอกสารเตือนเมื่อปีของวันที่อาจผิด (AI อ่านเลขไทย ๙ เป็น ๔ หรือ ๗) พร้อมปุ่มใช้ปีปัจจุบันกดครั้งเดียว';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -6745,6 +6745,16 @@
       // F7: แถบสรุปสี — คำนวณสด 3 สี (เติมด้วย updateBanner หลัง render)
       var summary = (data.aiResult && Object.keys(data.aiResult).length) ? '<div class="summary" id="banner"></div>' : '';
       var dupHtml = dupBanner(data.duplicateCheck);
+      // ปีของวันที่ไม่สอดคล้อง (server: receivedDateYearWarnings_) — เตือนอย่างเดียว · ปุ่มใช้ปีปัจจุบันเมื่อเลขไทยน่าจะสับสน
+      var yws = data.yearWarnings || [];
+      var yearHtml = !yws.length ? '' :
+        '<div class="dup-warn" id="yearWarnBox"><b>📅 ปีของวันที่ในเอกสารอาจไม่ถูกต้อง</b><ul>'+
+        yws.map(function(w){
+          return '<li>'+esc(w.message)+((w.suggestDate && /^\d{4}-\d{2}-\d{2}$/.test(w.suggestDate))
+            ? ' <button type="button" class="b-second" style="padding:4px 10px;font-size:12px;margin-top:4px;" onclick="applySuggestedDate(\''+w.suggestDate+'\')">ใช้ปี '+
+              (Number(w.suggestDate.slice(0,4))+543)+'</button>' : '')+'</li>';
+        }).join('')+
+        '</ul><div class="foot">AI มักอ่านเลขไทย ๙ เป็น ๔ หรือ ๗ — เทียบกับภาพจริงก่อนบันทึก ถ้าถูกต้องอยู่แล้วไม่ต้องแก้</div></div>';
       var floatBtn = isImage ? '<button class="cert-float" onclick="openViewer()">🔍 ดูเกียรติบัตร</button>' : '';
 
       // เอกสาร SAVED: แจ้งเตือน + ปุ่ม "บันทึกการแก้ไข" (สร้างเวอร์ชันใหม่) แทน "บันทึกร่าง/ยืนยันบันทึก"
@@ -6768,6 +6778,7 @@
         savedNotice+
         '<div class="card preview">'+prev+'</div>'+
         dupHtml+
+        yearHtml+
         summary+
         '<div class="card"><button class="b-second" id="documentQualityBtn" onclick="liffDocumentQuality(this,false)">ตรวจคุณภาพข้อมูล</button><div class="note">ตรวจด้วยกฎของระบบก่อน โดยไม่เรียก AI และไม่แก้ข้อมูลเอง</div><div id="documentQualityBox"></div></div>'+
         '<div class="card">'+fieldsHtml+qrBtn+delBtn+'</div>'+
@@ -6924,6 +6935,16 @@
       edited('expiryDate');
     }
 
+    // ปุ่ม "ใช้ปี …" ในแถบเตือนปี — ตั้งค่าในฟอร์มเท่านั้น ยังไม่บันทึก (ครูกดบันทึกเอง)
+    function applySuggestedDate(iso){
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso))) return;
+      var el=document.getElementById('f_receivedDate');
+      if(!el) return;
+      el.value=iso;
+      onDate();
+      var box=document.getElementById('yearWarnBox');
+      if(box) box.innerHTML='<b>📅 เปลี่ยนวันที่เป็นปี '+(Number(iso.slice(0,4))+543)+' แล้ว</b> — ตรวจกับภาพจริง แล้วกดบันทึกเพื่อยืนยัน';
+    }
     function onDate(){
       var el=document.getElementById('f_receivedDate'), n=document.getElementById('beNote');
       if(n) n.innerHTML=(el&&el.value)?'📅 '+toBE(el.value)+' (พ.ศ.)':'';
