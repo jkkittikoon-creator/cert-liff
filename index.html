@@ -189,6 +189,10 @@
     .b-draft { background: var(--warn-soft); color: var(--warn-text); }
     .b-saved { background: var(--ok-soft); color: var(--ok-text); }
     .b-new { background: var(--warn-soft); color: var(--warn-text); }
+    /* V4: ป้าย New ของรายงานใหม่สุด กระพริบสีราว 10 วินาทีแล้วหยุด (ไม่กระพริบตลอด · ช้ากว่า 3 ครั้ง/วินาที)
+       ผู้ใช้ที่ตั้ง "ลดการเคลื่อนไหว" ไม่กระพริบ (กฎรวมท้าย style) · พื้น --warn เหมือนกันทั้งโหมดสว่าง/มืด จึงใช้ตัวอักษรเข้มคงที่ */
+    .rc-new-live { animation: rc-new-blink 1.2s ease-in-out 8; }
+    @keyframes rc-new-blink { 50% { background: var(--warn); color: #1a1300; box-shadow: 0 0 0 3px var(--warn-soft); } }
     .preview img, .preview embed { width: 100%; max-height: 320px; object-fit: contain; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-inset); }
     .preview img { cursor: zoom-in; }
     .cert-hint { font-size: 12px; color: var(--text-3); text-align: center; margin-top: 6px; }
@@ -940,11 +944,14 @@
       participationRole: ['ผู้เข้าร่วม','ผู้เข้าแข่งขัน','ผู้เข้ารับการอบรม','วิทยากร','คณะกรรมการ','ครูผู้ควบคุม/ผู้ฝึกสอน','ผู้จัดกิจกรรม'],
       academicYear: (function(){ var y=new Date().getFullYear()+543,a=[]; for(var i=0;i<8;i++)a.push(String(y-i)); return a; })()
     };
+    // ชั่วโมง: dropdown + พิมพ์เอง · ประเภทที่มีคำเหล่านี้และไม่ระบุชั่วโมง เติม 1 เป็นค่าเริ่มต้น (สำเนาของ Config.gs HOURS_DEFAULT_DOC_TYPES)
+    var HOURS_OPTIONS = ['1','2','3','6','12','18','20'];
+    var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V3';
+    var LIFF_VERSION = 'V4';
     var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'รายงานเป็นไฟล์ส่วนตัว ระบบเปิดลิงก์ให้เฉพาะไฟล์ที่กดเปิด (PDF / Word / QR / คัดลอกลิงก์)';
+    var LIFF_VERSION_NOTE = 'หน้าค้นหามีปุ่มเลือกเข้ารายงานทั้งหมด · ศูนย์รายงานติดป้าย New กระพริบเฉพาะรายงานใหม่สุด · เอกสารล่าสุดบอกวันและเวลาที่สร้าง · ลบเอกสารที่บันทึกแล้วได้จากหน้าเปิดเอกสาร · ช่องชั่วโมงเลือกจากรายการหรือพิมพ์เอง เกียรติบัตรที่ไม่ระบุชั่วโมงใส่ 1 ให้ก่อน';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -3909,6 +3916,25 @@
         '<div class="rp-btns" style="width:100%;margin-top:4px;"><button type="button" class="b-primary" onclick="showReportCenter()">ไปตรวจและสร้างรายงาน</button>' +
         '<button type="button" class="b-second" onclick="_liffBasket=[];liffSearchPaint_()">ล้างรายการที่เลือก</button></div></div>';
     }
+    // V4: เลือกทุกใบที่แสดงอยู่เข้ารายงานทีเดียว (ข้ามใบที่เลือกไว้แล้ว) — หน้าตรวจรายงานยังติ๊กให้เฉพาะใบที่พร้อมใช้
+    // ใบที่มีคำเตือนต้องยืนยันเองเหมือนเดิม · เลือกเฉพาะที่โหลดมาแสดงแล้ว ไม่แอบเลือกใบที่ผู้ใช้ยังไม่เห็น
+    function liffBasketAddAll_(){
+      _liffSearchRows.forEach(function(d){
+        if (d && d.certificateId && _liffBasket.indexOf(d.certificateId) < 0) _liffBasket.push(d.certificateId);
+      });
+      liffSearchPaint_();
+    }
+    function liffSearchAllBar_(){
+      var shown = _liffSearchRows.length;
+      var picked = _liffSearchRows.filter(function(d){ return _liffBasket.indexOf(d.certificateId) >= 0; }).length;
+      var btn = picked >= shown
+        ? '<button type="button" class="b-second" disabled aria-disabled="true">✓ เลือกครบทั้ง ' + shown + ' รายการที่แสดงแล้ว</button>'
+        : '<button type="button" class="b-primary" onclick="liffBasketAddAll_()">➕ เลือกเข้ารายงานทั้งหมด ' + shown + ' รายการ</button>';
+      var more = _liffSearchTotal > shown
+        ? '<div class="note">เลือกได้เฉพาะ ' + shown + ' รายการที่แสดง · ยังมีอีก ' + (_liffSearchTotal - shown) + ' รายการ กด “โหลดเพิ่ม” ด้านล่างก่อนถ้าต้องการเลือกด้วย</div>'
+        : '';
+      return '<div class="rp-btns" style="margin-bottom:6px;">' + btn + '</div>' + more;
+    }
     function liffSearchCards_(docs){
       return docs.map(function(d){
         var lines = [
@@ -3940,6 +3966,7 @@
       if (!box || !_liffSearchRows.length) return;
       box.innerHTML = liffBasketBar_() +
         '<div class="note">แสดง ' + _liffSearchRows.length + ' จาก ' + _liffSearchTotal + ' รายการ (เรียงทั้งชุดก่อนแบ่งหน้า) · ระบบมีวันที่ในเอกสารวันเดียว ไม่มีวันที่อบรมแยก</div>' +
+        liffSearchAllBar_() +
         liffSearchCards_(_liffSearchRows) +
         (_liffSearchRows.length < _liffSearchTotal ?
           '<button class="b-primary" onclick="runSearch(null,' + _liffSearchRows.length + ')">โหลดเพิ่ม</button>' : '');
@@ -5469,8 +5496,21 @@
       }
       // ชื่อเจ้าของเอกสาร — ให้รู้ว่าใบไหนของใคร (ผู้ดูแลเห็นของหลายคน)
       var owner = d.ownerName ? ' • 👤 '+esc(d.ownerName) : '';
+      // V4: วันที่ + เวลาที่ส่งเข้าระบบ (createdAt จาก server เป็นเวลาไทยอยู่แล้ว)
+      var created = dashCreatedText_(d.createdAt);
       return '<div class="dash-name">'+esc(d.name)+'</div>'+
-        '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+owner+'</div>'+btns;
+        '<div class="note">'+esc(d.documentType||'-')+' • '+esc(d.statusLabel)+(d.academicYear?' • ปี '+esc(d.academicYear):'')+owner+'</div>'+
+        (created ? '<div class="note">🕘 สร้างเมื่อ '+esc(created)+'</div>' : '')+btns;
+    }
+
+    // "2026-10-20T17:38:05+07:00" → "20 ต.ค. 2569 เวลา 17:38 น." · อ่านตัวเลขจากข้อความตรง ๆ (server ส่งเวลาไทยมาแล้ว)
+    // ไม่ผ่าน new Date() เพื่อไม่ให้เพี้ยนตามเขตเวลาของเครื่อง · มีแต่วันที่ = ไม่แสดงเวลา · อ่านไม่ได้ = ''
+    function dashCreatedText_(iso){
+      var m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(String(iso||''));
+      if(!m || Number(m[2]) < 1 || Number(m[2]) > 12 || Number(m[3]) < 1 || Number(m[3]) > 31) return '';
+      var mo = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+      var date = Number(m[3])+' '+mo[Number(m[2])-1]+' '+(Number(m[1])+543);
+      return m[4] ? date+' เวลา '+m[4]+':'+m[5]+' น.' : date;
     }
 
     function dashDocsHtml(docs, caption){
@@ -5720,9 +5760,25 @@
       return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
     }
 
+    // V4: ป้าย New ขึ้นเฉพาะรายงานใหม่สุดใบเดียว (เดิมขึ้นทุกใบที่สร้างวันนี้)
+    // ลำดับ: ใบที่เพิ่งสร้างในหน้านี้ก่อน · ไม่งั้นใบที่ createdAt มากสุด — server เรียงใหม่→เก่า และถ้าค่าเท่ากัน
+    // (มีแต่วันที่) จะคงลำดับในชีต = เก่า→ใหม่ จึงเลือกใบท้ายสุดของกลุ่มที่ค่าเท่ากัน
+    var _rcJustCreatedId = '';
+    function rcNewestId_(list){
+      if(!list || !list.length) return '';
+      if(_rcJustCreatedId && list.some(function(r){ return r.reportId === _rcJustCreatedId; })) return _rcJustCreatedId;
+      var best = null;
+      list.forEach(function(r){ if(best === null || String(r.createdAt||'') >= String(best.createdAt||'')) best = r; });
+      return best ? best.reportId : '';
+    }
+    function rcNewBadge_(r){
+      if(!r || r.reportId !== rcNewestId_(_reports)) return '';
+      if(String(r.createdAt||'').slice(0,10) !== rcTodayIso()) return '';
+      return '<span class="badge b-new rc-new-live" style="margin-left:6px;">🆕 New</span>';
+    }
+
     function rcRowInner(r){
-      var isToday = String(r.createdAt||'').slice(0,10) === rcTodayIso();
-      var todayBadge = isToday ? '<span class="badge b-new" style="margin-left:6px;">🆕 ล่าสุด</span>' : '';
+      var todayBadge = rcNewBadge_(r);
       var owner = r.ownerEmail || r.requestedBy || '';
       var creator = r.createdByEmail || r.requestedBy || '';
       // แสดง "โดย ผู้สร้าง" เฉพาะเมื่อผู้สร้าง ≠ เจ้าของ (แอดมินสร้างแทน)
@@ -6135,9 +6191,10 @@
           prog.innerHTML = '<div class="msg ok">✅ สร้าง "'+esc(filters.reportLabel)+'" สำเร็จ ('+(d.total||0)+' รายการ)'+
             '<button class="b-primary" style="width:100%;margin-top:8px;" onclick="rcOpenNew(\''+d.reportId+'\')">👁 เปิดดูรายงาน</button>'+
             '<div class="note" style="margin-top:6px;">ไฟล์ยังเป็นส่วนตัว ระบบเปิดลิงก์ให้เฉพาะไฟล์ที่คุณกดเปิดหรือกดสร้าง QR</div></div>';
+          _rcJustCreatedId = d.reportId;   // V4: ใบนี้เท่านั้นที่ได้ป้าย New
           _reports.unshift({
             reportId: d.reportId, label: filters.reportLabel, kind: kind, total: d.total||0,
-            status: 'COMPLETED', createdAt: new Date().toISOString().slice(0,10),
+            status: 'COMPLETED', createdAt: rcTodayIso(),   // วันที่ไทยของเครื่อง (toISOString เป็น UTC ช่วงตี 0–7 จะได้วันก่อน)
             hasPdf: d.hasPdf !== false, hasDocx: d.hasDocx !== false,
             viewUrl: d.viewUrl||'', pdfUrl: d.pdfUrl||'', wordUrl: d.wordUrl||''
           });
@@ -6622,14 +6679,15 @@
     }
 
     // F1: สร้าง select + "อื่นๆ (พิมพ์เอง)" — ถ้าค่าเดิมไม่อยู่ในลิสต์ เลือก "อื่นๆ" แล้วโชว์ช่องพิมพ์พร้อมค่าเดิม
-    function buildSelect(name, options, val){
+    function buildSelect(name, options, val, otherType){
       var inList = val && options.indexOf(val)!==-1;
+      var otherAttr = otherType==='number' ? 'type="number" inputmode="decimal" min="0" step="0.5"' : 'type="text"';
       var opts = '<option value="">-- เลือก --</option>';
       options.forEach(function(o){ opts += '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; });
       opts += '<option value="__other__"'+((!inList&&val)?' selected':'')+'>อื่นๆ (พิมพ์เอง)</option>';
       var show = (!inList && val) ? '' : 'display:none;';
       return '<select id="f_'+name+'" onchange="onSel(\''+name+'\')">'+opts+'</select>'+
-        '<input type="text" id="fo_'+name+'" class="other-in" style="margin-top:6px;'+show+'" value="'+((!inList&&val)?esc(val):'')+'" '+
+        '<input '+otherAttr+' id="fo_'+name+'" class="other-in" style="margin-top:6px;'+show+'" value="'+((!inList&&val)?esc(val):'')+'" '+
         'placeholder="พิมพ์'+esc(LABELS[name])+'..." oninput="edited(\''+name+'\')">';
     }
 
@@ -6657,8 +6715,10 @@
         input = '<input type="date" id="f_'+name+'" value="'+esc(val)+'" oninput="onExpiry()">'+
           '<div class="note t-info" id="exNote">'+expiryHint(val)+'</div>';
       } else if(name==='hours'){
-        // F11: จำนวนชั่วโมงเป็นตัวเลข (ขึ้นแป้นตัวเลขบนมือถือ)
-        input = '<input type="number" inputmode="decimal" min="0" step="0.5" id="f_'+name+'" value="'+esc(val)+'" oninput="edited(\''+name+'\')">';
+        // ชั่วโมง: dropdown + พิมพ์เอง (แป้นตัวเลข) · ไม่ระบุชั่วโมงในเอกสารประเภทที่กำหนด → เติม 1 ไว้ก่อน เปลี่ยนได้
+        input = buildSelect(name, HOURS_OPTIONS, hoursInitial_(c), 'number')+
+          '<div class="note t-info" id="hoursDefaultNote"'+(hoursDefaultFor_(c.documentType, c.hours)?'':' style="display:none;"')+
+          '>ℹ️ เอกสารไม่ระบุชั่วโมง — ใส่ 1 ชั่วโมงเป็นค่าเริ่มต้น เปลี่ยนได้</div>';
       } else {
         input = '<input type="text" id="f_'+name+'" value="'+esc(val)+'" oninput="edited(\''+name+'\')">';
       }
@@ -6699,6 +6759,8 @@
       var backBtn = '<button class="b-second" style="width:100%;margin-bottom:10px;" onclick="showList(lastList)">← กลับไปหน้ารายการ</button>';
       liffBackFn_ = 'showList(lastList)';   // หน้านี้ไม่ได้ใช้ pageHead — บอกทางย้อนกลับให้ปุ่ม Back ของเครื่องเอง
       var qrBtn = isSaved ? '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showQr()">🔳 ดู QR ตรวจสอบเอกสาร</button>' : '';
+      // ลบได้จากหน้านี้เลย (เดิมต้องไปแท็บสรุปผลงาน) — อยู่ในการ์ดข้อมูล ไม่อยู่แถบติดล่างจอ กันกดพลาดตอนจะบันทึก
+      var delBtn = isSaved ? '<button class="b-second" style="width:100%;margin-top:8px;color:#d93025;" onclick="deleteOpenDoc()">🗑️ ลบไปถังขยะ</button>' : '';
 
       app.innerHTML =
         '<div id="formMsg"></div>'+
@@ -6708,7 +6770,7 @@
         dupHtml+
         summary+
         '<div class="card"><button class="b-second" id="documentQualityBtn" onclick="liffDocumentQuality(this,false)">ตรวจคุณภาพข้อมูล</button><div class="note">ตรวจด้วยกฎของระบบก่อน โดยไม่เรียก AI และไม่แก้ข้อมูลเอง</div><div id="documentQualityBox"></div></div>'+
-        '<div class="card">'+fieldsHtml+qrBtn+'</div>'+
+        '<div class="card">'+fieldsHtml+qrBtn+delBtn+'</div>'+
         // ปุ่มหลักติดล่างจอ: เลื่อนดูฟิลด์ยาว ๆ อยู่ก็ยังกดยืนยันได้ทันที ไม่ต้องเลื่อนกลับลงมาสุด
         '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
         floatBtn;
@@ -6797,7 +6859,30 @@
       if(s&&o){ if(s.value==='__other__'){ o.style.display=''; o.focus(); } else { o.style.display='none'; o.value=''; } }
       edited(name);
     }
+    /** ชั่วโมงค่าเริ่มต้น — กฎเดียวกับ server hoursDefaultFor_ (Config.gs HOURS_DEFAULT_DOC_TYPES) */
+    function hoursDefaultFor_(documentType, hours){
+      if(String(hours==null?'':hours).trim()!=='') return '';
+      var t=String(documentType||'');
+      return HOURS_DEFAULT_DOC_TYPES.some(function(k){ return t.indexOf(k)!==-1; }) ? '1' : '';
+    }
+    // ค่าที่ฟอร์มแสดงตอนเปิด: ชั่วโมงเดิม (ตัวเลขจากชีตแปลงเป็นข้อความให้ตรงตัวเลือก) หรือค่าเริ่มต้น
+    function hoursInitial_(c){
+      var h=String(c.hours==null?'':c.hours).trim();
+      return h || hoursDefaultFor_(c.documentType, h);
+    }
+    // เปลี่ยนประเภทเอกสารเป็นชนิดที่เข้ากฎ ขณะช่องชั่วโมงยังว่าง → เติม 1 · มีชั่วโมงอยู่แล้วไม่ทับ
+    function applyHoursDefault_(){
+      var s=document.getElementById('f_hours');
+      if(!s || vfval('hours')) return;
+      var def=hoursDefaultFor_(vfval('documentType'), '');
+      if(!def) return;
+      s.value=def;
+      var o=document.getElementById('fo_hours'); if(o){ o.style.display='none'; o.value=''; }
+      var n=document.getElementById('hoursDefaultNote'); if(n) n.style.display='';
+    }
     function edited(name){
+      if(name==='documentType') applyHoursDefault_();
+      if(name==='hours'){ var hn=document.getElementById('hoursDefaultNote'); if(hn) hn.style.display='none'; }
       var el=document.getElementById('ff_'+name);
       if(el && PROFILE_FIELDS.indexOf(name)===-1) el.className='field conf-gray';
       updateBanner();
@@ -7114,6 +7199,27 @@
           '<div class="note" style="word-break:break-all;margin-top:8px;">'+esc(d.verifyUrl)+'</div></div>'+
           '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
       }).catch(function(e){ setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+    }
+
+    // ลบเอกสาร SAVED ที่เปิดอยู่ไปถังขยะ — server (deleteCertificateForUser_) ตรวจเจ้าของและสถานะเอง · กู้คืนได้จากแท็บถังขยะ
+    function deleteOpenDoc(){
+      if (liffSaving_ > 0 || !curCert) return;
+      var c = curCert;
+      liffConfirm({
+        title: 'ลบ "'+(c.activityName||'เอกสารนี้')+'" ไปที่ถังขยะ?',
+        message: 'กู้คืนได้ภายหลังจากแท็บถังขยะครับ',
+        okLabel: '🗑️ ลบไปถังขยะ'
+      }, function(){
+        if (liffSaving_ > 0) return;
+        liffDeleteProgress_('delete', { certificateId: c.certificateId }, 'กำลังย้ายเอกสารไปถังขยะ...')
+          .then(function(){
+            // เอกสารที่ถูกลบอาจเคยผูกกับกิจกรรมอบรมอยู่ → กิจกรรมนั้นกลับมาเป็น "ยังไม่เก็บเอกสาร"
+            refreshCalendarBadge_();
+            liffToast('🗑️ ย้ายไปถังขยะแล้ว กู้คืนได้จากแท็บถังขยะ');
+            showList(lastList);
+          })
+          .catch(function(e){ setFormMsg('<div class="msg err">'+esc(e.message)+'</div>'); });
+      });
     }
 
     // แก้ไขเอกสารที่บันทึกยืนยันแล้ว (SAVED) → สร้างเวอร์ชันใหม่
