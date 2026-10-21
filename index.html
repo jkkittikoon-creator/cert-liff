@@ -4031,6 +4031,77 @@
       showSearch();
     }
 
+    // ชุดที่ตั้งชื่อแยกkeyต่อชุด ป้องกันการเขียนชุดหนึ่งทับชุดอื่น เก็บชุดเดิมไว้ที่keyเดิม
+    function namedPresetRefresh_(){
+      var slot=document.getElementById('namedPresetSlot');if(!slot)return;
+      try{var scope=namedPresetScope_(),prefix=scope.base+':preset:',names=[],selected=slot.value;
+        if(!scope.base)throw Error('ยังไม่พร้อมระบุบัญชี');
+        for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf(prefix)===0&&(!scope.suffix||k.slice(-scope.suffix.length)===scope.suffix)){var raw=k.slice(prefix.length,scope.suffix?k.length-scope.suffix.length:k.length),name=decodeURIComponent(raw);if(!name||name.length>40||encodeURIComponent(name)!==raw)throw Error('ชื่อชุดตัวกรองไม่ถูกต้อง');names.push(name);}}
+        names.sort(function(a,b){return a.localeCompare(b,'th');});
+        slot.innerHTML='<option value="">ชุดเดิม (ไม่ระบุชื่อ)</option>'+names.map(function(n){return '<option value="'+docOrgEscape_(n)+'">'+docOrgEscape_(n)+'</option>';}).join('');slot.value=names.indexOf(selected)>=0?selected:'';
+        return names;
+      }catch(e){namedPresetNotice_('อ่านรายการชุดตัวกรองไม่ได้ กรุณาตรวจสิทธิ์เก็บข้อมูลในอุปกรณ์');return null;}
+    }
+    function namedSearchPreset_(mode){
+      var scope=namedPresetScope_(),slot=document.getElementById('namedPresetSlot'),nameBox=document.getElementById('namedPresetName');
+      if(!scope.base||!slot){namedPresetNotice_('ยังไม่พร้อมระบุบัญชี กรุณาเข้าสู่ระบบใหม่');return;}
+      var name=mode==='save'&&nameBox&&nameBox.value.trim()?nameBox.value.replace(/\s+/g,' ').trim():slot.value;
+      if(name.length>40||/[\x00-\x1f\x7f]/.test(name)){namedPresetNotice_('ชื่อชุดต้องไม่เกิน40ตัวอักษรและไม่มีอักขระควบคุม');return;}
+      var names=namedPresetRefresh_();if(!names)return;
+      if(mode==='save'&&name&&names.indexOf(name)<0&&names.length>=10){namedPresetNotice_('บันทึกชุดที่ตั้งชื่อได้ไม่เกิน10ชุด กรุณาลบชุดที่ไม่ใช้ก่อน');return;}
+      var base=name?scope.base+':preset:'+encodeURIComponent(name):scope.base;
+      namedPresetInvoke_(mode,base);
+      namedPresetRefresh_();
+      try{if(mode==='save'&&localStorage.getItem(base+scope.suffix)){slot.value=name;if(nameBox)nameBox.value='';}}catch(e){}
+    }
+
+    function docBulkOpen_(){
+      var root=document.getElementById('docBulkRoot');if(!root)return;
+      if(root.docBulk&&root.docBulk.busy)return;
+      var ids=docBulkIds_().slice();if(!ids.length||ids.length>20){namedPresetNotice_('เลือกเอกสาร1–20รายการในตะกร้าก่อนจัดแท็ก');return;}
+      root.docBulk={ids:ids,busy:false,request:0,plan:null};
+      root.innerHTML='<section class="card" style="margin:12px 0"><h3>จัดแท็ก '+ids.length+' เอกสารที่เลือก</h3><p>เพิ่มหรือลบเฉพาะแท็ก ไม่เปลี่ยนข้อความและลิงก์เดิม</p>'+
+        '<label for="docBulkMode">การจัดแท็ก</label><select id="docBulkMode" data-nodirty="1" onchange="docBulkInvalidate_()"><option value="ADD">เพิ่มแท็ก</option><option value="REMOVE">ลบแท็ก</option></select>'+
+        '<label for="docBulkTags">แท็ก คั่นด้วยจุลภาค</label><input type="search" id="docBulkTags" maxlength="512" oninput="docBulkInvalidate_()">'+
+        '<button type="button" onclick="docBulkPreview_()">ตรวจรายการก่อนแก้แท็ก</button><div id="docBulkPlan"></div><div id="docBulkMsg" role="status" aria-live="polite"></div></section>';
+      root.scrollIntoView({block:'nearest'});
+    }
+    function docBulkInvalidate_(){var h=document.getElementById('docBulkRoot');if(!h||!h.docBulk)return;h.docBulk.plan=null;h.docBulk.request++;h.querySelector('#docBulkPlan').innerHTML='';}
+    function docBulkInput_(h){return {mode:h.querySelector('#docBulkMode').value,tags:h.querySelector('#docBulkTags').value,items:h.docBulk.ids.map(function(id){return {certificateId:id};})};}
+    function docBulkPreview_(){
+      var h=document.getElementById('docBulkRoot');if(!h||!h.docBulk||h.docBulk.busy)return;var st=h.docBulk,request=++st.request,input=docBulkInput_(h),msg=h.querySelector('#docBulkMsg');st.plan=null;h.querySelector('#docBulkPlan').innerHTML='';msg.textContent='กำลังตรวจแท็กเดิมและสิทธิ์...';
+      docBulkApi_('preview',input).then(function(rows){if(!h.isConnected||h.docBulk!==st||st.request!==request)return;st.plan={input:input,rows:rows};
+        h.querySelector('#docBulkPlan').innerHTML='<ul>'+rows.map(function(r){return '<li><b>'+docOrgEscape_(r.activityName)+'</b><br>เดิม: '+docOrgEscape_(r.before.join(', ')||'ไม่มีแท็ก')+'<br>หลังแก้: '+docOrgEscape_(r.after.join(', ')||'ไม่มีแท็ก')+(r.changed?'':' (ไม่เปลี่ยน)')+'</li>';}).join('')+'</ul><button type="button" id="docBulkApply" onclick="docBulkApply_()">ยืนยันแก้แท็กตามรายการนี้</button>';
+        msg.textContent='ตรวจครบ'+rows.length+'รายการแล้ว ยังไม่แก้ข้อมูลจนกดยืนยัน';
+      }).catch(function(e){if(h.isConnected&&st.request===request)msg.textContent=e&&/[ก-๙]/.test(e.message)?e.message:'ตรวจรายการไม่ได้ กรุณาลองใหม่';});
+    }
+    function docBulkApply_(){
+      var h=document.getElementById('docBulkRoot');if(!h||!h.docBulk||h.docBulk.busy||!h.docBulk.plan)return;var st=h.docBulk,p=st.plan,input={mode:p.input.mode,tags:p.input.tags,items:p.rows.map(function(r){return {certificateId:r.certificateId,revision:r.revision};})};
+      st.busy=true;st.plan=null;st.request++;docBulkSaving_(true);var controls=Array.prototype.slice.call(h.querySelectorAll('input,select,button'));controls.forEach(function(el){el.disabled=true;});var msg=h.querySelector('#docBulkMsg');msg.textContent='กำลังแก้แท็ก กรุณารอสักครู่...';
+      docBulkApi_('apply',input).then(function(r){var message='บันทึกแท็กแล้ว '+r.updated.length+' รายการ · ไม่เปลี่ยน '+r.unchanged.length+' รายการ';
+        if(r.status!=='PASS')message+=' · ต้องตรวจสถานะ '+r.uncertain.length+' รายการ · ยังไม่เริ่ม '+r.notAttempted.length+' รายการ — '+r.message;
+        if(h.isConnected){msg.textContent=message;h.querySelector('#docBulkPlan').innerHTML='<ul>'+p.rows.map(function(row){var id=row.certificateId,label=r.updated.indexOf(id)>=0?'บันทึกแท็กแล้ว':r.unchanged.indexOf(id)>=0?'ไม่เปลี่ยน':r.uncertain.indexOf(id)>=0?'ต้องตรวจสถานะก่อนลองใหม่':'ยังไม่เริ่ม';return '<li>'+docOrgEscape_(row.activityName)+' — '+label+'</li>';}).join('')+'</ul>';}else namedPresetNotice_(message);
+      }).catch(function(e){if(h.isConnected)msg.textContent=e&&/[ก-๙]/.test(e.message)?e.message:'ยังยืนยันผลบันทึกไม่ได้ กรุณาตรวจรายการใหม่ก่อนลองอีกครั้ง';})
+        .finally(function(){st.busy=false;docBulkSaving_(false);if(h.isConnected){controls.forEach(function(el){el.disabled=false;});var apply=h.querySelector('#docBulkApply');if(apply)apply.remove();}});
+    }
+    function docOrgReportSelected_(){
+      var h=document.getElementById('docOrganizationPanel');if(!h||!h.docOrg||!h.docOrg.data)return;var st=h.docOrg;
+      if(docOrgHasPending_()){namedPresetNotice_('กรุณาบันทึกหรือยกเลิกส่วนจัดระเบียบก่อนเลือกเข้ารายงาน');return;}
+      var ids=(st.reportIds||[]).filter(function(id){return st.data.related.some(function(r){return r.certificateId===id;});});
+      if(!ids.length){namedPresetNotice_('เลือกและบันทึกลิงก์เอกสารประกอบก่อน');return;}
+      docOrgReportAdd_(ids);h.querySelector('#docOrgMsg').textContent='เพิ่ม'+ids.length+'รายการเข้าตะกร้าแล้ว ไปหน้าตรวจรายงานเพื่อเลือกและยืนยันคำเตือนตามเดิม ยังไม่สร้างรายงาน';
+    }
+    function docOrgReportToggle_(btn){var h=document.getElementById('docOrganizationPanel'),st=h.docOrg,id=st.options[Number(btn.dataset.orgIndex)].certificateId;st.reportIds=st.reportIds||[];var i=st.reportIds.indexOf(id);if(i>=0)st.reportIds.splice(i,1);else st.reportIds.push(id);btn.textContent=i>=0?'เลือกเข้ารายงาน':'✓ เลือกเข้ารายงานแล้ว';btn.setAttribute('aria-pressed',i>=0?'false':'true');}
+
+    function namedPresetScope_(){return {base:typeof SEARCH_HIST_KEY==='undefined'?'':SEARCH_HIST_KEY,suffix:':filters'};}
+    function namedPresetInvoke_(mode,base){var original=SEARCH_HIST_KEY;try{SEARCH_HIST_KEY=base;liffSearchPreset_(mode);}finally{SEARCH_HIST_KEY=original;}}
+    function namedPresetNotice_(m){liffToast(m);}
+    function docBulkIds_(){return _liffBasket;}
+    function docBulkApi_(action,input){return api(action==='preview'?'bulkdocpreview':'bulkdocapply',{data:input});}
+    function docBulkSaving_(on){liffSaving_=Math.max(0,liffSaving_+(on?1:-1));}
+    function docOrgReportAdd_(ids){ids.forEach(function(id){if(_liffBasket.indexOf(id)<0)_liffBasket.push(id);});}
+    function docOrgGoReport_(){if(liffHasUnsaved_()||docOrgHasPending_()){namedPresetNotice_('กรุณาบันทึกหรือยกเลิกการแก้ไขก่อนเปิดรายงาน');return;}showReportCenter();}
+
     function liffSearchPreset_(mode){
       var ids = ['sq','liffSearchYear','liffSearchType','liffSearchIssuer','liffSearchFrom','liffSearchTo','liffSearchSort','liffSearchRound','liffSearchDocYear','liffSearchDateStatus','liffSearchMinHours','liffSearchMaxHours','liffSearchTags','liffSearchTextQuery'];
       var previous = null;
@@ -4099,7 +4170,7 @@
         (OPTIONS.academicYear || []).map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') + '</select></div>' +
         '<div class="field"><label>ประเภทเอกสาร</label><select id="liffSearchType" onchange="runSearch()"><option value="">ทุกประเภท</option>' +
         (typeof RC_DOCTYPES !== 'undefined' ? RC_DOCTYPES : []).map(function(t){return '<option value="'+esc(t)+'">'+esc(t)+'</option>';}).join('') + '</select></div>' +
-        '<div class="rp-btns"><button type="button" class="b-second" onclick="liffSearchPreset_(\'reset\')">ล้างเงื่อนไขทั้งหมด</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'save\')">บันทึกตัวกรองในอุปกรณ์นี้</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'load\')">ใช้ตัวกรองที่บันทึก</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'clear\')">ลบตัวกรองที่บันทึก</button></div>' +
+        '<div class="rp-btns"><button type="button" class="b-second" onclick="liffSearchPreset_(\'reset\')">ล้างเงื่อนไขทั้งหมด</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'save\')">บันทึกตัวกรองในอุปกรณ์นี้</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'load\')">ใช้ตัวกรองที่บันทึก</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'clear\')">ลบตัวกรองที่บันทึก</button></div>' +
         '<div class="note">ชุดที่บันทึกรวมคำค้นและตัวกรองของบัญชีนี้ เก็บเฉพาะในแอปหรือเบราว์เซอร์ที่ใช้อยู่นี้</div>' +
         '<div class="field"><label>หน่วยงาน</label><input id="liffSearchIssuer" placeholder="ชื่อหน่วยงาน" onchange="runSearch()"></div>' +
         '<div class="field"><label for="liffSearchTags">แท็กที่ต้องมีครบ (คั่นด้วยจุลภาค)</label><input type="search" id="liffSearchTags" maxlength="512" onchange="runSearch()"><label for="liffSearchTextQuery">ค้นข้อความในเอกสารที่เก็บไว้</label><input type="search" id="liffSearchTextQuery" maxlength="240" placeholder="คำค้นทุกคำต้องพบในข้อความ" onchange="runSearch()"></div>'+
@@ -4117,7 +4188,8 @@
         'onkeydown="if(event.key===\'Enter\')runAiSearch()">' +
         '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runAiSearch()">ถาม</button>' +
         '</div><div id="aires"></div></div>' +
-        '<div id="sres"></div>';
+        '<div id="namedPresetControls"><label for="namedPresetSlot">ชุดตัวกรองที่บันทึก</label><select id="namedPresetSlot" data-nodirty="1" onfocus="namedPresetRefresh_()"><option value="">ชุดเดิม (ไม่ระบุชื่อ)</option></select><label for="namedPresetName">ชื่อชุดใหม่หรือชื่อที่ต้องการบันทึกทับ</label><input type="search" id="namedPresetName" maxlength="40" placeholder="ตั้งชื่อได้สูงสุด10ชุด"></div><div id="sres"></div><div id="docBulkRoot"></div>';
+      namedPresetRefresh_();
       if (_searchQuery) runSearch(_searchQuery);
     }
 
@@ -4146,6 +4218,7 @@
       if (!_liffBasket.length) return '';
       return '<div class="rp-basket" role="status">🧺 เลือกเข้ารายงาน <b>' + _liffBasket.length + '</b> รายการ' +
         '<div class="rp-btns" style="width:100%;margin-top:4px;"><button type="button" class="b-primary" onclick="showReportCenter()">ไปตรวจและสร้างรายงาน</button>' +
+        '<button type="button" class="b-second" onclick="docBulkOpen_()">จัดแท็กหลายรายการ</button>'+
         '<button type="button" class="b-second" onclick="_liffBasket=[];liffSearchPaint_()">ล้างรายการที่เลือก</button></div></div>';
     }
     // V4: เลือกทุกใบที่แสดงอยู่เข้ารายงานทีเดียว (ข้ามใบที่เลือกไว้แล้ว) — หน้าตรวจรายงานยังติ๊กให้เฉพาะใบที่พร้อมใช้
@@ -6978,9 +7051,50 @@
 
     // แผงนี้บันทึกแยกจากฟอร์มข้อมูลเกียรติบัตร ไม่เก็บข้อความเอกสารใน localStorage
     function docOrgPanelHtml_(){ return '<section class="card" id="docOrganizationPanel" style="margin-top:16px;min-width:0;"></section>'; }
-    function docOrgMount_(id){
+    /** อ่านชั้นข้อความของ PDF ในเครื่อง ไม่ใช่ OCR ภาพ ไม่เขียนฐานข้อมูล */
+    async function docPdfText_(base64,progress,cancelled){
+      if(typeof base64!=='string'||!base64||base64.length>14*1024*1024)throw Error('PDF ต้องมีขนาดไม่เกิน10เมกะไบต์');
+      if(!window.pdfjsLib)throw Error('ตัวอ่านPDFยังไม่พร้อม กรุณาเปิดหน้านี้ใหม่');
+      var binary=atob(base64);if(binary.length>10*1024*1024)throw Error('PDF ต้องมีขนาดไม่เกิน10เมกะไบต์');
+      var bytes=new Uint8Array(binary.length);for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      var task=window.pdfjsLib.getDocument({data:bytes,isEvalSupported:false}),pages=[],missing=[],damaged=[],size=0;
+      try{var pdf=await task.promise;if(pdf.numPages>20)throw Error('อ่านได้ครั้งละไม่เกิน20หน้า กรุณาแบ่งไฟล์ก่อน');
+        for(var n=1;n<=pdf.numPages;n++){
+          if(cancelled&&cancelled())throw Error('ยกเลิกการอ่านข้อความแล้ว');
+          var page=await pdf.getPage(n),content;
+          try{content=await page.getTextContent();}finally{page.cleanup();}
+          var text=content.items.map(function(item){return typeof item.str==='string'?item.str+(item.hasEOL?'\n':''):'';}).join('').replace(/[ \t]+\n/g,'\n').trim();
+          if(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\ufffd]/.test(text)){damaged.push(n);text=text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g,'\ufffd');}
+          if(!text)missing.push(n);pages.push('หน้า '+n+'\n'+text);size+=text.length+20;
+          if(size>20000)throw Error('ข้อความเกิน20,000ตัวอักษร กรุณาเลือกคัดลอกเฉพาะส่วนที่ต้องการแทน');
+          if(progress)progress(n,pdf.numPages);
+        }
+        if(cancelled&&cancelled())throw Error('ยกเลิกการอ่านข้อความแล้ว');
+        if(missing.length===pdf.numPages)throw Error('PDFนี้ไม่มีชั้นข้อความ ต้องใช้OCRจากภาพหรือเพิ่มข้อความเอง');
+        return {text:pages.join('\n\n'),pages:pdf.numPages,missingPages:missing,damagedPages:damaged};
+      }finally{await task.destroy();}
+    }
+    function docOrgReadPdf_(){
+      var h=document.getElementById('docOrganizationPanel');if(!h||!h.docOrg||h.docOrg.busy||!h.docOrg.pdfBase64)return;
+      var st=h.docOrg;st.busy=true;st.pdfCancelled=false;st.pdfResult=null;docOrgSavingAdapter_(true);
+      var controls=Array.prototype.slice.call(h.querySelectorAll('input,textarea,button'));controls.forEach(function(el){el.disabled=true;});
+      var output=h.querySelector('#docOrgPdfOutput');output.innerHTML='<p role="status">กำลังอ่านข้อความ...</p><button type="button" onclick="docOrgCancelPdf_()">ยกเลิกการอ่าน</button>';
+      docPdfText_(st.pdfBase64,function(n,total){if(h.isConnected&&h.docOrg===st)output.querySelector('p').textContent='อ่านหน้า'+n+'จาก'+total;},function(){return st.pdfCancelled||!h.isConnected||h.docOrg!==st;})
+        .then(function(r){if(!h.isConnected||h.docOrg!==st)return;st.pdfResult=r;
+          output.innerHTML='<p>อ่านชั้นข้อความแล้ว'+r.pages+'หน้า ตรวจข้อความก่อนใช้ ไม่ใช่การอ่านจากภาพ</p>'+(r.missingPages.length?'<p role="alert">หน้า'+r.missingPages.join(', ')+'ไม่มีชั้นข้อความ อาจเป็นภาพสแกน ผลนี้จึงยังไม่ครอบคลุมเอกสารทั้งไฟล์</p>':'')+
+            (r.damagedPages.length?'<p role="alert">หน้า'+r.damagedPages.join(', ')+'มีอักขระที่แปลงไม่ได้ (�) กรุณาเทียบไฟล์จริงและแก้ไขก่อนบันทึก</p>':'')+
+            '<label for="docOrgPdfText">ข้อความที่อ่านได้</label><textarea id="docOrgPdfText" readonly rows="6" style="width:100%;box-sizing:border-box;">'+docOrgEscape_(r.text)+'</textarea>'+
+            '<button type="button" onclick="docOrgUsePdf_()">ใช้ข้อความนี้แทนข้อความเพิ่มเอง</button><p>ยังไม่บันทึกลงระบบ ต้องกดบันทึกส่วนจัดระเบียบหลังตรวจแล้ว</p>';
+        }).catch(function(e){if(h.isConnected&&h.docOrg===st)output.textContent=e&&/[ก-๙]/.test(e.message)?e.message:'อ่านPDFไม่สำเร็จ ไฟล์อาจมีรหัสผ่านหรือเสียหาย กรุณาตรวจไฟล์';})
+        .finally(function(){st.busy=false;docOrgSavingAdapter_(false);if(h.isConnected&&h.docOrg===st)controls.forEach(function(el){el.disabled=false;});});
+    }
+    function docOrgCancelPdf_(){var h=document.getElementById('docOrganizationPanel');if(h&&h.docOrg)h.docOrg.pdfCancelled=true;}
+    function docOrgUsePdf_(){var h=document.getElementById('docOrganizationPanel');if(!h||!h.docOrg||h.docOrg.busy||!h.docOrg.pdfResult||!h.docOrg.data.canEdit)return;h.querySelector('#docOrgText').value=h.docOrg.pdfResult.text;docOrgDirty_();h.querySelector('#docOrgMsg').textContent='ใส่ข้อความในฟอร์มแล้ว ตรวจและกดบันทึกส่วนนี้เมื่อต้องการ';}
+
+    function docOrgMount_(id,preview){
       var host=document.getElementById('docOrganizationPanel'); if(!host)return;
-      host.docOrg={id:id,dirty:false,busy:false};
+      host.docOrg={id:id,dirty:false,busy:false,pdfBase64:preview&&preview.certificate&&preview.certificate.mimeType==='application/pdf'?(preview.previewBase64||''):''};
       host.innerHTML='<h4>แท็ก ข้อความค้นหา และเอกสารประกอบ</h4><button type="button" onclick="docOrgLoad_()">เปิดส่วนจัดระเบียบเอกสาร</button><p>บันทึกแยกจากข้อมูลเกียรติบัตร เฉพาะเมื่อกดบันทึกส่วนนี้</p>';
     }
     function docOrgHasPending_(){var h=document.getElementById('docOrganizationPanel');return !!(h&&h.docOrg&&(h.docOrg.dirty||h.docOrg.busy));}
@@ -6998,11 +7112,12 @@
         '<label for="docOrgTags">แท็ก (คั่นด้วยจุลภาค สูงสุด 12 แท็ก)</label><input type="text" id="docOrgTags" maxlength="512" style="width:100%;box-sizing:border-box;"'+disabled+' value="'+e(d.tags.join(', '))+'" oninput="docOrgDirty_()">'+
         '<p>คำแนะนำจากข้อมูลเอกสาร: '+(d.suggestedTags||[]).map(function(t,i){return '<button type="button"'+disabled+' data-tag-index="'+i+'" onclick="docOrgAddTag_(this)">'+e(t)+'</button>';}).join(' ')+'</p>'+
         '<label for="docOrgText">ข้อความในเอกสารที่เพิ่มเอง (สูงสุด 20,000 ตัวอักษร)</label><textarea id="docOrgText" rows="5" maxlength="20000" style="width:100%;box-sizing:border-box;"'+disabled+' oninput="docOrgDirty_()">'+e(d.text)+'</textarea>'+
+        (d.canEdit&&st.pdfBase64?'<button type="button" onclick="docOrgReadPdf_()">อ่านข้อความทุกหน้าจากPDFนี้</button><div id="docOrgPdfOutput"></div>':'')+
         '<details><summary>ดูข้อความหลักฐานที่ AI อ่านไว้</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;">'+e(d.extractedText||'ยังไม่มีข้อความที่ AI อ่านไว้')+'</pre></details>'+
         '<p>เลือกเอกสารประกอบสูงสุด 20 รายการ ลิงก์ออกจากใบนี้ ไม่เชื่อมกลับให้อัตโนมัติ</p>'+
         (d.unavailableRelatedCount?'<p role="alert">มีลิงก์เดิมที่ลบหรือเปิดไม่ได้ '+Number(d.unavailableRelatedCount)+' รายการ การบันทึกส่วนนี้จะถอดลิงก์เหล่านั้น</p>':'')+
         '<label for="docOrgQuery">ค้นเอกสารของเจ้าของเดียวกัน</label><input type="search" id="docOrgQuery" maxlength="120"'+disabled+'><button type="button"'+disabled+' onclick="docOrgFind_()">ค้นเอกสารเพื่อเชื่อม</button>'+
-        '<div id="docOrgChoices"></div><div id="docOrgMsg" role="status" aria-live="polite"></div>'+
+        '<div id="docOrgChoices"></div><button type="button" onclick="docOrgReportSelected_()">เพิ่มใบที่เลือกเข้าตะกร้ารายงาน</button><button type="button" onclick="docOrgGoReport_()">ไปตรวจรายงาน</button><div id="docOrgMsg" role="status" aria-live="polite"></div>'+
         (d.canEdit?'<button type="button" id="docOrgSave" onclick="docOrgSave_()">บันทึกแท็ก ข้อความ และลิงก์</button><button type="button" onclick="docOrgDiscard_()">ยกเลิกการแก้ส่วนนี้</button>':'<p>ดูได้อย่างเดียว เจ้าของเอกสารหรือผู้ดูแลเป็นผู้แก้ไขส่วนนี้</p>');
       docOrgChoices_(h);
     }
@@ -7010,7 +7125,7 @@
     function docOrgAddTag_(btn){var h=document.getElementById('docOrganizationPanel'),t=h.docOrg.data.suggestedTags[Number(btn.dataset.tagIndex)],el=document.getElementById('docOrgTags');if(t){el.value+=(el.value.trim()?', ':'')+t;docOrgDirty_();}}
     function docOrgChoices_(h){
       var st=h.docOrg,e=docOrgEscape_,box=h.querySelector('#docOrgChoices');
-      box.innerHTML=st.options.map(function(x,i){var checked=st.selected.indexOf(x.certificateId)>=0;return '<div style="margin:8px 0;overflow-wrap:anywhere;"><label><input type="checkbox" data-org-index="'+i+'"'+(checked?' checked':'')+(st.data.canEdit?'':' disabled')+' onchange="docOrgSelect_(this)"> '+e(x.activityName)+' '+e(x.receivedDate||'')+(x.reason?' — '+e(x.reason):'')+'</label> <button type="button" data-org-index="'+i+'" onclick="docOrgRelated_(this)">เปิดเอกสาร</button></div>';}).join('')||'<p>ยังไม่มีเอกสารที่เชื่อมหรือคำแนะนำ ลองค้นชื่อกิจกรรมด้านบน</p>';
+      box.innerHTML=st.options.map(function(x,i){var checked=st.selected.indexOf(x.certificateId)>=0;return '<div style="margin:8px 0;overflow-wrap:anywhere;"><label><input type="checkbox" data-org-index="'+i+'"'+(checked?' checked':'')+(st.data.canEdit?'':' disabled')+' onchange="docOrgSelect_(this)"> '+e(x.activityName)+' '+e(x.receivedDate||'')+(x.reason?' — '+e(x.reason):'')+'</label> <button type="button" data-org-index="'+i+'" onclick="docOrgRelated_(this)">เปิดเอกสาร</button>'+((st.data.related||[]).some(function(r){return r.certificateId===x.certificateId;})?'<button type="button" data-org-index="'+i+'" aria-pressed="'+((st.reportIds||[]).indexOf(x.certificateId)>=0?'true':'false')+'" onclick="docOrgReportToggle_(this)">'+((st.reportIds||[]).indexOf(x.certificateId)>=0?'✓ เลือกเข้ารายงานแล้ว':'เลือกเข้ารายงาน')+'</button>':'')+'</div>';}).join('')||'<p>ยังไม่มีเอกสารที่เชื่อมหรือคำแนะนำ ลองค้นชื่อกิจกรรมด้านบน</p>';
     }
     function docOrgSelect_(btn){var h=document.getElementById('docOrganizationPanel'),st=h.docOrg,id=st.options[Number(btn.dataset.orgIndex)].certificateId;st.selected=st.selected.filter(function(x){return x!==id;});if(btn.checked)st.selected.push(id);docOrgDirty_();}
     function docOrgRelated_(btn){var h=document.getElementById('docOrganizationPanel');docOrgOpenRelated_(h.docOrg.options[Number(btn.dataset.orgIndex)].certificateId);}
@@ -7035,7 +7150,7 @@
       docOrgApi_('save',st.id,input).then(function(result){if(!h.isConnected||h.docOrg!==st)return;
         st.data.revision=result.revision;st.data.tags=result.tags;h.querySelector('#docOrgTags').value=result.tags.join(', ');st.data.text=input.text;
         st.data.related=st.options.filter(function(x){return input.relatedIds.indexOf(x.certificateId)>=0;});st.data.unavailableRelatedCount=0;
-        st.dirty=false;docOrgDirtyAdapter_(false);msg.textContent='บันทึกแท็ก ข้อความ และลิงก์แล้ว';
+        st.dirty=false;docOrgDirtyAdapter_(false);docOrgChoices_(h);msg.textContent='บันทึกแท็ก ข้อความ และลิงก์แล้ว';
       }).catch(function(e){if(h.isConnected)msg.textContent=e&&/[ก-๙]/.test(String(e.message||''))?e.message:'บันทึกไม่ได้ กรุณาลองใหม่';})
         .finally(function(){st.busy=false;docOrgSavingAdapter_(false);if(h.isConnected)controls.forEach(function(el){el.disabled=false;});});
     }
@@ -7111,7 +7226,7 @@
         // ปุ่มหลักติดล่างจอ: เลื่อนดูฟิลด์ยาว ๆ อยู่ก็ยังกดยืนยันได้ทันที ไม่ต้องเลื่อนกลับลงมาสุด
         '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
         floatBtn;
-      if(isSaved)docOrgMount_(c.certificateId);
+      if(isSaved)docOrgMount_(c.certificateId,data);
       updateBanner();
       if(isImage) certPinApply_(certPinGet_());
       if(hasPdf) officialDocMountPdf_({ base64: data.previewBase64, mimeType: c.mimeType }, 'certPdfPreview', 1);
