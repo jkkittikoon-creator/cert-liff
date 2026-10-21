@@ -4032,7 +4032,7 @@
     }
 
     function liffSearchPreset_(mode){
-      var ids = ['sq','liffSearchYear','liffSearchType','liffSearchIssuer','liffSearchFrom','liffSearchTo','liffSearchSort','liffSearchRound','liffSearchDocYear','liffSearchDateStatus','liffSearchMinHours','liffSearchMaxHours'];
+      var ids = ['sq','liffSearchYear','liffSearchType','liffSearchIssuer','liffSearchFrom','liffSearchTo','liffSearchSort','liffSearchRound','liffSearchDocYear','liffSearchDateStatus','liffSearchMinHours','liffSearchMaxHours','liffSearchTags','liffSearchTextQuery'];
       var previous = null;
       try {
         if (mode === 'reset') { ids.forEach(function(id){var el=document.getElementById(id);if(el)el.value=id==='liffSearchSort'?'date_desc':'';}); runSearch(''); return; }
@@ -4041,7 +4041,7 @@
         if (mode === 'clear') { localStorage.removeItem(key); liffToast('ลบชุดตัวกรองแล้ว','ok'); return; }
         if (mode === 'save') {
           var values = {};
-          ids.forEach(function(id){var el=document.getElementById(id);if(el)values[id]=String(el.value).slice(0,240);});
+          ids.forEach(function(id){var el=document.getElementById(id);if(el)values[id]=String(el.value).slice(0,/Tags$/.test(id)?512:240);});
           localStorage.setItem(key,JSON.stringify({version:1,values:values}));
           liffToast('บันทึกชุดตัวกรองของบัญชีนี้บนอุปกรณ์นี้แล้ว','ok'); return;
         }
@@ -4049,7 +4049,7 @@
         if (!saved || saved.version!==1 || !saved.values || typeof saved.values!=='object' || Array.isArray(saved.values)) throw new Error('ยังไม่มีชุดตัวกรองที่ใช้ได้');
         previous = {};
         ids.forEach(function(id){var el=document.getElementById(id);if(el)previous[id]=el.value;});
-        ids.forEach(function(id){var el=document.getElementById(id);if(el&&typeof saved.values[id]==='string'){el.value=saved.values[id].slice(0,240);if(el.tagName==='SELECT'&&el.value!==saved.values[id])throw new Error('ตัวเลือกเปลี่ยนไป กรุณาบันทึกเงื่อนไขใหม่');}});
+        ids.forEach(function(id){var el=document.getElementById(id);if(el&&typeof saved.values[id]==='string'){el.value=saved.values[id].slice(0,/Tags$/.test(id)?512:240);if(el.tagName==='SELECT'&&el.value!==saved.values[id])throw new Error('ตัวเลือกเปลี่ยนไป กรุณาบันทึกเงื่อนไขใหม่');}});
         runSearch();
       } catch(err) {
         if(previous)ids.forEach(function(id){var el=document.getElementById(id);if(el)el.value=previous[id];});
@@ -4102,6 +4102,7 @@
         '<div class="rp-btns"><button type="button" class="b-second" onclick="liffSearchPreset_(\'reset\')">ล้างเงื่อนไขทั้งหมด</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'save\')">บันทึกตัวกรองในอุปกรณ์นี้</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'load\')">ใช้ตัวกรองที่บันทึก</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'clear\')">ลบตัวกรองที่บันทึก</button></div>' +
         '<div class="note">ชุดที่บันทึกรวมคำค้นและตัวกรองของบัญชีนี้ เก็บเฉพาะในแอปหรือเบราว์เซอร์ที่ใช้อยู่นี้</div>' +
         '<div class="field"><label>หน่วยงาน</label><input id="liffSearchIssuer" placeholder="ชื่อหน่วยงาน" onchange="runSearch()"></div>' +
+        '<div class="field"><label for="liffSearchTags">แท็กที่ต้องมีครบ (คั่นด้วยจุลภาค)</label><input type="search" id="liffSearchTags" maxlength="512" onchange="runSearch()"><label for="liffSearchTextQuery">ค้นข้อความในเอกสารที่เก็บไว้</label><input type="search" id="liffSearchTextQuery" maxlength="240" placeholder="คำค้นทุกคำต้องพบในข้อความ" onchange="runSearch()"></div>'+
         '<div class="field"><label for="liffSearchMinHours">ชั่วโมงขั้นต่ำต่อเอกสาร</label><input type="text" inputmode="decimal" id="liffSearchMinHours" placeholder="ไม่จำกัด" onchange="runSearch()"></div>' +
         '<div class="field"><label for="liffSearchMaxHours">ชั่วโมงสูงสุดต่อเอกสาร</label><input type="text" inputmode="decimal" id="liffSearchMaxHours" placeholder="ไม่จำกัด" onchange="runSearch()"></div>' +
         '<div style="display:flex;gap:6px;"><div class="field" style="flex:1;"><label>จากวันที่ได้รับ</label><input type="date" id="liffSearchFrom" onchange="runSearch()"></div>' +
@@ -4215,6 +4216,7 @@
       var value = function(id){var x=document.getElementById(id);return x?x.value:'';};
       var opts = {
         q:q,academicYear:value('liffSearchYear'),documentType:value('liffSearchType'),
+        tags:value('liffSearchTags'),textQuery:value('liffSearchTextQuery'),
         issuer:value('liffSearchIssuer'),dateFrom:value('liffSearchFrom'),dateTo:value('liffSearchTo'),
         sortBy:value('liffSearchSort') || 'date_desc',offset:offset,pageSize:20,
         docYear:value('liffSearchDocYear'),dateStatus:value('liffSearchDateStatus')
@@ -5923,6 +5925,7 @@
         OPTIONS.academicYear.map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') +
         '</select><label>ครั้งที่</label><select id="rc_salaryround"><option value="1">1 (1 ต.ค. ปีก่อน – 31 มี.ค.)</option><option value="2">2 (1 เม.ย. – 30 ก.ย.)</option></select></div>'+
         '<div class="field"><label for="rc_issuer">หน่วยงานผู้ออกเอกสาร (ไม่บังคับ)</label><input type="text" id="rc_issuer" placeholder="พิมพ์บางส่วนของชื่อหน่วยงาน" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
+        '<div class="field"><label for="rc_Tags">แท็กที่ต้องมีครบ (คั่นด้วยจุลภาค)</label><input type="search" id="rc_Tags" maxlength="512" onchange="if(_rcReviewFilters)rcStartReview()"><label for="rc_TextQuery">ค้นข้อความในเอกสารที่เก็บไว้</label><input type="search" id="rc_TextQuery" maxlength="240" placeholder="คำค้นทุกคำต้องพบในข้อความ" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
         '<div class="field"><label for="rc_minHours">ชั่วโมงขั้นต่ำต่อเอกสาร</label><input type="text" inputmode="decimal" id="rc_minHours" placeholder="ไม่จำกัด" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
         '<div class="field"><label for="rc_maxHours">ชั่วโมงสูงสุดต่อเอกสาร</label><input type="text" inputmode="decimal" id="rc_maxHours" placeholder="ไม่จำกัด" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
         '<div class="field"><label>เรียงลำดับเอกสารก่อนส่งออก</label><select id="rc_sort" onchange="if(_rcReviewFilters)rcStartReview(true)">' +
@@ -6209,6 +6212,8 @@
         if(tgt && tgt.value) filters.targetOwnerId = tgt.value;   // แอดมินสร้างแทน (backend กันสิทธิ์)
       }
       filters.sortBy = document.getElementById('rc_sort').value;
+      filters.tags=(document.getElementById('rc_Tags')||{}).value||'';
+      filters.textQuery=(document.getElementById('rc_TextQuery')||{}).value||'';
       var issuer = document.getElementById('rc_issuer');
       if (issuer && issuer.value.trim()) filters.issuer = issuer.value.trim();
       ['minHours','maxHours'].forEach(function(key) {
@@ -6971,6 +6976,76 @@
       return '<div class="field '+cls+'" id="ff_'+name+'"><label>'+LABELS[name]+req+'</label>'+input+note+'</div>';
     }
 
+    // แผงนี้บันทึกแยกจากฟอร์มข้อมูลเกียรติบัตร ไม่เก็บข้อความเอกสารใน localStorage
+    function docOrgPanelHtml_(){ return '<section class="card" id="docOrganizationPanel" style="margin-top:16px;min-width:0;"></section>'; }
+    function docOrgMount_(id){
+      var host=document.getElementById('docOrganizationPanel'); if(!host)return;
+      host.docOrg={id:id,dirty:false,busy:false};
+      host.innerHTML='<h4>แท็ก ข้อความค้นหา และเอกสารประกอบ</h4><button type="button" onclick="docOrgLoad_()">เปิดส่วนจัดระเบียบเอกสาร</button><p>บันทึกแยกจากข้อมูลเกียรติบัตร เฉพาะเมื่อกดบันทึกส่วนนี้</p>';
+    }
+    function docOrgHasPending_(){var h=document.getElementById('docOrganizationPanel');return !!(h&&h.docOrg&&(h.docOrg.dirty||h.docOrg.busy));}
+    function docOrgLoad_(){
+      var h=document.getElementById('docOrganizationPanel');if(!h||!h.docOrg||h.docOrg.busy)return;
+      var st=h.docOrg; st.busy=true;h.innerHTML='<p role="status">กำลังอ่านข้อมูลจัดระเบียบ...</p>';
+      docOrgApi_('get',st.id).then(function(d){if(!h.isConnected||h.docOrg!==st)return;st.data=d;st.dirty=false;docOrgDraw_(h);})
+        .catch(function(){if(h.isConnected&&h.docOrg===st)h.innerHTML='<p role="alert">อ่านข้อมูลจัดระเบียบไม่ได้ กรุณาลองใหม่</p><button type="button" onclick="docOrgLoad_()">ลองใหม่</button>';})
+        .finally(function(){st.busy=false;});
+    }
+    function docOrgDraw_(h){
+      var st=h.docOrg,d=st.data,e=docOrgEscape_,disabled=d.canEdit?'':' disabled';
+      st.options=[];(d.related||[]).concat(d.suggestions||[]).forEach(function(x){if(!st.options.some(function(o){return o.certificateId===x.certificateId;}))st.options.push(x);});st.selected=(d.related||[]).map(function(x){return x.certificateId;});
+      h.innerHTML='<h4>แท็กและเอกสารประกอบ</h4><p>'+e(d.textNotice)+'</p>'+
+        '<label for="docOrgTags">แท็ก (คั่นด้วยจุลภาค สูงสุด 12 แท็ก)</label><input type="text" id="docOrgTags" maxlength="512" style="width:100%;box-sizing:border-box;"'+disabled+' value="'+e(d.tags.join(', '))+'" oninput="docOrgDirty_()">'+
+        '<p>คำแนะนำจากข้อมูลเอกสาร: '+(d.suggestedTags||[]).map(function(t,i){return '<button type="button"'+disabled+' data-tag-index="'+i+'" onclick="docOrgAddTag_(this)">'+e(t)+'</button>';}).join(' ')+'</p>'+
+        '<label for="docOrgText">ข้อความในเอกสารที่เพิ่มเอง (สูงสุด 20,000 ตัวอักษร)</label><textarea id="docOrgText" rows="5" maxlength="20000" style="width:100%;box-sizing:border-box;"'+disabled+' oninput="docOrgDirty_()">'+e(d.text)+'</textarea>'+
+        '<details><summary>ดูข้อความหลักฐานที่ AI อ่านไว้</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere;">'+e(d.extractedText||'ยังไม่มีข้อความที่ AI อ่านไว้')+'</pre></details>'+
+        '<p>เลือกเอกสารประกอบสูงสุด 20 รายการ ลิงก์ออกจากใบนี้ ไม่เชื่อมกลับให้อัตโนมัติ</p>'+
+        (d.unavailableRelatedCount?'<p role="alert">มีลิงก์เดิมที่ลบหรือเปิดไม่ได้ '+Number(d.unavailableRelatedCount)+' รายการ การบันทึกส่วนนี้จะถอดลิงก์เหล่านั้น</p>':'')+
+        '<label for="docOrgQuery">ค้นเอกสารของเจ้าของเดียวกัน</label><input type="search" id="docOrgQuery" maxlength="120"'+disabled+'><button type="button"'+disabled+' onclick="docOrgFind_()">ค้นเอกสารเพื่อเชื่อม</button>'+
+        '<div id="docOrgChoices"></div><div id="docOrgMsg" role="status" aria-live="polite"></div>'+
+        (d.canEdit?'<button type="button" id="docOrgSave" onclick="docOrgSave_()">บันทึกแท็ก ข้อความ และลิงก์</button><button type="button" onclick="docOrgDiscard_()">ยกเลิกการแก้ส่วนนี้</button>':'<p>ดูได้อย่างเดียว เจ้าของเอกสารหรือผู้ดูแลเป็นผู้แก้ไขส่วนนี้</p>');
+      docOrgChoices_(h);
+    }
+    function docOrgDirty_(){var h=document.getElementById('docOrganizationPanel');if(!h||!h.docOrg)return;h.docOrg.dirty=true;docOrgDirtyAdapter_(true);}
+    function docOrgAddTag_(btn){var h=document.getElementById('docOrganizationPanel'),t=h.docOrg.data.suggestedTags[Number(btn.dataset.tagIndex)],el=document.getElementById('docOrgTags');if(t){el.value+=(el.value.trim()?', ':'')+t;docOrgDirty_();}}
+    function docOrgChoices_(h){
+      var st=h.docOrg,e=docOrgEscape_,box=h.querySelector('#docOrgChoices');
+      box.innerHTML=st.options.map(function(x,i){var checked=st.selected.indexOf(x.certificateId)>=0;return '<div style="margin:8px 0;overflow-wrap:anywhere;"><label><input type="checkbox" data-org-index="'+i+'"'+(checked?' checked':'')+(st.data.canEdit?'':' disabled')+' onchange="docOrgSelect_(this)"> '+e(x.activityName)+' '+e(x.receivedDate||'')+(x.reason?' — '+e(x.reason):'')+'</label> <button type="button" data-org-index="'+i+'" onclick="docOrgRelated_(this)">เปิดเอกสาร</button></div>';}).join('')||'<p>ยังไม่มีเอกสารที่เชื่อมหรือคำแนะนำ ลองค้นชื่อกิจกรรมด้านบน</p>';
+    }
+    function docOrgSelect_(btn){var h=document.getElementById('docOrganizationPanel'),st=h.docOrg,id=st.options[Number(btn.dataset.orgIndex)].certificateId;st.selected=st.selected.filter(function(x){return x!==id;});if(btn.checked)st.selected.push(id);docOrgDirty_();}
+    function docOrgRelated_(btn){var h=document.getElementById('docOrganizationPanel');docOrgOpenRelated_(h.docOrg.options[Number(btn.dataset.orgIndex)].certificateId);}
+    function docOrgFind_(){
+      var h=document.getElementById('docOrganizationPanel'),st=h.docOrg,q=h.querySelector('#docOrgQuery').value.trim(),box=h.querySelector('#docOrgMsg');
+      if(!q){box.textContent='กรุณาระบุชื่อกิจกรรมหรือหน่วยงาน';return;}if(st.busy)return;
+      var request=(st.findRequest||0)+1;st.findRequest=request;
+      box.textContent='กำลังค้นเอกสาร...';
+      docOrgApi_('find',st.id,{query:q}).then(function(rows){if(!h.isConnected||h.docOrg!==st||request!==st.findRequest)return;
+        st.options=st.options.filter(function(x){return st.selected.indexOf(x.certificateId)>=0;});
+        rows.forEach(function(x){if(!st.options.some(function(o){return o.certificateId===x.certificateId;}))st.options.push(x);});
+        docOrgChoices_(h);box.textContent=rows.length?'แสดงได้ไม่เกิน 20 รายการ เลือกเฉพาะที่ต้องการเชื่อม':'ไม่พบเอกสารของเจ้าของเดียวกัน';
+      }).catch(function(){if(h.isConnected&&request===st.findRequest)box.textContent='ค้นเอกสารไม่ได้ กรุณาลองใหม่';});
+    }
+    function docOrgDiscard_(){var h=document.getElementById('docOrganizationPanel');if(!h||h.docOrg.busy)return;h.docOrg.dirty=false;docOrgDirtyAdapter_(false);docOrgDraw_(h);}
+    function docOrgSave_(){
+      var h=document.getElementById('docOrganizationPanel'),st=h.docOrg;if(st.busy||!st.data.canEdit)return;
+      var input={tags:h.querySelector('#docOrgTags').value,text:h.querySelector('#docOrgText').value,relatedIds:st.selected.slice(),revision:st.data.revision};
+      st.busy=true;st.findRequest=(st.findRequest||0)+1;docOrgSavingAdapter_(true);
+      var controls=Array.prototype.slice.call(h.querySelectorAll('input,textarea,button'));controls.forEach(function(el){el.disabled=true;});
+      var msg=h.querySelector('#docOrgMsg');msg.textContent='กำลังบันทึก...';
+      docOrgApi_('save',st.id,input).then(function(result){if(!h.isConnected||h.docOrg!==st)return;
+        st.data.revision=result.revision;st.data.tags=result.tags;h.querySelector('#docOrgTags').value=result.tags.join(', ');st.data.text=input.text;
+        st.data.related=st.options.filter(function(x){return input.relatedIds.indexOf(x.certificateId)>=0;});st.data.unavailableRelatedCount=0;
+        st.dirty=false;docOrgDirtyAdapter_(false);msg.textContent='บันทึกแท็ก ข้อความ และลิงก์แล้ว';
+      }).catch(function(e){if(h.isConnected)msg.textContent=e&&/[ก-๙]/.test(String(e.message||''))?e.message:'บันทึกไม่ได้ กรุณาลองใหม่';})
+        .finally(function(){st.busy=false;docOrgSavingAdapter_(false);if(h.isConnected)controls.forEach(function(el){el.disabled=false;});});
+    }
+
+    function docOrgEscape_(s){return esc(String(s==null?'':s));}
+    function docOrgApi_(action,id,data){if(action==='save')return api('savedocorganization',{certificateId:id,data:data});if(action==='find')return api('docorganizationcandidates',{certificateId:id,query:data.query});return api('docorganization',{certificateId:id});}
+    function docOrgDirtyAdapter_(on){var h=document.getElementById('docOrganizationPanel');if(!h)return;if(on)h.setAttribute('data-dirty','1');else {h.removeAttribute('data-dirty');h.querySelectorAll('[data-dirty]').forEach(function(el){el.removeAttribute('data-dirty');});}}
+    function docOrgSavingAdapter_(on){liffSaving_=Math.max(0,liffSaving_+(on?1:-1));}
+    function docOrgOpenRelated_(id){if(liffHasUnsaved_()||docOrgHasPending_()){liffToast('กรุณาบันทึกหรือยกเลิกการแก้ไขก่อนเปิดเอกสารอื่น');return;}openDoc(id);}
+
     function renderForm(data){
       setNav(lastList === 'saved' ? 'saved' : 'pending');   // เมนูล่างชี้กลับรายการที่เข้ามา
       curCert = data.certificate;
@@ -7032,9 +7107,11 @@
         summary+
         '<div class="card"><button class="b-second" id="documentQualityBtn" onclick="liffDocumentQuality(this,false)">ตรวจคุณภาพข้อมูล</button><div class="note">ตรวจด้วยกฎของระบบก่อน โดยไม่เรียก AI และไม่แก้ข้อมูลเอง</div><div id="documentQualityBox"></div></div>'+
         '<div class="card" id="certFields">'+fieldsHtml+qrBtn+delBtn+'</div>'+
+        (isSaved?docOrgPanelHtml_():'')+
         // ปุ่มหลักติดล่างจอ: เลื่อนดูฟิลด์ยาว ๆ อยู่ก็ยังกดยืนยันได้ทันที ไม่ต้องเลื่อนกลับลงมาสุด
         '<div class="sticky-act"><div class="btns">'+btns+'</div></div>'+
         floatBtn;
+      if(isSaved)docOrgMount_(c.certificateId);
       updateBanner();
       if(isImage) certPinApply_(certPinGet_());
       if(hasPdf) officialDocMountPdf_({ base64: data.previewBase64, mimeType: c.mimeType }, 'certPdfPreview', 1);
@@ -7588,6 +7665,7 @@
 
     // แก้ไขเอกสารที่บันทึกยืนยันแล้ว (SAVED) → สร้างเวอร์ชันใหม่
     function updateDoc(){
+      if(docOrgHasPending_()){liffToast('กรุณาบันทึกหรือยกเลิกส่วนแท็กก่อนบันทึกข้อมูลเกียรติบัตร');return;}
       var missing = REQUIRED.filter(function(f){ return !String(vfval(f)||'').trim(); });
       if(missing.length){
         setFormMsg('<div class="msg err"><b>กรุณากรอกข้อมูลที่จำเป็นให้ครบ:</b> '+
