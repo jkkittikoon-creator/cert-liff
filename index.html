@@ -4869,7 +4869,8 @@
         var old = _officialDocPdfViews[targetId];
         if (old && old.loadingTask && old.loadingTask.destroy) { try { old.loadingTask.destroy(); } catch (_) {} }
         host.innerHTML = '<div class="od-pdf-state">📄 กำลังสร้างภาพตัวอย่าง PDF...</div>';
-        var loadingTask = window.pdfjsLib.getDocument({ data: officialDocPdfBytes_(file.base64) });
+        // CVE-2024-4367: PDF previews must not evaluate document-controlled font programs.
+        var loadingTask = window.pdfjsLib.getDocument({ data: officialDocPdfBytes_(file.base64), isEvalSupported: false });
         var view = { file:file, loadingTask:loadingTask, pdf:null, page:1, pages:0, renderTask:null, renderId:0,
           elementId:targetId + '_canvas', zoom:1, tx:0, ty:0 };
         _officialDocPdfViews[targetId] = view;
@@ -5873,6 +5874,7 @@
         '<div class="field" id="rc_salary_box" style="display:none;"><label>ปี พ.ศ. ที่ประเมิน</label><select id="rc_salaryyear">' +
         OPTIONS.academicYear.map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') +
         '</select><label>ครั้งที่</label><select id="rc_salaryround"><option value="1">1 (1 ต.ค. ปีก่อน – 31 มี.ค.)</option><option value="2">2 (1 เม.ย. – 30 ก.ย.)</option></select></div>'+
+        '<div class="field"><label for="rc_issuer">หน่วยงานผู้ออกเอกสาร (ไม่บังคับ)</label><input type="text" id="rc_issuer" placeholder="พิมพ์บางส่วนของชื่อหน่วยงาน" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
         '<div class="field"><label>เรียงลำดับเอกสารก่อนส่งออก</label><select id="rc_sort" onchange="if(_rcReviewFilters)rcStartReview(true)">' +
         '<option value="date_desc">วันที่ได้รับใหม่สุดก่อน</option><option value="date_asc">วันที่ได้รับเก่าสุดก่อน</option>' +
         '<option value="title_asc">ชื่อ ก–ฮ</option><option value="title_desc">ชื่อ ฮ–ก</option>' +
@@ -6157,6 +6159,8 @@
         if(tgt && tgt.value) filters.targetOwnerId = tgt.value;   // แอดมินสร้างแทน (backend กันสิทธิ์)
       }
       filters.sortBy = document.getElementById('rc_sort').value;
+      var issuer = document.getElementById('rc_issuer');
+      if (issuer && issuer.value.trim()) filters.issuer = issuer.value.trim();
       return filters;
     }
 
