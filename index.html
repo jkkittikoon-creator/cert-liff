@@ -4002,20 +4002,60 @@
     }
 
     /* ================= ค้นหา ================= */
-    var SEARCH_HIST_KEY = 'cert-liff-recent-q';
+    var SEARCH_HIST_KEY = '';
     var _searchQuery = '', _searchRequest = 0;
+    function initSearchHistory_(){
+      SEARCH_HIST_KEY = '';
+      // ล้างประวัติรูปแบบเก่าที่ใช้ร่วมทุกบัญชี ไม่ย้ายข้อมูลไปให้บัญชีใด
+      try { localStorage.removeItem('cert-liff-recent-q'); } catch (ignored) {}
+      var id = LIFF_PROFILE && LIFF_PROFILE.userId;
+      if (!id || !window.crypto || !window.crypto.subtle) return Promise.resolve();
+      return window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(id)).then(function(bytes){
+        if (!LIFF_PROFILE || LIFF_PROFILE.userId !== id) return;
+        SEARCH_HIST_KEY = 'cert-liff-recent-q:v2:' + Array.from(new Uint8Array(bytes)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+      }).catch(function(){ if (LIFF_PROFILE && LIFF_PROFILE.userId === id) SEARCH_HIST_KEY = ''; });
+    }
     function searchHist(){
-      try { return JSON.parse(localStorage.getItem(SEARCH_HIST_KEY) || '[]'); } catch(e) { return []; }
+      if (!SEARCH_HIST_KEY) return [];
+      try { var rows = JSON.parse(localStorage.getItem(SEARCH_HIST_KEY) || '[]'); return Array.isArray(rows) ? rows.filter(function(q){return typeof q === 'string';}).slice(0,8) : []; } catch(e) { return []; }
     }
     function pushHist(q){
-      if (!q) return;
+      q = String(q == null ? '' : q).slice(0,240);
+      if (!q || !SEARCH_HIST_KEY) return;
       var h = searchHist().filter(function(x){ return x !== q; });
       h.unshift(q);
       try { localStorage.setItem(SEARCH_HIST_KEY, JSON.stringify(h.slice(0, 8))); } catch(e) { /* เขียนไม่ได้ก็ข้ามไป */ }
     }
     function clearHist(){
-      try { localStorage.removeItem(SEARCH_HIST_KEY); } catch(e) {}
+      try { if (SEARCH_HIST_KEY) localStorage.removeItem(SEARCH_HIST_KEY); } catch(e) {}
       showSearch();
+    }
+
+    function liffSearchPreset_(mode){
+      var ids = ['sq','liffSearchYear','liffSearchType','liffSearchIssuer','liffSearchFrom','liffSearchTo','liffSearchSort','liffSearchRound','liffSearchDocYear','liffSearchDateStatus','liffSearchMinHours','liffSearchMaxHours'];
+      var previous = null;
+      try {
+        if (mode === 'reset') { ids.forEach(function(id){var el=document.getElementById(id);if(el)el.value=id==='liffSearchSort'?'date_desc':'';}); runSearch(''); return; }
+        if (!SEARCH_HIST_KEY) throw new Error('ยังไม่พร้อมระบุบัญชี กรุณาเปิดหน้านี้ใหม่');
+        var key = SEARCH_HIST_KEY + ':filters';
+        if (mode === 'clear') { localStorage.removeItem(key); liffToast('ลบชุดตัวกรองแล้ว','ok'); return; }
+        if (mode === 'save') {
+          var values = {};
+          ids.forEach(function(id){var el=document.getElementById(id);if(el)values[id]=String(el.value).slice(0,240);});
+          localStorage.setItem(key,JSON.stringify({version:1,values:values}));
+          liffToast('บันทึกชุดตัวกรองของบัญชีนี้บนอุปกรณ์นี้แล้ว','ok'); return;
+        }
+        var saved = JSON.parse(localStorage.getItem(key)||'null');
+        if (!saved || saved.version!==1 || !saved.values || typeof saved.values!=='object' || Array.isArray(saved.values)) throw new Error('ยังไม่มีชุดตัวกรองที่ใช้ได้');
+        previous = {};
+        ids.forEach(function(id){var el=document.getElementById(id);if(el)previous[id]=el.value;});
+        ids.forEach(function(id){var el=document.getElementById(id);if(el&&typeof saved.values[id]==='string'){el.value=saved.values[id].slice(0,240);if(el.tagName==='SELECT'&&el.value!==saved.values[id])throw new Error('ตัวเลือกเปลี่ยนไป กรุณาบันทึกเงื่อนไขใหม่');}});
+        runSearch();
+      } catch(err) {
+        if(previous)ids.forEach(function(id){var el=document.getElementById(id);if(el)el.value=previous[id];});
+        var message=/^(ยังไม่มีชุด|ตัวเลือกเปลี่ยน|ยังไม่พร้อมระบุบัญชี)/.test(String(err.message||''))?err.message:'ข้อมูลที่บันทึกอ่านไม่ได้ หรืออุปกรณ์ไม่อนุญาตให้เก็บข้อมูล';
+        liffToast('ใช้ชุดตัวกรองไม่ได้: '+message,'warn');
+      }
     }
 
     function showSearch(){
@@ -4059,7 +4099,11 @@
         (OPTIONS.academicYear || []).map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') + '</select></div>' +
         '<div class="field"><label>ประเภทเอกสาร</label><select id="liffSearchType" onchange="runSearch()"><option value="">ทุกประเภท</option>' +
         (typeof RC_DOCTYPES !== 'undefined' ? RC_DOCTYPES : []).map(function(t){return '<option value="'+esc(t)+'">'+esc(t)+'</option>';}).join('') + '</select></div>' +
+        '<div class="rp-btns"><button type="button" class="b-second" onclick="liffSearchPreset_(\'reset\')">ล้างเงื่อนไขทั้งหมด</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'save\')">บันทึกตัวกรองในอุปกรณ์นี้</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'load\')">ใช้ตัวกรองที่บันทึก</button><button type="button" class="b-second" onclick="liffSearchPreset_(\'clear\')">ลบตัวกรองที่บันทึก</button></div>' +
+        '<div class="note">ชุดที่บันทึกรวมคำค้นและตัวกรองของบัญชีนี้ เก็บเฉพาะในแอปหรือเบราว์เซอร์ที่ใช้อยู่นี้</div>' +
         '<div class="field"><label>หน่วยงาน</label><input id="liffSearchIssuer" placeholder="ชื่อหน่วยงาน" onchange="runSearch()"></div>' +
+        '<div class="field"><label for="liffSearchMinHours">ชั่วโมงขั้นต่ำต่อเอกสาร</label><input type="text" inputmode="decimal" id="liffSearchMinHours" placeholder="ไม่จำกัด" onchange="runSearch()"></div>' +
+        '<div class="field"><label for="liffSearchMaxHours">ชั่วโมงสูงสุดต่อเอกสาร</label><input type="text" inputmode="decimal" id="liffSearchMaxHours" placeholder="ไม่จำกัด" onchange="runSearch()"></div>' +
         '<div style="display:flex;gap:6px;"><div class="field" style="flex:1;"><label>จากวันที่ได้รับ</label><input type="date" id="liffSearchFrom" onchange="runSearch()"></div>' +
         '<div class="field" style="flex:1;"><label>ถึงวันที่ได้รับ</label><input type="date" id="liffSearchTo" onchange="runSearch()"></div></div>' +
         '<div class="docs-tools-actions"><button type="button" class="b-second" onclick="runSearch(\'\')">ล้างคำค้น</button><button type="button" class="b-second" onclick="runSearch()">↻ ค้นอีกครั้ง</button></div><div class="chips">' + chipHtml + '</div></div>' +
@@ -4175,6 +4219,10 @@
         sortBy:value('liffSearchSort') || 'date_desc',offset:offset,pageSize:20,
         docYear:value('liffSearchDocYear'),dateStatus:value('liffSearchDateStatus')
       };
+      ['minHours','maxHours'].forEach(function(key) {
+        var raw = value(key === 'minHours' ? 'liffSearchMinHours' : 'liffSearchMaxHours').trim();
+        if (raw) opts[key] = raw;
+      });
       /* รอบประเมิน "ปี-ครั้ง" → ให้ server คำนวณช่วงวันที่เอง (สูตรเดียวกับเว็บ) และไม่ใช้ปีการศึกษาซ้อน */
       var round = /^(\d{4})-([12])$/.exec(value('liffSearchRound'));
       if (round) { opts.reportKind = 'salary'; opts.assessmentYear = round[1]; opts.assessmentRound = round[2]; opts.academicYear = ''; }
@@ -5875,6 +5923,8 @@
         OPTIONS.academicYear.map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') +
         '</select><label>ครั้งที่</label><select id="rc_salaryround"><option value="1">1 (1 ต.ค. ปีก่อน – 31 มี.ค.)</option><option value="2">2 (1 เม.ย. – 30 ก.ย.)</option></select></div>'+
         '<div class="field"><label for="rc_issuer">หน่วยงานผู้ออกเอกสาร (ไม่บังคับ)</label><input type="text" id="rc_issuer" placeholder="พิมพ์บางส่วนของชื่อหน่วยงาน" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
+        '<div class="field"><label for="rc_minHours">ชั่วโมงขั้นต่ำต่อเอกสาร</label><input type="text" inputmode="decimal" id="rc_minHours" placeholder="ไม่จำกัด" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
+        '<div class="field"><label for="rc_maxHours">ชั่วโมงสูงสุดต่อเอกสาร</label><input type="text" inputmode="decimal" id="rc_maxHours" placeholder="ไม่จำกัด" onchange="if(_rcReviewFilters)rcStartReview()"></div>'+
         '<div class="field"><label>เรียงลำดับเอกสารก่อนส่งออก</label><select id="rc_sort" onchange="if(_rcReviewFilters)rcStartReview(true)">' +
         '<option value="date_desc">วันที่ได้รับใหม่สุดก่อน</option><option value="date_asc">วันที่ได้รับเก่าสุดก่อน</option>' +
         '<option value="title_asc">ชื่อ ก–ฮ</option><option value="title_desc">ชื่อ ฮ–ก</option>' +
@@ -6161,6 +6211,10 @@
       filters.sortBy = document.getElementById('rc_sort').value;
       var issuer = document.getElementById('rc_issuer');
       if (issuer && issuer.value.trim()) filters.issuer = issuer.value.trim();
+      ['minHours','maxHours'].forEach(function(key) {
+        var el = document.getElementById('rc_' + key);
+        if (el && el.value.trim()) filters[key] = el.value.trim();
+      });
       return filters;
     }
 
@@ -7755,8 +7809,8 @@
         // ดึงโปรไฟล์ไว้ "แสดงผล" อย่างเดียว — สิทธิ์เข้าถึงข้อมูลยังตัดสินจาก idToken ฝั่งเซิร์ฟเวอร์เสมอ
         // ถ้าดึงไม่ได้ก็ยังใช้งานต่อได้ แค่ไม่มีชื่อ/รูป จึงไม่ปล่อยให้ error หยุดการทำงาน
         return liff.getProfile()
-          .then(function(p){ LIFF_PROFILE = p; })
-          .catch(function(){ LIFF_PROFILE = null; })
+          .then(function(p){ LIFF_PROFILE = p; return initSearchHistory_(); })
+          .catch(function(){ LIFF_PROFILE = null; SEARCH_HIST_KEY = ''; })
           .then(start);
       })
       .catch(function(err){
