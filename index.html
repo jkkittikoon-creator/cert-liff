@@ -632,20 +632,23 @@
        เกิน 2 บรรทัดค่อยตัด กันกรณีตั้งชื่อยาวผิดปกติแล้วดันการ์ดเสียทรง */
     .wx-place .nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
       overflow: hidden; line-height: 1.45; }
-    .wx-loc { flex: none; cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap;
-      padding: 4px 10px; border-radius: 999px; -webkit-tap-highlight-color: transparent;
-      background: var(--nx-surface-2); color: var(--nx-cyan); border: 1px solid; border-color: var(--nx-line); }
-    .wx-loc:active:not(:disabled) { border-color: var(--nx-line-hot); color: var(--nx-gold); }
+    /* min-height 40px: เดิมสูง ~22px กดยากบนมือถือ · สีตัวอักษรใช้ --info-text แทนฟ้านีออน (3.1:1 บนพื้นขาว)
+       ตรงกับเว็บ DUX (IndexStyles.html .nx-wx-loc) */
+    .wx-loc { flex: none; cursor: pointer; font-size: 12px; font-weight: 700; white-space: nowrap;
+      min-height: 40px; display: inline-flex; align-items: center;
+      padding: 4px 12px; border-radius: 999px; -webkit-tap-highlight-color: transparent;
+      background: var(--nx-surface-2); color: var(--info-text); border: 1px solid; border-color: var(--nx-line); }
+    .wx-loc:active:not(:disabled) { border-color: var(--nx-line-hot); color: var(--warn-text); }
     .wx-loc:disabled { opacity: .6; }
     /* ปุ่มสำรอง — ให้เด่นน้อยกว่าปุ่มหลัก แต่ยังกดง่าย */
     .wx-loc-alt { color: var(--text-2); }
     /* ข้อความเตือนเรื่องตำแหน่ง — LIFF ไม่มี toast จึงแสดงในการ์ดแทน */
-    .wx-note { font-size: 11px; line-height: 1.5; color: var(--nx-gold); margin-top: 7px; }
+    .wx-note { font-size: 12px; line-height: 1.5; color: var(--warn-text); margin-top: 7px; }
     .wx-rain { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px;
       font-size: 11.5px; font-weight: 700; flex: none;
-      background: var(--nx-surface-2); color: var(--nx-cyan); border: 1px solid; border-color: var(--nx-line); }
-    /* ฝนเกินครึ่ง = ควรเตรียมร่ม เปลี่ยนเป็นสีทองให้สะดุดตากว่าเดิม */
-    .wx-rain.hi { color: var(--nx-gold); border-color: var(--nx-line-hot); }
+      background: var(--nx-surface-2); color: var(--info-text); border: 1px solid; border-color: var(--nx-line); }
+    /* ฝนเกินครึ่ง = ควรเตรียมร่ม เปลี่ยนเป็นโทนทองให้สะดุดตากว่าเดิม (ทองนีออนเป็นตัวอักษรได้แค่ 2.9:1 จึงใช้ --warn-text) */
+    .wx-rain.hi { color: var(--warn-text); border-color: var(--nx-line-hot); }
 
     /* แถบ 7 วัน — ต้องเห็นครบทั้ง 7 วันในจอเดียว ไม่ใช้การเลื่อนแนวนอน
        เพราะผู้ใช้ไม่มีทางรู้ว่าปัดได้ วันท้ายๆ จะถูกซ่อนไปเฉยๆ
@@ -1071,9 +1074,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V12';
-    var LIFF_VERSION_DATE = '22 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'ปิดช่องโหว่ความปลอดภัยในหน้าตรวจเอกสาร (ข้อความที่ AI อ่านจากรูปแสดงเป็นตัวหนังสือเสมอ)';
+    var LIFF_VERSION = 'V13';
+    var LIFF_VERSION_DATE = '23 ต.ค. 2569';
+    var LIFF_VERSION_NOTE = 'การ์ดสภาพอากาศ: ปุ่มเลือกตำแหน่งใหญ่ขึ้นกดง่าย และตัวหนังสือสีอ่านชัดขึ้น';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -2021,7 +2024,7 @@
         '<ul class="lmt-why">' + (s.reasons || []).map(function(r){ return '<li>' + esc(r) + '</li>'; }).join('') + '</ul>' +
         (s.linkedToTitle ? '<div class="lmt-taken">⚠️ ใบนี้ผูกอยู่กับ "' + esc(s.linkedToTitle) + '" แล้ว</div>' : '') +
         '<button type="button" class="' + (pass ? 'b-primary' : 'b-second') + '" style="width:100%;margin-top:9px;" ' +
-          'onclick="calLinkPick(\'' + esc(s.certificateId) + '\')">🔗 ผูกใบนี้</button></div>';
+          'onclick="calLinkPick(' + esc(JSON.stringify(String(s.certificateId))) + ')">🔗 ผูกใบนี้</button></div>';
     }
 
     function renderLinkPicker(){
