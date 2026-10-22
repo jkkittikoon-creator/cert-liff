@@ -277,6 +277,10 @@
     .field input:focus, .field select:focus, .other-in:focus, .in-txt:focus {
       outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring);
     }
+    /* ช่องกรองหน้าเอกสารของฉัน เคยไม่มีสไตล์ — ธีมมืด/นีออนเบราว์เซอร์วาดเป็นกล่องเทา · หน้าตาเดียวกับ .field */
+    .docs-tools input, .docs-tools select { padding: 9px 10px; border: 1px solid var(--border-strong); border-radius: 10px;
+      background: var(--bg-card); color: var(--text-1); font-family: var(--font-body); }
+    .docs-tools input:focus, .docs-tools select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
     .req { color: var(--err); }
     .conf-green { border-left-color: #2e7d32; }
     .conf-yellow { border-left-color: #f9a825; }
@@ -511,7 +515,9 @@
       font-size: 11.5px; font-weight: 700; background: var(--nx-surface-2); color: var(--text-2); }
     .lcal-cd.today { background: var(--nx-blue); color: #fff; }
     .lcal-cd.soon { background: var(--lux-gold-soft); color: var(--nx-gold); }
-    .lcal-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    /* 2 คอลัมน์: เดิม 4 ปุ่มเบียดแถวเดียว ป้าย "เปลี่ยนเอกสาร/ยกเลิกการผูก" ตกเป็น 2 บรรทัด */
+    .lcal-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+    .lcal-acts button { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* ปุ่มในรายการต้องแตะติดตั้งแต่ครั้งแรกบนมือถือ — 36px คือขั้นต่ำที่นิ้วโป้งไม่พลาด */
     .lcal-acts button { min-height: 36px; padding: 0 12px; font-size: 12.5px; border-radius: 9px;
       border: 1px solid; border-color: var(--nx-line); background: var(--nx-surface-2); color: var(--text-1); }
@@ -955,6 +961,17 @@
     .rp-red { background:var(--err-soft); color:var(--err-text); border-color:var(--err); }
     .rp-chips { display:flex; flex-wrap:wrap; gap:5px; margin:5px 0; }
     .rp-btns { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .adv-filters { margin:4px 0 10px; border:1px solid var(--nx-line); border-radius:14px; padding:0 12px; }
+    .adv-filters > summary { cursor:pointer; padding:11px 0; font-weight:700; font-size:14px; list-style:none; }
+    .adv-filters > summary::before { content:'＋ '; }
+    .adv-filters[open] > summary::before { content:'－ '; }
+    .adv-filters[open] { padding-bottom:4px; }
+    .qm-more > summary { cursor:pointer; list-style:none; text-align:center; padding:10px; font-weight:700; font-size:14px; color:var(--brand); }
+    .qm-more[open] > summary { display:none; }
+    .preset-box { margin:12px 0 10px; padding:10px 12px 12px; border:1px dashed var(--nx-line); border-radius:14px; }
+    .preset-head { font-weight:700; font-size:14px; margin-bottom:8px; }
+    .preset-box .field { padding-left:0; margin-bottom:8px; }
+    .preset-box .rp-btns .b-second { flex:1 1 30%; }
     .rp-btns > button { flex:1 1 140px; min-width:0; min-height:44px; padding:8px 6px; font-size:13px; white-space:normal; }
     .rp-card { margin:6px 0; border-left:4px solid var(--border-strong); overflow-wrap:anywhere; }
     .rp-card.rp-ready { border-left-color:var(--ok); }
@@ -1054,9 +1071,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V10';
+    var LIFF_VERSION = 'V11';
     var LIFF_VERSION_DATE = '22 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'เพิ่มธีมนีออน (กรมท่าเข้ม ปุ่มฟ้าน้ำทะเล) — กดปุ่มธีมมุมขวาบนวนไปจนเจอ 💠';
+    var LIFF_VERSION_NOTE = 'หน้าค้นหาสั้นลง (ตัวกรองที่ใช้น้อยพับไว้) และชุดตัวกรองของฉันอยู่ในการ์ดเดียวกัน · ปุ่มปฏิทินอ่านง่ายขึ้น · หน้าหลักกระชับขึ้น';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -2690,7 +2707,7 @@
         '<div class="card"><div style="font-weight:600;margin-bottom:10px;">⚡ เมนูด่วน</div>' + actions + '</div>' +
         // ข้อความด่วนวางต่อจากเมนูด่วน: ทั้งคู่คือ "ทางลัด" เหมือนกัน ต่างกันแค่ปลายทาง
         // (ในแอป vs. ตอบกลับในแชต) วางติดกันจะได้ไม่ต้องเดาว่าปุ่มไหนอยู่ไหน
-        quickMsgCardHtml() +
+        quickMsgCardHtml(true) +
         recent + proudBottom + liffVersionHtml_();
       startClock();
       loadWeather();
@@ -2854,16 +2871,19 @@
         });
     }
 
-    function quickMsgCardHtml(){
+    function quickMsgCardHtml(compact){
       var canSend = quickSendAvailable_();
-      var rows = QUICK_MSGS.map(function(q){
+      var rowList = QUICK_MSGS.map(function(q){
         // JSON.stringify ให้ปลอดภัยระดับ "สตริงใน JS" แล้วค่อย esc ให้ปลอดภัยระดับ "ค่าใน attribute"
         // สองชั้นนี้ต้องเรียงแบบนี้เท่านั้น สลับกันแล้ว &quot; จะถูกใส่ backslash กลายเป็นข้อความเพี้ยน
         return '<button type="button" class="qm" onclick="sendQuick(' + esc(JSON.stringify(q.t)) + ', this)">' +
           '<span class="ico">' + q.ico + '</span>' +
           '<span class="tx">' + esc(q.t) + '<span class="sub">' + esc(q.d) + '</span></span>' +
           '<span class="go">' + (canSend ? 'ส่ง ›' : 'คัดลอก') + '</span></button>';
-      }).join('');
+      });
+      var rows = (compact && rowList.length > 3)
+        ? rowList.slice(0, 3).join('') + '<details class="qm-more"><summary>ดูข้อความด่วนทั้งหมด (' + rowList.length + ')</summary>' + rowList.slice(3).join('') + '</details>'
+        : rowList.join('');
       return '<div class="card"><div style="font-weight:600;margin-bottom:4px;">💬 ข้อความด่วน</div>' +
         '<div class="note" style="margin-bottom:10px;">' +
         (canSend ? 'ผู้ใช้ที่เชื่อมบัญชีแล้วทุกบทบาทคุยกับน้องชาโปรได้เหมือนแอดมิน · กดแล้วตอบในแชตทันที'
@@ -4257,15 +4277,15 @@
         (OPTIONS.academicYear || []).map(function(y){return '<option value="'+esc(y)+'">'+esc(y)+'</option>';}).join('') + '</select></div>' +
         '<div class="field"><label>ประเภทเอกสาร</label><select id="liffSearchType" onchange="runSearch()"><option value="">ทุกประเภท</option>' +
         (typeof RC_DOCTYPES !== 'undefined' ? RC_DOCTYPES : []).map(function(t){return '<option value="'+esc(t)+'">'+esc(t)+'</option>';}).join('') + '</select></div>' +
-        '<div class="rp-btns"><button type="button" class="b-second" onclick="liffSearchPreset_(\'reset\')">ล้างเงื่อนไขทั้งหมด</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'save\')">บันทึกตัวกรองในอุปกรณ์นี้</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'load\')">ใช้ตัวกรองที่บันทึก</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'clear\')">ลบตัวกรองที่บันทึก</button></div>' +
-        '<div class="note">ชุดที่บันทึกรวมคำค้นและตัวกรองของบัญชีนี้ เก็บเฉพาะในแอปหรือเบราว์เซอร์ที่ใช้อยู่นี้</div>' +
+        '<details class="adv-filters" id="liffAdvFilters"><summary>ตัวกรองเพิ่มเติม — หน่วยงาน · แท็ก · ข้อความ · ชั่วโมง · ช่วงวันที่</summary>' +
         '<div class="field"><label>หน่วยงาน</label><input id="liffSearchIssuer" placeholder="ชื่อหน่วยงาน" onchange="runSearch()"></div>' +
         '<div class="field"><label for="liffSearchTags">แท็กที่ต้องมีครบ (คั่นด้วยจุลภาค)</label><input type="search" id="liffSearchTags" maxlength="512" onchange="runSearch()"><label for="liffSearchTextQuery">ค้นข้อความในเอกสารที่เก็บไว้</label><input type="search" id="liffSearchTextQuery" maxlength="240" placeholder="คำค้นทุกคำต้องพบในข้อความ" onchange="runSearch()"></div>'+
         '<div class="field"><label for="liffSearchMinHours">ชั่วโมงขั้นต่ำต่อเอกสาร</label><input type="text" inputmode="decimal" id="liffSearchMinHours" placeholder="ไม่จำกัด" onchange="runSearch()"></div>' +
         '<div class="field"><label for="liffSearchMaxHours">ชั่วโมงสูงสุดต่อเอกสาร</label><input type="text" inputmode="decimal" id="liffSearchMaxHours" placeholder="ไม่จำกัด" onchange="runSearch()"></div>' +
         '<div style="display:flex;gap:6px;"><div class="field" style="flex:1;"><label>จากวันที่ได้รับ</label><input type="date" id="liffSearchFrom" onchange="runSearch()"></div>' +
-        '<div class="field" style="flex:1;"><label>ถึงวันที่ได้รับ</label><input type="date" id="liffSearchTo" onchange="runSearch()"></div></div>' +
-        '<div class="docs-tools-actions"><button type="button" class="b-second" onclick="runSearch(\'\')">ล้างคำค้น</button><button type="button" class="b-second" onclick="runSearch()">↻ ค้นอีกครั้ง</button></div><div class="chips">' + chipHtml + '</div></div>' +
+        '<div class="field" style="flex:1;"><label>ถึงวันที่ได้รับ</label><input type="date" id="liffSearchTo" onchange="runSearch()"></div></div></details>' +
+        '<div id="namedPresetControls" class="preset-box"><div class="preset-head">💾 ชุดตัวกรองของฉัน</div><div class="field"><label for="namedPresetSlot">เลือกชุดที่บันทึกไว้</label><select id="namedPresetSlot" data-nodirty="1" onfocus="namedPresetRefresh_()"><option value="">ชุดเดิม (ไม่ระบุชื่อ)</option></select></div><div class="field"><label for="namedPresetName">ตั้งชื่อชุดใหม่ (ไม่ใส่ = บันทึกทับชุดที่เลือก)</label><input type="search" id="namedPresetName" maxlength="40" placeholder="เช่น อบรม AI ปี 2569 (สูงสุด 10 ชุด)"></div><div class="rp-btns"><button type="button" class="b-second" onclick="namedSearchPreset_(\'save\')">💾 บันทึก</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'load\')">↺ ใช้ชุดนี้</button><button type="button" class="b-second" onclick="namedSearchPreset_(\'clear\')">🗑 ลบชุดนี้</button></div><div class="note">เก็บคำค้นและตัวกรองของบัญชีนี้ไว้เฉพาะในแอปบนเครื่องนี้</div></div>' +
+        '<div class="docs-tools-actions"><button type="button" class="b-second" onclick="liffSearchPreset_(\'reset\')">ล้างเงื่อนไขทั้งหมด</button><button type="button" class="b-second" onclick="runSearch()">↻ ค้นอีกครั้ง</button></div><div class="chips">' + chipHtml + '</div></div>' +
         histHtml +
         // ก้อนที่ 101: ถาม AI (semantic search) — แยกการ์ดจาก keyword search ด้านบน ไม่แตะของเดิม
         '<div class="card"><div style="font-weight:600;margin-bottom:6px;">🤖 ถาม AI เกี่ยวกับเอกสาร</div>' +
@@ -4275,7 +4295,7 @@
         'onkeydown="if(event.key===\'Enter\')runAiSearch()">' +
         '<button class="b-primary" style="flex:none;width:auto;padding:9px 16px;font-size:14px;" onclick="runAiSearch()">ถาม</button>' +
         '</div><div id="aires"></div></div>' +
-        '<div id="namedPresetControls"><label for="namedPresetSlot">ชุดตัวกรองที่บันทึก</label><select id="namedPresetSlot" data-nodirty="1" onfocus="namedPresetRefresh_()"><option value="">ชุดเดิม (ไม่ระบุชื่อ)</option></select><label for="namedPresetName">ชื่อชุดใหม่หรือชื่อที่ต้องการบันทึกทับ</label><input type="search" id="namedPresetName" maxlength="40" placeholder="ตั้งชื่อได้สูงสุด10ชุด"></div><div id="sres"></div><div id="docBulkRoot"></div>';
+        '<div id="sres"></div><div id="docBulkRoot"></div>';
       namedPresetRefresh_();
       if (_searchQuery) runSearch(_searchQuery);
     }
@@ -4363,7 +4383,12 @@
         (_liffSearchRows.length < _liffSearchTotal ?
           '<button class="b-primary" onclick="runSearch(null,' + _liffSearchRows.length + ')">โหลดเพิ่ม</button>' : '');
     }
+    function liffAdvOpen_(){
+      var d=document.getElementById('liffAdvFilters');if(!d)return;
+      ['liffSearchIssuer','liffSearchTags','liffSearchTextQuery','liffSearchMinHours','liffSearchMaxHours','liffSearchFrom','liffSearchTo'].forEach(function(id){var el=document.getElementById(id);if(el&&String(el.value||'').trim())d.open=true;});
+    }
     function runSearch(preset, offset){
+      if (typeof liffAdvOpen_ === 'function') liffAdvOpen_();
       var el = document.getElementById('sq');
       var q = preset != null ? String(preset) : ((el && el.value) || '').trim();
       _searchQuery = q;
