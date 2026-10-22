@@ -13,6 +13,8 @@
   <script>
     (function () {
       var m; try { m = localStorage.getItem('cert-liff-theme'); } catch (e) { m = null; }
+      // 'neon' = มืดเสมอ + data-skin="neon" (ดู NEON SKIN ในส่วน CSS ด้านล่าง)
+      if (m === 'neon') { document.documentElement.setAttribute('data-skin', 'neon'); m = 'dark'; }
       if (m !== 'light' && m !== 'dark') {
         var h = Number(new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(11, 13));
         m = (h >= 18 || h < 6) ? 'dark' : 'light';
@@ -135,6 +137,57 @@
       --lux-grid: rgba(123, 47, 247, 0.055);
       color-scheme: dark;
     }
+
+    /* ============ NEON SKIN (โหมดธีมที่ 4: "นีออน") — ชุดเดียวกับ NEON SKIN ใน src/IndexStyles.html ============
+       ตั้ง data-theme="dark" + data-skin="neon" พร้อมกัน → กฎโหมดมืดเดิมทำงานต่อ ชุดนี้แค่ทับค่าโทเคน
+       โหมดอื่นไม่มี data-skin กฎด้านล่างจึงไม่มีผลกับสว่าง/มืด/อัตโนมัติเลย
+       ⚠️ แก้ค่าที่นี่ต้องแก้ใน src/IndexStyles.html ด้วย · ตัวอักษรทุกสีผ่าน 4.5:1 บนพื้นการ์ด #1a1f5c
+       ปุ่มหลักโหมดนี้เป็นฟ้าน้ำทะเล→เทอร์ควอยซ์ ตัวอักษรกรมท่าเข้ม (ขาวบนฟ้าสดได้แค่ ~2:1) */
+    :root[data-theme="dark"][data-skin="neon"] {
+      --bg-page: #0f1240; --bg-card: #1a1f5c; --bg-hover: #252b6e; --bg-inset: #141850;
+      --text-1: #f4f6ff; --text-2: #c3c9ee; --text-3: #9aa2d6;
+      --border: #2a3075; --border-strong: #3a4190;
+      --brand: #22d3ee; --brand-strong: #67e8f9; --brand-soft: #123b5c;
+      --brand-ring: rgba(34, 211, 238, 0.45);
+      --line: #2ee6c5; --line-strong: #1fb6ff;
+      --ok: #22c55e; --ok-soft: #0f3330; --ok-text: #4ade9a;
+      --warn: #ff9f43; --warn-soft: #3a2a1a; --warn-text: #ffb766;
+      --err: #ff4d79; --err-soft: #3d1a3a; --err-text: #ff8fa8;
+      --info: #22d3ee; --info-soft: #123b5c; --info-text: #5fe0f5;
+      --shadow-card: 0 0 0 1px var(--border);
+      --shadow-modal: 0 0 0 1px var(--border-strong), 0 18px 60px rgba(3, 5, 26, 0.7);
+      --backdrop: rgba(5, 7, 30, 0.7);
+      --nx-surface: rgba(26, 31, 92, 0.78);
+      --nx-surface-2: rgba(20, 24, 80, 0.7);
+      --nx-line: rgba(120, 140, 255, 0.2);
+      --nx-line-hot: rgba(34, 211, 238, 0.6);
+      --nx-glow: 8px 10px 26px rgba(4, 6, 28, 0.55), -4px -4px 14px rgba(70, 80, 190, 0.08);
+      --nx-cyan: #22d3ee; --nx-blue: #9aa5ff; --nx-purple: #a78bfa;
+      --nx-pink: #ff4fa3; --nx-green: #34e0a1; --nx-gold: #ff9f43; --nx-danger: #ff4d79;
+      --nx-hero-a: rgba(34, 211, 238, 0.16); --nx-hero-b: rgba(236, 72, 153, 0.18);
+      --nx-hero-text: #f4f6ff;
+      --lux-accent: #ff4fa3; --lux-accent-2: #ff9f43;
+      --lux-gold: #ff9f43; --lux-gold-soft: rgba(255, 159, 67, 0.12);
+      --lux-hairline: rgba(120, 140, 255, 0.16); --lux-hairline-hot: rgba(34, 211, 238, 0.55);
+      --lux-glow-soft: 8px 10px 24px rgba(4, 6, 28, 0.55), -4px -4px 14px rgba(70, 80, 190, 0.08);
+      --lux-glow-focus: 0 0 0 3px rgba(255, 79, 163, 0.38);
+      --lux-btn-a: #1fb6ff; --lux-btn-b: #2ee6c5;
+      --lux-btn-glow: 0 4px 16px rgba(31, 182, 255, 0.35);
+      --lux-ripple: rgba(11, 16, 51, 0.25);
+      --lux-grid: rgba(120, 140, 255, 0.035);
+      --neon-on-accent: #0b1033;
+      color-scheme: dark;
+    }
+    :root[data-skin="neon"] body {
+      background-image:
+        radial-gradient(520px 360px at 100% 0%, rgba(34, 211, 238, 0.1), transparent 62%),
+        radial-gradient(480px 360px at 0% 100%, rgba(236, 72, 153, 0.09), transparent 62%),
+        linear-gradient(var(--lux-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--lux-grid) 1px, transparent 1px);
+      background-size: auto, auto, 42px 42px, 42px 42px;
+    }
+    :root[data-skin="neon"] .card { border-radius: 22px; }
+    :root[data-skin="neon"] .card::before { border-radius: 22px 22px 0 0; }
 
     * { box-sizing: border-box; }
     body {
@@ -338,6 +391,9 @@
     .b-primary { background: var(--line); color: #fff; box-shadow: 0 2px 10px rgba(6, 199, 85, 0.34), 0 0 20px rgba(6, 199, 85, 0.14); }
     .b-primary:active { background: var(--line-strong); box-shadow: 0 1px 6px rgba(6, 199, 85, 0.4); }
     .b-second { background: var(--bg-hover); color: var(--text-1); border: 1px solid var(--lux-hairline); }
+    /* โหมดนีออน: ปุ่มหลักเป็นไล่สีฟ้าน้ำทะเล→เทอร์ควอยซ์ ตามภาพตัวอย่าง (เฉพาะคนที่เลือกโหมดนี้เอง) */
+    :root[data-skin="neon"] .b-primary { background: linear-gradient(135deg, var(--lux-btn-a), var(--lux-btn-b)); color: var(--neon-on-accent); box-shadow: var(--lux-btn-glow); }
+    :root[data-skin="neon"] .b-primary:active { background: linear-gradient(135deg, var(--lux-btn-a), var(--lux-btn-b)); box-shadow: 0 1px 6px rgba(31, 182, 255, 0.4); }
     button:disabled { opacity: 0.5; }
 
     /* ---- Ripple ตอนแตะ (ชุดเดียวกับฝั่งเว็บ) ---- */
@@ -915,6 +971,33 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
     }
+
+    /* ============ NEON SKIN — ตัวอักษรบนพื้นสีสด / สีที่ฝังในโค้ด ============
+       วางท้ายสุดเพื่อชนะกฎเดิมที่เจาะจงเท่ากัน · มีผลเฉพาะโหมดนีออน (data-skin) เท่านั้น
+       1) พื้นสีสด (แดงชมพู/ฟ้า/เขียว) ตัวอักษรขาวได้แค่ 2–3:1 → กรมท่าเข้ม
+       2) ปุ่มไล่สีน้ำเงิน→ม่วงเดิม → ฟ้าน้ำทะเล→เทอร์ควอยซ์ แบบเดียวกับปุ่มหลัก
+       3) สีที่เขียนฝังใน style="" ของ HTML ที่สร้างจาก JS (#1a73e8 ฯลฯ ออกแบบไว้สำหรับพื้นขาว)
+          บนพื้นกรมท่าได้แค่ 2–3:1 → ใช้ !important เพราะเป็นทางเดียวที่ทับ inline style ได้
+          จับด้วย [style*=...] จึงไม่ต้องแก้ฟังก์ชันสร้าง HTML เดิมทีละจุด */
+    :root[data-skin="neon"] .bnav .bn-dot,
+    :root[data-skin="neon"] .lcal-cd.today,
+    :root[data-skin="neon"] .chips button.on { color: var(--neon-on-accent); }
+    :root[data-skin="neon"] .act.primary,
+    :root[data-skin="neon"] .guide-action.primary,
+    :root[data-skin="neon"] .ai-tone-chip.on {
+      background: linear-gradient(135deg, var(--lux-btn-a), var(--lux-btn-b)); border-color: transparent; color: var(--neon-on-accent);
+    }
+    :root[data-skin="neon"] .act.primary .sub,
+    :root[data-skin="neon"] .guide-action.primary span { color: var(--neon-on-accent); opacity: 1; }
+    :root[data-skin="neon"] [style*="color:#1a73e8"] { color: #5fe0f5 !important; }
+    :root[data-skin="neon"] [style*="color:#188038"],
+    :root[data-skin="neon"] [style*="color:#06c755"] { color: #4ade9a !important; }
+    :root[data-skin="neon"] [style*="color:#d93025"],
+    :root[data-skin="neon"] [style*="color:#e53935"] { color: #ff8fa8 !important; }
+    :root[data-skin="neon"] [style*="color:#f9a825"],
+    :root[data-skin="neon"] [style*="color:#b26a00"] { color: #ffb766 !important; }
+    :root[data-skin="neon"] [style*="color:#5f6368"] { color: var(--text-2) !important; }
+    :root[data-skin="neon"] [style*="background:var(--nx-green"][style*="color:#fff"] { color: var(--neon-on-accent) !important; }
   </style>
 </head>
 <body>
@@ -971,9 +1054,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V9';
-    var LIFF_VERSION_DATE = '20 ต.ค. 2569';
-    var LIFF_VERSION_NOTE = 'ตั้งตราโรงเรียนจากมือถือได้แล้ว (หน้าโรงเรียนของฉัน) · เอกสารที่ค้างในคิวกด "ให้ AI อ่านซ้ำ" ได้เอง';
+    var LIFF_VERSION = 'V10';
+    var LIFF_VERSION_DATE = '22 ต.ค. 2569';
+    var LIFF_VERSION_NOTE = 'เพิ่มธีมนีออน (กรมท่าเข้ม ปุ่มฟ้าน้ำทะเล) — กดปุ่มธีมมุมขวาบนวนไปจนเจอ 💠';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1308,16 +1391,16 @@
     }
 
     var THEME_KEY = 'cert-liff-theme';
-    /* ---------- ธีม 3 โหมด: อัตโนมัติตามเวลา / สว่าง / มืด ----------
+    /* ---------- ธีม 4 โหมด: อัตโนมัติตามเวลา / สว่าง / มืด / นีออน (มืดเสมอ + data-skin) ----------
        ใช้เกณฑ์เดียวกับหน้าเว็บเป๊ะ (มืด 18:00-05:59 **เวลาไทย** ไม่ใช่เวลาเครื่อง)
        ไอคอนบอกโหมดที่ใช้อยู่ ไม่ใช่โหมดถัดไป */
-    var THEME_MODES = ['auto', 'light', 'dark'];
-    var THEME_ICON = { auto: '🌗', light: '☀️', dark: '🌙' };
-    var THEME_LABEL = { auto: 'ธีมอัตโนมัติตามเวลา', light: 'ธีมสว่าง', dark: 'ธีมมืด' };
+    var THEME_MODES = ['auto', 'light', 'dark', 'neon'];
+    var THEME_ICON = { auto: '🌗', light: '☀️', dark: '🌙', neon: '💠' };
+    var THEME_LABEL = { auto: 'ธีมอัตโนมัติตามเวลา', light: 'ธีมสว่าง', dark: 'ธีมมืด', neon: 'ธีมนีออน' };
     var THEME_DARK_FROM = 18, THEME_DARK_TO = 6;
 
     function themeDarkFor(mode){
-      if (mode === 'dark') return true;
+      if (mode === 'dark' || mode === 'neon') return true;
       if (mode === 'light') return false;
       var h = Number(new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(11, 13));
       return h >= THEME_DARK_FROM || h < THEME_DARK_TO;
@@ -1328,9 +1411,13 @@
     }
     function currentTheme(){ return document.documentElement.getAttribute('data-theme') || ''; }
     function isDarkNow(){ return currentTheme() === 'dark'; }
+    function isNeonNow(){ return document.documentElement.getAttribute('data-skin') === 'neon'; }
     function themeIcon(){ return THEME_ICON[themeMode()]; }
     function applyTheme(mode){
       document.documentElement.setAttribute('data-theme', themeDarkFor(mode) ? 'dark' : 'light');
+      // โหมดอื่นต้องลบ data-skin เสมอ ไม่งั้นสีนีออนค้างไปกับโหมดมืดธรรมดา
+      if (mode === 'neon') document.documentElement.setAttribute('data-skin', 'neon');
+      else document.documentElement.removeAttribute('data-skin');
       var b = document.getElementById('thBtn');
       if (b) { b.innerHTML = THEME_ICON[mode]; b.setAttribute('aria-label', THEME_LABEL[mode]); }
     }
@@ -5357,7 +5444,7 @@
         ? '<img class="hero-av" src="' + esc(LIFF_PROFILE.pictureUrl) + '" alt="รูปโปรไฟล์ LINE">'
         : '<div class="hero-av hero-av-fb">' + esc(name.charAt(0)) + '</div>';
       var inClient = (typeof liff !== 'undefined' && liff.isInClient && liff.isInClient());
-      var themeLabel = currentTheme() ? (isDarkNow() ? 'มืด (เลือกเอง)' : 'สว่าง (เลือกเอง)') : 'ตามเครื่อง';
+      var themeLabel = isNeonNow() ? 'นีออน (เลือกเอง)' : currentTheme() ? (isDarkNow() ? 'มืด (เลือกเอง)' : 'สว่าง (เลือกเอง)') : 'ตามเครื่อง';
 
       app.innerHTML = pageHead('บัญชีของฉัน') +
         '<div class="card" style="position:relative;overflow:hidden;">' +
@@ -5574,6 +5661,8 @@
     var _charts = [];
     function destroyCharts(){ _charts.forEach(function(c){ try{ c.destroy(); }catch(e){} }); _charts = []; }
     var DASH_COLORS = ['#1a73e8','#06c755','#f9a825','#8e24aa','#e53935','#00acc1','#fb8c00','#546e7a'];
+    // โหมดนีออน: ฟ้า/ชมพู/ส้มสดบนพื้นกรมท่า ตามภาพตัวอย่าง (ใช้เป็นสีกราฟเท่านั้น ไม่ใช่สีตัวอักษร)
+    var DASH_COLORS_NEON = ['#22d3ee','#ff4fa3','#ff9f43','#a78bfa','#34e0a1','#6c7bff','#ffd166','#8e97d0'];
 
     function showDash(){
       app.innerHTML = tabsBar('dash') + '<div class="center">กำลังโหลดแดชบอร์ด...</div>';
@@ -5689,7 +5778,10 @@
         items+'</div>';
     }
 
+    // โหมดนีออน: ตัวเลขบนการ์ดใช้เฉดอ่อนของสีเดิม — สีเดิม (#1a73e8 ฯลฯ) บนพื้นกรมท่าได้แค่ราว 2.5–3:1
+    var STAT_TEXT_NEON = { '#1a73e8': '#5fe0f5', '#06c755': '#4ade9a', '#f9a825': '#ffb766', '#8e24aa': '#d8b4fe', '#2e7d32': '#4ade9a' };
     function statTile(n, label, color){
+      if (isNeonNow() && STAT_TEXT_NEON[color]) color = STAT_TEXT_NEON[color];
       return '<div class="stat" style="border-top-color:'+color+';"><div class="n" style="color:'+color+';">'+esc(n)+'</div><div class="l">'+esc(label)+'</div></div>';
     }
 
@@ -5755,19 +5847,20 @@
       // โหมดมืด: สีตัวอักษร/เส้นกริดของกราฟตามธีมที่ใช้อยู่จริง (ค่า default ของ Chart.js อ่านยากบนพื้นมืด)
       // ต้องอ่านจาก data-theme ไม่ใช่ prefers-color-scheme ไม่งั้นจะไม่ตรงเมื่อผู้ใช้ตั้งโหมดเอง/สลับตามเวลา
       var chartDark = isDarkNow();
-      Chart.defaults.color = chartDark ? '#aab3c5' : '#5b6472';
-      Chart.defaults.borderColor = chartDark ? '#262f47' : '#e4e8ef';
+      var chartNeon = isNeonNow();
+      Chart.defaults.color = chartNeon ? '#c3c9ee' : chartDark ? '#aab3c5' : '#5b6472';
+      Chart.defaults.borderColor = chartNeon ? '#2a3075' : chartDark ? '#262f47' : '#e4e8ef';
       if(typeKeys.length){
         _charts.push(new Chart(document.getElementById('cType'), {
           type: 'doughnut',
-          data: { labels: typeKeys, datasets: [{ data: typeKeys.map(function(k){return s.byType[k];}), backgroundColor: DASH_COLORS }] },
+          data: { labels: typeKeys, datasets: [{ data: typeKeys.map(function(k){return s.byType[k];}), backgroundColor: chartNeon ? DASH_COLORS_NEON : DASH_COLORS }] },
           options: { responsive:true, plugins:{ legend:{ position:'bottom' } } }
         }));
       }
       if(yearKeys.length){
         _charts.push(new Chart(document.getElementById('cYear'), {
           type: 'bar',
-          data: { labels: yearKeys, datasets: [{ label:'จำนวน (ใบ)', data: yearKeys.map(function(k){return s.byYear[k];}), backgroundColor: '#06c755' }] },
+          data: { labels: yearKeys, datasets: [{ label:'จำนวน (ใบ)', data: yearKeys.map(function(k){return s.byYear[k];}), backgroundColor: chartNeon ? '#ff9f43' : '#06c755' }] },
           options: {
             responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } },
             // แตะแท่งปี → กรองรายการ "เอกสารของฉัน" ให้เหลือเฉพาะปีนั้น
@@ -5778,7 +5871,7 @@
       if(hoursYearKeys.length){
         _charts.push(new Chart(document.getElementById('cHours'), {
           type: 'bar',
-          data: { labels: hoursYearKeys, datasets: [{ label:'ชั่วโมง', data: hoursYearKeys.map(function(k){return s.hoursByYear[k];}), backgroundColor: '#8e24aa' }] },
+          data: { labels: hoursYearKeys, datasets: [{ label:'ชั่วโมง', data: hoursYearKeys.map(function(k){return s.hoursByYear[k];}), backgroundColor: chartNeon ? '#ff4fa3' : '#8e24aa' }] },
           options: { responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } }
         }));
       }
