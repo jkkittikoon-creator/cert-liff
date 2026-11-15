@@ -1126,9 +1126,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V19';
+    var LIFF_VERSION = 'V20';
     var LIFF_VERSION_DATE = '15 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'ตัวอักษรเล็กทั่วแอปขยายเป็นอย่างน้อย 12px อ่านง่ายขึ้นบนมือถือ';
+    var LIFF_VERSION_NOTE = 'ส่งเกียรติบัตรเข้าแชต LINE ได้จากแอป (ปุ่ม 💬 ในเอกสารของฉันและคลังเกียรติบัตร)';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -6019,18 +6019,20 @@
 
     // เนื้อในแถวเอกสาร: ชื่อ/ประเภท/สถานะ + ปุ่ม QR/Drive/ดาวน์โหลด (มีไฟล์) หรือ แนบไฟล์ (ไม่มีไฟล์) + ปุ่มลบ (SAVED ทุกใบ)
     function dashDocRowInner(d){
-      var btns = '', extra = '', act = '';
+      var btns = '', extra = '', act = '', share = '';
       if(d.status==='SAVED'){
         if(d.hasFile){
           act = '<button class="b-second" style="padding:8px 4px;font-size:12px;" onclick="fileQr(\''+d.certificateId+'\')">🔳 QR ไฟล์</button>'+
             '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="openDrive(\''+d.certificateId+'\')">📂 เปิด Drive</button>'+
             '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#1a73e8;" onclick="openFile(\''+d.certificateId+'\')">⬇️ ดาวน์โหลด</button>';
+          // แถวปุ่มเต็มแล้วบนจอแคบ — ปุ่มส่งเข้าแชตขึ้นบรรทัดของตัวเอง (V20)
+          if (canShareChat_()) share = '<div class="dash-btns"><button class="b-second" style="padding:8px 4px;font-size:12px;" onclick="shareCert(\''+d.certificateId+'\')">💬 ส่งเข้าแชต LINE</button></div>';
         } else {
           extra = '<div class="note" style="margin-top:6px;">ยังไม่มีไฟล์แนบ (นำเข้าย้อนหลัง) — แนบเพิ่มได้</div>';
           act = '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#188038;" onclick="attachFile(\''+d.certificateId+'\')">📎 แนบไฟล์</button>';
         }
         btns = extra + '<div class="dash-btns">'+act+
-          '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="deleteDoc(\''+d.certificateId+'\')" title="ลบไปถังขยะ">🗑️</button></div>';
+          '<button class="b-second" style="padding:8px 4px;font-size:12px;color:#d93025;flex:0 0 44px;" onclick="deleteDoc(\''+d.certificateId+'\')" title="ลบไปถังขยะ">🗑️</button></div>' + share;
       }
       // ชื่อเจ้าของเอกสาร — ให้รู้ว่าใบไหนของใคร (ผู้ดูแลเห็นของหลายคน)
       var owner = d.ownerName ? ' • 👤 '+esc(d.ownerName) : '';
@@ -7216,6 +7218,27 @@
         .catch(function(e){ liffErr_(e); });
     }
 
+    /* ส่งเกียรติบัตรเข้าแชต LINE (V20) — ผู้ใช้เลือกผู้รับและกดส่งเองในหน้าต่างของ LINE (ไม่ใช้โควตา Messaging API)
+       ลิงก์ = หน้าเปิดดูไฟล์ของระบบ (fileqr ไม่ส่ง share → ไม่เปิดสิทธิ์ Drive)
+       ขอลิงก์ก่อน แล้วเปิด picker จากปุ่มยืนยันโดยตรง — เบราว์เซอร์บางตัวบล็อกหน้าต่างที่เปิดหลังรอ */
+    function canShareChat_(){
+      try { return typeof liff !== 'undefined' && !!liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'); }
+      catch(_) { return false; }
+    }
+    function shareCert(certId){
+      liffToast('กำลังเตรียมลิงก์...');
+      api('fileqr', { certificateId: certId }).then(function(d){
+        var name = String(d.activityName || d.fileName || 'เกียรติบัตร').slice(0, 200);
+        var text = '🏅 ' + name + '\n' + d.fileViewUrl;
+        liffConfirm({ title: 'ส่งเกียรติบัตรเข้าแชต', okLabel: 'เลือกแชต',
+          message: 'ผู้รับ และคนที่ได้ลิงก์ต่อ จะเปิดดูไฟล์เกียรติบัตรใบนี้ได้' }, function(){
+          liff.shareTargetPicker([{ type: 'text', text: text }], { isMultiple: true })
+            .then(function(res){ if (res) liffToast('ส่งแล้ว', 'ok'); })
+            .catch(function(){ liffToast('ส่งไม่สำเร็จ กรุณาลองใหม่', 'err'); });
+        });
+      }).catch(liffErr_);
+    }
+
     function liffOpen(url){
       if (liff.isInClient()) liff.openWindow({ url: url, external: true });
       else window.open(url, '_blank');
@@ -7437,6 +7460,7 @@
         '<button type="button" class="lg-lb-step lg-lb-edit" onclick="lgEdit_(' + esc(JSON.stringify(String(id))) + ')">✏️ แก้ไขข้อมูล</button>' +
         (it.hasFile
           ? '<button type="button" class="b-primary lg-lb-dl" onclick="openFile(' + esc(JSON.stringify(String(id))) + ')">⬇️ เปิด/ดาวน์โหลดไฟล์ต้นฉบับ</button>' +
+            (canShareChat_() ? '<button type="button" class="lg-lb-step lg-lb-edit" onclick="shareCert(' + esc(JSON.stringify(String(id))) + ')">💬 ส่งเข้าแชต LINE</button>' : '') +
             '<div class="lg-lb-note">เปิดในเบราว์เซอร์ มีปุ่มดาวน์โหลดในหน้านั้น</div>'
           : '<div class="lg-lb-note">ไฟล์ถูกเก็บเข้าคลังแล้ว ไม่มีไฟล์ให้ดาวน์โหลด</div>') +
         '</div></div>';
