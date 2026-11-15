@@ -870,6 +870,11 @@
     .od-grid .field { min-width: 0; margin: 0; }
     .od-grid .field.wide { grid-column: 1 / -1; }
     .od-grid input, .od-grid textarea, .od-grid select { min-width: 0; width: 100%; box-sizing: border-box; }
+    /* V23: ช่องข้อความยืดสูงตามเนื้อหา (JS ตั้งความสูง) ไม่มีแถบเลื่อนในช่อง */
+    textarea.od-auto { display: block; width: 100%; box-sizing: border-box; resize: none; overflow: hidden;
+      line-height: 1.55; overflow-wrap: anywhere; padding: 9px 10px; font-size: 16px; border: 1px solid var(--border-strong);
+      border-radius: 10px; background: var(--bg-card); color: var(--text-1); font-family: var(--font-body); }
+    textarea.od-auto:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-ring); }
     .od-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--text-2); }
     .od-confidence { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 7px; font-weight: 700; }
     .od-clear { color: #39d98a; background: rgba(57,217,138,.12); }
@@ -1126,9 +1131,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V22';
+    var LIFF_VERSION = 'V23';
     var LIFF_VERSION_DATE = '15 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'ปุ่มดาวน์โหลดเอกสารเปิดได้แม้ล็อกอิน Google หลายบัญชี (ดาวน์โหลดตรงจาก Google Drive)';
+    var LIFF_VERSION_NOTE = 'หน้าสรุปหนังสือราชการ: ซูมต้นฉบับ PDF แล้วคมชัดขึ้น และช่องข้อความยืดเต็มเนื้อหา ไม่ต้องเลื่อนในช่อง';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -5133,6 +5138,35 @@
       el.style.transform = 'translate(' + (Number(view.tx)||0) + 'px,' + (Number(view.ty)||0) + 'px) scale(' + view.zoom + ')';
       var label = document.getElementById(targetId + '_zoom');
       if (label) label.textContent = Math.round(view.zoom * 100) + '%';
+      officialDocZoomSettle_(targetId);
+    }
+
+    /** V23: ความละเอียดที่ใช้วาด PDF ตามระดับซูม — จำกัดจำนวนพิกเซลรวมกันมือถือหน่วยความจำเต็ม */
+    var OFFICIAL_DOC_MAX_CANVAS_PX = 6000000;
+    function officialDocPdfQuality_(zoom, cssWidth, cssHeight, devicePixelRatio){
+      var dpr = Math.max(1, Math.min(3, Number(devicePixelRatio) || 1));
+      var z = officialDocClampZoom_(zoom);
+      var want = z > 1 ? dpr * z : Math.min(2, dpr);
+      var cap = Math.sqrt(OFFICIAL_DOC_MAX_CANVAS_PX / Math.max(1, (Number(cssWidth) || 1) * (Number(cssHeight) || 1)));
+      return Math.max(1, Math.min(want, cap));
+    }
+
+    /** V23: หยุดซูมครู่หนึ่งแล้ววาดใหม่ให้คมชัด (เดิมขยายภาพเดิมด้วย CSS จึงเบลอ) */
+    function officialDocZoomSettle_(targetId){
+      var view = officialDocZoomView_(targetId); if (!view) return;
+      var elementId = view.elementId || (targetId + '_canvas');
+      var el = document.getElementById(elementId);
+      if (el) el.style.willChange = 'transform';
+      if (view.settleTimer) clearTimeout(view.settleTimer);
+      view.settleTimer = setTimeout(function(){
+        view.settleTimer = 0;
+        if (officialDocZoomView_(targetId) !== view) return;
+        var cur = document.getElementById(elementId);
+        if (cur) cur.style.willChange = 'auto';
+        if (!view.pdf || !view.renderedQuality) return;
+        var want = officialDocPdfQuality_(view.zoom, view.cssWidth, view.cssHeight, window.devicePixelRatio);
+        if (Math.abs(want - view.renderedQuality) > 0.05) officialDocPdfRenderPage_(targetId, view.page);
+      }, 280);
     }
 
     function officialDocZoom_(targetId, factor){
@@ -5257,15 +5291,25 @@
         var scale = cssWidth / baseViewport.width;
         if (cssHeight > 140) scale = Math.min(scale, cssHeight / baseViewport.height);
         var viewport = page.getViewport({scale:scale});
-        var ratio = Math.max(1, Math.min(2, Number(window.devicePixelRatio) || 1));
-        canvas.width = Math.floor(viewport.width * ratio);
-        canvas.height = Math.floor(viewport.height * ratio);
-        canvas.style.width = Math.floor(viewport.width) + 'px';
-        canvas.style.height = Math.floor(viewport.height) + 'px';
-        officialDocApplyZoom_(targetId);
-        var ctx = canvas.getContext('2d', {alpha:false});
+        var cssW = Math.floor(viewport.width), cssH = Math.floor(viewport.height);
+        var ratio = officialDocPdfQuality_(view.zoom, cssW, cssH, window.devicePixelRatio);
+        // วาดลงผืนใหม่ก่อนแล้วค่อยสลับ — ภาพเดิมยังอยู่ระหว่างรอ ไม่กะพริบขาว
+        var fresh = document.createElement('canvas');
+        fresh.width = Math.floor(viewport.width * ratio);
+        fresh.height = Math.floor(viewport.height * ratio);
+        var ctx = fresh.getContext('2d', {alpha:false});
         view.renderTask = page.render({canvasContext:ctx, viewport:viewport, transform:ratio === 1 ? null : [ratio,0,0,ratio,0,0]});
-        return view.renderTask.promise;
+        return view.renderTask.promise.then(function(){
+          if (view.renderId !== renderId) return;
+          var old = document.getElementById(targetId + '_canvas');
+          if (!old || !old.parentNode) return;
+          fresh.id = old.id; fresh.className = old.className;
+          fresh.style.width = cssW + 'px'; fresh.style.height = cssH + 'px';
+          old.parentNode.replaceChild(fresh, old);
+          old.width = 0; old.height = 0;
+          view.cssWidth = cssW; view.cssHeight = cssH; view.renderedQuality = ratio;
+          officialDocApplyZoom_(targetId);
+        });
       }).catch(function(err){
         if (err && err.name === 'RenderingCancelledException') return;
         var state = document.getElementById(targetId);
@@ -5366,10 +5410,24 @@
       var key = pair[0], label = pair[1], value = doc[key];
       if (OFFICIAL_DOC_ARRAY_KEYS[key]) value = Array.isArray(value) ? value.join('\n') : String(value || '');
       var isLong = OFFICIAL_DOC_ARRAY_KEYS[key] || key === 'subject';
-      var input = isLong
-        ? '<textarea id="odf_' + key + '" rows="' + (OFFICIAL_DOC_ARRAY_KEYS[key] ? '3' : '2') + '" placeholder="ไม่พบข้อมูล">' + esc(value || '') + '</textarea>'
-        : '<input id="odf_' + key + '" type="text" value="' + esc(value || '') + '" placeholder="ไม่พบข้อมูล">';
+      // V23: ทุกช่องเป็นกล่องที่ยืดสูงตามเนื้อหา อ่านได้ครบโดยไม่ต้องเลื่อนในช่อง
+      var input = '<textarea id="odf_' + key + '" class="od-auto" rows="1" placeholder="ไม่พบข้อมูล" oninput="officialDocAutoGrow_(this)">' + esc(value || '') + '</textarea>';
       return '<div class="field ' + (isLong ? 'wide' : '') + '"><label for="odf_' + key + '">' + esc(label) + '</label>' + input + officialDocConfidenceHtml_(doc,key) + '</div>';
+    }
+
+    function officialDocAutoGrow_(el){
+      if (!el || !el.style) return;
+      el.style.height = 'auto';
+      el.style.height = (Number(el.scrollHeight) + 2) + 'px';
+    }
+
+    function officialDocAutoGrowAll_(){
+      var list = document.querySelectorAll('textarea.od-auto');
+      for (var i = 0; i < list.length; i++) officialDocAutoGrow_(list[i]);
+      if (!window._officialDocAutoGrowBound) {
+        window._officialDocAutoGrowBound = true;
+        window.addEventListener('resize', function(){ officialDocAutoGrowAll_(); });
+      }
     }
 
     function officialDocAppendPanelHtml_(){
@@ -5466,7 +5524,7 @@
         _officialDoc.documents.map(function(d,i){ return '<button class="b-second ' + (i===_officialDoc.selected?'on':'') + '" onclick="officialDocSelect_(' + i + ')">' + esc(d.documentSetTitle || d.subject || ('เรื่องที่ '+(i+1))) + '</button>'; }).join('') + '</div></div>' : '';
       var school = (doc.schoolSpecificData || []);
       var schoolHtml = school.length
-        ? '<div class="field"><label for="odf_schoolSpecificData">ข้อมูลที่พบจริง</label><textarea id="odf_schoolSpecificData" rows="4">' + esc(school.join('\n')) + '</textarea>' + officialDocConfidenceHtml_(doc,'schoolSpecificData') + '</div>'
+        ? '<div class="field"><label for="odf_schoolSpecificData">ข้อมูลที่พบจริง</label><textarea id="odf_schoolSpecificData" class="od-auto" rows="2" oninput="officialDocAutoGrow_(this)">' + esc(school.join('\n')) + '</textarea>' + officialDocConfidenceHtml_(doc,'schoolSpecificData') + '</div>'
         : '<div class="od-warning">ไม่พบข้อมูลเฉพาะของโรงเรียนบ้านเขาธรรมบทในเอกสาร</div>';
       var warnings = [].concat(doc.dateWarnings || [], doc.otherWarnings || []);
       app.innerHTML = pageHead('🔎 ข้อมูลที่ AI ตรวจพบ', 'showOfficialDocumentSummary()') + choices + officialDocSourceListHtml_() + officialDocAppendPanelHtml_() +
@@ -5476,6 +5534,8 @@
         (warnings.length ? '<div class="card"><div style="font-weight:800;">⚠️ รายการที่ควรตรวจสอบ</div>' + warnings.map(function(w){return '<div class="od-warning">'+esc(w)+'</div>';}).join('') + '</div>' : '') +
         '<button id="odCreateBtn" class="b-primary" style="width:100%;" onclick="officialDocCreateLine_()">✨ สร้างข้อความ LINE</button>' +
         '<button class="b-second" style="width:100%;margin-top:8px;" onclick="showOfficialDocumentSummary()">เลือกไฟล์ใหม่</button>';
+      officialDocAutoGrowAll_();
+      setTimeout(officialDocAutoGrowAll_, 400);
       var firstSource = _officialDoc.files[0];
       if (firstSource && firstSource.base64) {
         setTimeout(function(){
@@ -5497,7 +5557,7 @@
       var doc = _officialDoc.documents[_officialDoc.selected]; if (!doc) return null;
       OFFICIAL_DOC_FIELDS.forEach(function(pair){
         var key = pair[0], el = document.getElementById('odf_' + key); if (!el) return;
-        doc[key] = OFFICIAL_DOC_ARRAY_KEYS[key] ? officialDocLines_(el.value) : el.value.trim();
+        doc[key] = OFFICIAL_DOC_ARRAY_KEYS[key] ? officialDocLines_(el.value) : el.value.replace(/\s*\r?\n\s*/g, ' ').trim();
       });
       var school = document.getElementById('odf_schoolSpecificData');
       if (school) doc.schoolSpecificData = officialDocLines_(school.value);
@@ -5521,7 +5581,7 @@
       setNav('account');
       app.innerHTML = pageHead('📱 ข้อความพร้อมส่ง ผอ.', 'officialDocRenderReview_()') +
         '<div class="card"><div class="note" style="margin-bottom:8px;">ข้อความล่าสุดในช่องนี้คือข้อความที่จะคัดลอกหรือส่งต่อ คุณแก้ไขเองได้ก่อนดำเนินการ</div>' +
-          '<textarea id="odLineText" class="od-preview" maxlength="1000" oninput="officialDocLineChanged_()">' + esc(_officialDoc.lineText) + '</textarea>' +
+          '<textarea id="odLineText" class="od-preview od-auto" maxlength="1000" oninput="officialDocLineChanged_();officialDocAutoGrow_(this)">' + esc(_officialDoc.lineText) + '</textarea>' +
           '<div class="note"><span id="odLineCount">' + _officialDoc.lineText.length + '</span> / 1000 ตัวอักษร</div></div>' +
         '<div class="od-actions">' +
           '<button class="b-primary" onclick="officialDocCopy_()">📋 คัดลอกข้อความ</button>' +
@@ -5531,6 +5591,7 @@
         '</div>' +
         '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="officialDocGoSend_()">➡️ นำไปหน้าส่ง LINE</button>' +
         '<div class="card" style="margin-top:10px;"><div class="note">AI ยังไม่ได้ส่งข้อความ การส่งจริงต้องผ่าน “ตรวจและขออนุมัติ” และ “ยืนยันส่งจริง” ในหน้าถัดไปเสมอ</div></div>';
+      officialDocAutoGrowAll_();
     }
 
     function officialDocLineChanged_(){
