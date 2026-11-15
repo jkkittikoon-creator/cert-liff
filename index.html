@@ -352,7 +352,8 @@
     .lf-modal-box { animation: lf-pop .22s cubic-bezier(.2, .8, .3, 1); }
     @keyframes lf-fade { from { opacity: 0; } }
     @keyframes lf-pop { from { opacity: 0; transform: translateY(12px) scale(.97); } }
-    /* ---- โฟกัสจากคีย์บอร์ด: ต้องเห็นว่าตอนนี้อยู่ปุ่มไหน (ไม่กระทบการแตะด้วยนิ้ว) ---- */
+    /* ---- โฟกัส: ต้องเห็นว่าตอนนี้อยู่ปุ่ม/ช่องไหน · ปุ่มและลิงก์ขึ้นกรอบเฉพาะจากคีย์บอร์ด
+       ส่วนช่องพิมพ์ขึ้นกรอบทุกครั้งที่ได้โฟกัส รวมถึงตอนแตะด้วยนิ้ว (เบราว์เซอร์กำหนด) ---- */
     button:focus-visible, a:focus-visible, input:focus-visible,
     select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
       outline: 3px solid var(--brand-strong); outline-offset: 2px; border-radius: 8px;
@@ -1124,9 +1125,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V17';
-    var LIFF_VERSION_DATE = '13 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'ตัวอักษรสีรองอ่านชัดขึ้น · ช่องค้นหามีป้ายชื่อและกรอบโฟกัสชัดเจน';
+    var LIFF_VERSION = 'V18';
+    var LIFF_VERSION_DATE = '15 พ.ย. 2569';
+    var LIFF_VERSION_NOTE = 'กลับเข้าแอปแล้วข้อมูลไม่ค้างเก่า · เน็ตหลุดมีข้อความบอกชัดเจน · กล่องยืนยันเป็นของแอปทุกจุด';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1310,7 +1311,11 @@
           return new Promise(function(res){ setTimeout(res, delay); })
             .then(function(){ return api(action, payload, _attempt + 1, _requestId); });
         }
-        var networkError = new Error('ระบบรับคำขอแล้วแต่ส่งผลกลับมาไม่สมบูรณ์ กรุณาลองใหม่');
+        // เครื่องไม่มีเน็ต: บอกตรง ๆ · คำสั่งเขียนอาจถึงเซิร์ฟเวอร์ไปแล้วก่อนเน็ตหลุด จึงให้เช็กก่อนทำซ้ำ · รหัส error คงเดิม
+        var offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+        var networkError = new Error(!offline ? 'ระบบรับคำขอแล้วแต่ส่งผลกลับมาไม่สมบูรณ์ กรุณาลองใหม่'
+          : canRetry ? 'ไม่มีอินเทอร์เน็ต กรุณาตรวจการเชื่อมต่อแล้วลองใหม่'
+          : 'ไม่มีอินเทอร์เน็ต กรุณาตรวจการเชื่อมต่อ แล้วเช็กว่ารายการถูกบันทึกหรือยังก่อนทำซ้ำ');
         networkError.code = 'NETWORK_ERROR';
         throw networkError;
       });
@@ -1508,7 +1513,36 @@
       forceRestyle();
     }
     setInterval(themeTick, 60000);
-    document.addEventListener('visibilitychange', function(){ if (!document.hidden) themeTick(); });
+    /* LINE เก็บหน้า LIFF ค้างไว้เบื้องหลัง เปิดอีกครั้งได้หน้าเดิมโดยไม่โหลดใหม่ (V18)
+       ซ่อนเกิน 5 นาที → ดึงข้อมูลหน้าหลักใหม่เงียบ ๆ (ดึงไม่ได้ก็คงของเดิม) · เกิน 6 ชม. → โหลดหน้าใหม่เพื่อรับเวอร์ชันล่าสุด
+       ทำเฉพาะตอนอยู่หน้าหลักที่ไม่มีหน้าต่างซ้อน — หน้าอื่นอาจมีงานพิมพ์ค้าง */
+    var _hiddenAt = 0;
+    document.addEventListener('visibilitychange', function(){
+      if (document.hidden) { _hiddenAt = Date.now(); return; }
+      themeTick();
+      var away = _hiddenAt ? Date.now() - _hiddenAt : 0;
+      _hiddenAt = 0;
+      if (away < 300000) return;
+      var v = document.getElementById('viewerRoot');
+      var onHome = !!document.querySelector('.hero') && !(v && v.innerHTML) && !document.body.classList.contains('modal-open');
+      if (!onHome) { _homeCache = null; return; }
+      if (away >= 21600000) { location.reload(); return; }
+      api('dashboard').then(function(s){
+        _homeCache = s;
+        if (document.querySelector('.hero')) renderHome(s);
+      }).catch(function(){});
+    });
+    /* เน็ตหลุด/กลับมา: บอกผู้ใช้ทันที ไม่ต้องรอกดแล้วเจอข้อความ error */
+    window.addEventListener('offline', function(){ liffToast('ไม่มีอินเทอร์เน็ต', 'err'); });
+    window.addEventListener('online', function(){ liffToast('กลับมาออนไลน์แล้ว', 'ok'); });
+    /* สคริปต์พังกลางทาง: แจ้งครั้งเดียวต่อการโหลดหน้า แทนจอค้างเงียบ
+       ข้ามเหตุการณ์ที่ไม่มี e.error (สคริปต์ข้ามโดเมน) กันเตือนผิด */
+    var _crashToastShown = false;
+    window.addEventListener('error', function(e){
+      if (_crashToastShown || !e || !e.error) return;
+      _crashToastShown = true;
+      try { liffToast('เกิดข้อผิดพลาดในแอป หากใช้ต่อไม่ได้ กรุณาปิดแล้วเปิดแอปใหม่', 'err'); } catch(_){}
+    });
     /* Chrome ไม่คำนวณ border-color ที่มาจาก custom property ใหม่ เมื่อ data-theme บนบรรพบุรุษเปลี่ยน
        (บั๊กเดียวกับที่เจอในแดชบอร์ดเว็บ) — บังคับคำนวณใหม่ทั้งหน้าในทีเดียว ผู้ใช้ไม่เห็นจอกะพริบ
        เพราะเกิดใน task เดียว แต่ต้องคืนตำแหน่งเลื่อนหน้าเพราะการซ่อน body ทำให้ scroll หาย */
@@ -2485,6 +2519,7 @@
         '</div>' +
         '<div class="wx-place"><span class="nm">📍 ' + esc(w.place) + '</span>' + wxLocBtnHtml(w) + '</div>' +
         (_wxLocNote ? '<div class="wx-note">' + esc(_wxLocNote) + '</div>' : '') +
+        (_wxCoordsOpen ? wxCoordsFormHtml() : '') +
         '<div class="wx-days">' + days + '</div>' +
         '</div>';
     }
@@ -2562,21 +2597,38 @@
     }
 
     /** ทางสำรองที่ไม่ต้องพึ่งสิทธิ์ตำแหน่งเลย — ใช้ได้ทุกเครื่องทุกเวอร์ชัน */
+    /* ช่องกรอกอยู่ในการ์ดเอง — แทน prompt() ซึ่งเบราว์เซอร์ในแอป LINE บางรุ่นบล็อก (V18) */
+    var _wxCoordsOpen = false, _wxCoordsDraft = '';
+    function wxCoordsFormHtml(){
+      return '<div class="field" style="margin-top:8px;">' +
+        '<label for="wxCoordsIn">วางพิกัดจาก Google Maps</label>' +
+        '<input type="text" id="wxCoordsIn" value="' + esc(_wxCoordsDraft) + '" placeholder="15.5975, 100.65806" autocomplete="off" ' +
+        'oninput="_wxCoordsDraft=this.value" onkeydown="if(event.key===&quot;Enter&quot;)wxSubmitCoords()">' +
+        '<div class="note">เปิด Google Maps → กดค้างที่ตำแหน่งที่ต้องการ → คัดลอกตัวเลขพิกัดมาวาง</div>' +
+        '<div class="rp-btns" style="margin-top:8px;"><button type="button" class="b-second" onclick="wxCloseCoords()">ยกเลิก</button>' +
+        '<button type="button" class="b-second" onclick="wxSubmitCoords()">ใช้พิกัดนี้</button></div></div>';
+    }
     function wxEnterCoords(){
-      var t = prompt(
-        'วางพิกัดจาก Google Maps\n\n' +
-        'เปิด Google Maps → กดค้างที่ตำแหน่งที่ต้องการ → ตัวเลขพิกัดจะขึ้นมา → คัดลอกมาวางที่นี่\n\n' +
-        'ตัวอย่าง: 15.5975, 100.65806',
-        wxSavedLoc() ? (wxSavedLoc().lat + ', ' + wxSavedLoc().lon) : ''
-      );
-      if (t === null) return;
+      var s = wxSavedLoc();
+      _wxCoordsOpen = true;
+      _wxCoordsDraft = s ? (s.lat + ', ' + s.lon) : '';
+      wxSetNote('', true);
+      var i = document.getElementById('wxCoordsIn');
+      if (i) i.focus();
+    }
+    function wxCloseCoords(){ _wxCoordsOpen = false; wxSetNote(''); }
+    function wxSubmitCoords(){
+      var i = document.getElementById('wxCoordsIn');
+      var t = i ? i.value : _wxCoordsDraft;
+      _wxCoordsDraft = t;
       var loc = wxParseCoords(t);
       if (!loc) {
-        wxSetNote(/goo\.gl/.test(String(t))
+        wxSetNote(String(t).indexOf('goo.gl') >= 0
           ? 'ลิงก์ย่อของ Google Maps ไม่มีตัวเลขพิกัดอยู่ข้างใน — กดค้างบนแผนที่แล้วคัดลอกตัวเลขพิกัดมาวางแทนครับ'
           : 'อ่านพิกัดไม่ออก — ต้องเป็นตัวเลขสองชุดคั่นด้วยจุลภาค เช่น 15.5975, 100.65806', true);
         return;
       }
+      _wxCoordsOpen = false;
       wxApplyLoc(loc);
     }
 
@@ -7793,8 +7845,11 @@
       }).catch(function(e){aiLiffBusy(btn,false);box.innerHTML='<div class="msg err">'+esc(e&&e.message?e.message:e)+'</div>';});
     }
     function aiLiffLinkTraining(trainingId,btn){
-      if(!curCert||!confirm('ยืนยันผูกเอกสารกับกิจกรรมนี้?'))return;
-      aiLiffBusy(btn,true);api('traininglink',{trainingId:trainingId,certificateId:curCert.certificateId}).then(function(){aiLiffBusy(btn,false);liffToast('ผูกหลักฐานกับกิจกรรมแล้ว','ok');var b=document.getElementById('aiReviewBtn');if(b)aiLiffReview(b);}).catch(function(e){aiLiffBusy(btn,false);liffToast(e&&e.message?e.message:e,'err');});
+      if(!curCert)return;
+      var certId=curCert.certificateId;
+      liffConfirm({title:'ผูกเอกสารกับกิจกรรม',message:'ยืนยันผูกเอกสารกับกิจกรรมนี้?',okLabel:'ผูกเอกสาร'},function(){
+      aiLiffBusy(btn,true);api('traininglink',{trainingId:trainingId,certificateId:certId}).then(function(){aiLiffBusy(btn,false);liffToast('ผูกหลักฐานกับกิจกรรมแล้ว','ok');var b=document.getElementById('aiReviewBtn');if(b)aiLiffReview(b);}).catch(function(e){aiLiffBusy(btn,false);liffToast(e&&e.message?e.message:e,'err');});
+      });
     }
 
     // F7: นับ 3 สีสดจากสถานะฟิลด์จริง
