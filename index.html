@@ -1143,6 +1143,19 @@
       background: transparent; color: #ffc2cd; font: inherit; font-weight: 600; }
     .ap-del-box { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); font-size: 13px; line-height: 1.6; }
     .lg-lb-step.ap-del-yes { border-color: #d6365a; background: #d6365a; }
+    /* รอบ 4 (V26): ดาวน์โหลด — ปุ่มคู่ในหัวเรื่อง + ปุ่มในภาพใหญ่ · ข้อความผลอยู่ใต้ปุ่มที่กด */
+    .ap-head-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .ap-head-acts .ap-rename-btn { margin-top: 0; }
+    .ap-rename-btn:disabled { opacity: 0.6; cursor: default; }
+    .ap-dl-msg { margin-top: 8px; font-size: 13px; line-height: 1.6; color: var(--text-2); overflow-wrap: anywhere; }
+    .ap-dl-msg:empty { display: none; }
+    .ap-dl-msg a { color: var(--ap-ink); font-weight: 600; text-decoration: underline; }
+    .ap-dl { width: 100%; min-height: 44px; margin-top: 8px; border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08); color: #fff; font: inherit; font-weight: 600; }
+    .ap-dl:disabled { opacity: 0.6; }
+    .ap-dl:focus-visible, .ap-del:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .lg-lb-bar .ap-dl-msg { color: rgba(255, 255, 255, 0.85); }
+    .lg-lb-bar .ap-dl-msg a { color: #fff; }
   </style>
 </head>
 <body>
@@ -1199,9 +1212,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V25';
-    var LIFF_VERSION_DATE = '15 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'คลังรูปกิจกรรม: ดูรูปที่เก็บจากแชตแยก 3 หมวด แก้ชื่อเรื่อง และลบรูปได้ (เมนูด่วน → รูปกิจกรรม)';
+    var LIFF_VERSION = 'V26';
+    var LIFF_VERSION_DATE = '16 พ.ย. 2569';
+    var LIFF_VERSION_NOTE = 'คลังรูปกิจกรรม: ดาวน์โหลดรูปทีละรูปจากภาพใหญ่ หรือทั้งเรื่องเป็น ZIP จากหัวเรื่อง';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -7793,12 +7806,64 @@
         if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (_) {} }
         return;
       }
-      var n = document.getElementById('apGrid') && document.getElementById('apGrid').getAttribute('aria-busy') === 'false'
-        ? '<b>' + _ap.photos.length + ' รูป</b>' : 'กำลังนับรูป...';
+      var loaded = document.getElementById('apGrid') && document.getElementById('apGrid').getAttribute('aria-busy') === 'false';
+      var n = loaded ? '<b>' + _ap.photos.length + ' รูป</b>' : 'กำลังนับรูป...';
+      // ดาวน์โหลดเป็นการอ่าน: แสดงแม้ธงปิด · แก้ชื่อแสดงเฉพาะตอนธงเปิด
+      var acts = (loaded && _ap.photos.length ? '<button type="button" class="ap-rename-btn" id="apZipBtn" onclick="apZip_()">ดาวน์โหลดทั้งเรื่อง</button>' : '') +
+        (_ap.enabled ? '<button type="button" class="ap-rename-btn" onclick="apRenderHead_(true)">แก้ชื่อเรื่อง</button>' : '');
       head.innerHTML = '<div class="ap-head-cat">หมวด ' + esc(cat.label) + '</div>' +
         '<div class="ap-head-t">' + esc(al.title) + '</div>' +
         '<div class="ap-head-m">' + n + (al.activityDate ? '<br>เริ่มเก็บ ' + esc(toBE(al.activityDate)) : '') + '</div>' +
-        (_ap.enabled ? '<button type="button" class="ap-rename-btn" onclick="apRenderHead_(true)">แก้ชื่อเรื่อง</button>' : '');
+        (acts ? '<div class="ap-head-acts">' + acts + '</div>' : '') +
+        '<div class="ap-dl-msg" id="apZipMsg" aria-live="polite"></div>';
+    }
+
+    /* ---------- ดาวน์โหลด (V26): server ทำสำเนา/ZIP ในโฟลเดอร์ชั่วคราวแล้วคืนลิงก์ Drive ----------
+       เปิดด้วย liffOpen (LINE บันทึก blob ไม่ได้) · ไม่ลองซ้ำอัตโนมัติ เพราะทุกครั้งสร้างไฟล์ใหม่ */
+    function apDlDoneHtml_(d, what){
+      return '✅ ' + what + ' — เปิดหน้าดาวน์โหลดให้แล้ว' +
+        '<br>ถ้าไม่มีหน้าเปิดขึ้น แตะ <a href="' + esc(d.url) + '" target="_blank" rel="noopener">ที่นี่เพื่อดาวน์โหลด</a>' +
+        '<br>ลิงก์นี้ใช้ได้ราว 2 ชั่วโมง และใครมีลิงก์ก็เปิดได้ จึงไม่ควรส่งต่อ';
+    }
+    function apZip_(){
+      var btn = document.getElementById('apZipBtn'), msg = document.getElementById('apZipMsg');
+      if (!btn || !_ap.album) return;
+      var albumId = _ap.album.albumId;
+      btn.disabled = true; btn.textContent = 'กำลังรวมเป็น ZIP...';
+      if (msg) msg.textContent = 'รูปเยอะอาจใช้เวลาสักครู่ อย่าเพิ่งปิดหน้านี้';
+      api('apzip', { albumId: albumId })
+        .then(function(d){
+          liffOpen(d.url);
+          if (!_ap.album || _ap.album.albumId !== albumId) return;
+          var b = document.getElementById('apZipBtn'), m = document.getElementById('apZipMsg');
+          if (b) { b.disabled = false; b.textContent = 'ดาวน์โหลดทั้งเรื่อง'; }
+          if (m) m.innerHTML = apDlDoneHtml_(d, 'รวม ' + esc(d.count) + ' รูปเป็น ZIP (' + fmtBytes_(d.bytes) + ') แล้ว');
+        })
+        .catch(function(e){
+          var b = document.getElementById('apZipBtn'), m = document.getElementById('apZipMsg');
+          if (b) { b.disabled = false; b.textContent = 'ดาวน์โหลดทั้งเรื่อง'; }
+          if (m) m.textContent = '⚠️ ' + ((e && e.message) || 'รวมไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+        });
+    }
+    function apDownload_(){
+      var id = _ap.lbId, btn = document.getElementById('apDlBtn'), msg = document.getElementById('apDlMsg');
+      if (!id || !btn) return;
+      btn.disabled = true; btn.textContent = 'กำลังเตรียมไฟล์...';
+      if (msg) msg.textContent = '';
+      api('apdownload', { photoId: id })
+        .then(function(d){
+          liffOpen(d.url);
+          if (_ap.lbId !== id) return;
+          var b = document.getElementById('apDlBtn'), m = document.getElementById('apDlMsg');
+          if (b) { b.disabled = false; b.textContent = 'ดาวน์โหลดรูปนี้'; }
+          if (m) m.innerHTML = apDlDoneHtml_(d, 'เตรียมรูปแล้ว');
+        })
+        .catch(function(e){
+          if (_ap.lbId !== id) return;
+          var b = document.getElementById('apDlBtn'), m = document.getElementById('apDlMsg');
+          if (b) { b.disabled = false; b.textContent = 'ดาวน์โหลดรูปนี้'; }
+          if (m) m.textContent = '⚠️ ' + ((e && e.message) || 'เตรียมไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+        });
     }
     function apRenameSave_(){
       var inp = document.getElementById('apTitleIn'), btn = document.getElementById('apTitleSave');
@@ -7928,6 +7993,8 @@
         '<button type="button" class="lg-lb-step" onclick="apStep_(-1)"' + (pos > 0 ? '' : ' disabled') + '>‹ ก่อนหน้า</button>' +
         '<button type="button" class="lg-lb-step" onclick="apStep_(1)"' + (pos < _ap.photos.length - 1 ? '' : ' disabled') + '>ถัดไป ›</button>' +
         '</div>' +
+        '<button type="button" class="ap-dl" id="apDlBtn" onclick="apDownload_()">ดาวน์โหลดรูปนี้</button>' +
+        '<div class="ap-dl-msg" id="apDlMsg" aria-live="polite"></div>' +
         (_ap.enabled ? '<div id="apDelBox">' + apDelBtnHtml_() + '</div>' : '') +
         '</div></div>';
       var stage = document.getElementById('apLbStage');
