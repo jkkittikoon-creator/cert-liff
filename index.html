@@ -1075,6 +1075,74 @@
     .lg-lb-edit { width: 100%; margin-top: 8px; }
     .lg-lb-note { font-size: 12px; opacity: 0.8; margin-top: 6px; text-align: center; }
     @media (prefers-reduced-motion: reduce) { .lg-card:active { transform: none; } }
+
+    /* ---------- คลังรูปกิจกรรม (V25) — "แฟ้มสามสี" สีเดียวกับการ์ด LINE (LINE_APHOTO_THEME ใน LineActivityPhotoService.gs) ----------
+       แท็บหมวดเป็นหูแฟ้ม: หูที่เลือกต่อเนื้อเดียวกับแผงด้านล่าง · เรื่องเป็นแฟ้มมีสันสีด้านซ้าย · รูปเรียงชิดแบบแผ่นรวมรูป
+       สีเข้ม (ink) ใช้กับตัวอักษร/สัน · พื้นอ่อน (tint) ใช้เป็นพื้นแผง · โหมดมืด/นีออนใช้ ink สว่างขึ้น + tint โปร่ง */
+    :root {
+      --ap-self-ink: #3B4BA8; --ap-self-tint: #E9ECFB;
+      --ap-school-ink: #B4530A; --ap-school-tint: #FFF1E0;
+      --ap-plc-ink: #1F7A5A; --ap-plc-tint: #E4F4EC;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --ap-self-ink: #AEB8F7; --ap-self-tint: rgba(59, 75, 168, 0.26);
+        --ap-school-ink: #F4B47C; --ap-school-tint: rgba(180, 83, 10, 0.24);
+        --ap-plc-ink: #86D9B4; --ap-plc-tint: rgba(31, 122, 90, 0.26);
+      }
+    }
+    :root[data-theme="dark"] {
+      --ap-self-ink: #AEB8F7; --ap-self-tint: rgba(59, 75, 168, 0.26);
+      --ap-school-ink: #F4B47C; --ap-school-tint: rgba(180, 83, 10, 0.24);
+      --ap-plc-ink: #86D9B4; --ap-plc-tint: rgba(31, 122, 90, 0.26);
+    }
+    .ap-c-self { --ap-ink: var(--ap-self-ink); --ap-tint: var(--ap-self-tint); }
+    .ap-c-school { --ap-ink: var(--ap-school-ink); --ap-tint: var(--ap-school-tint); }
+    .ap-c-plc { --ap-ink: var(--ap-plc-ink); --ap-tint: var(--ap-plc-tint); }
+    .ap-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; align-items: stretch; margin-top: 4px; }
+    .ap-tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+      min-height: 56px; margin-top: 8px; padding: 10px 6px 8px; border: 1px solid var(--border); border-bottom: none; border-radius: 14px 14px 0 0;
+      background: var(--bg-inset); color: var(--text-2); font: inherit; text-align: center; cursor: pointer; overflow: hidden; }
+    .ap-tab::before { content: ''; position: absolute; left: 12px; right: 12px; top: 0; height: 4px; border-radius: 0 0 4px 4px; background: var(--ap-ink); opacity: 0.5; }
+    .ap-tab b { font-family: var(--font-display); font-weight: 600; font-size: 14px; line-height: 1.25; color: var(--text-1); }
+    .ap-tab small { font-size: 12px; }
+    .ap-tab.on { margin-top: 0; border-color: transparent; background: var(--ap-tint); color: var(--ap-ink); }
+    .ap-tab.on::before { left: 0; right: 0; height: 5px; border-radius: 0; opacity: 1; }
+    .ap-tab.on b { color: var(--ap-ink); font-weight: 700; }
+    .ap-panel { min-height: 160px; padding: 12px; border-radius: 0 0 18px 18px; background: var(--ap-tint); }
+    .ap-album { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 8px; padding: 10px; border: none;
+      border-left: 5px solid var(--ap-ink); border-radius: 6px 14px 14px 6px; background: var(--bg-card); color: var(--text-1);
+      font: inherit; text-align: left; cursor: pointer; }
+    .ap-album:last-child { margin-bottom: 0; }
+    .ap-cover { display: flex; align-items: center; justify-content: center; flex: none; width: 72px; height: 72px; overflow: hidden;
+      border-radius: 10px; background: var(--bg-inset); color: var(--text-2); font-size: 12px; text-align: center; }
+    .ap-cover img, .ap-cell img { width: 100%; height: 100%; object-fit: cover; }
+    .ap-album-x { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .ap-album-t { font-family: var(--font-display); font-weight: 600; font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+    .ap-album-n { font-size: 13px; font-weight: 600; color: var(--ap-ink); }
+    .ap-album-d { font-size: 12px; color: var(--text-2); }
+    .ap-empty { padding: 20px 8px; text-align: center; color: var(--text-2); font-size: 14px; line-height: 1.7; }
+    .ap-empty + .b-primary, .ap-empty + .b-second { width: 100%; min-height: 44px; }
+    .ap-head { margin-bottom: 12px; padding: 14px; border-left: 6px solid var(--ap-ink); border-radius: 6px 18px 18px 6px; background: var(--ap-tint); }
+    .ap-head-cat { font-size: 13px; font-weight: 600; color: var(--ap-ink); }
+    .ap-head-t { margin: 2px 0 6px; font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
+    .ap-head-m { font-size: 13px; color: var(--text-2); }
+    .ap-head-m b { color: var(--ap-ink); }
+    .ap-rename-btn { min-height: 40px; margin-top: 10px; padding: 0 14px; border: 1px solid var(--ap-ink); border-radius: 10px;
+      background: transparent; color: var(--ap-ink); font: inherit; font-weight: 600; cursor: pointer; }
+    .ap-rename { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+    .ap-rename input { width: 100%; min-height: 44px; font-size: 16px; }
+    .ap-rename .btns button { min-height: 44px; }
+    .ap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; overflow: hidden; border-radius: 12px; }
+    @media (min-width: 600px) { .ap-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    .ap-cell { display: flex; align-items: center; justify-content: center; aspect-ratio: 1 / 1; min-height: 0; margin: 0; padding: 0; overflow: hidden; border: none; border-radius: 3px;
+      background: var(--bg-inset); color: var(--text-2); font: inherit; font-size: 12px; cursor: pointer; }
+    .ap-ph { padding: 4px; line-height: 1.4; }
+    .ap-tab:focus-visible, .ap-album:focus-visible, .ap-cell:focus-visible, .ap-rename-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .ap-del { width: 100%; min-height: 44px; margin-top: 8px; border: 1px solid rgba(255, 160, 178, 0.75); border-radius: 10px;
+      background: transparent; color: #ffc2cd; font: inherit; font-weight: 600; }
+    .ap-del-box { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.1); font-size: 13px; line-height: 1.6; }
+    .lg-lb-step.ap-del-yes { border-color: #d6365a; background: #d6365a; }
   </style>
 </head>
 <body>
@@ -1131,9 +1199,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V24';
+    var LIFF_VERSION = 'V25';
     var LIFF_VERSION_DATE = '15 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'สรุปหนังสือราชการ: ถ้าข้อความถึง ผอ. ยาวเกิน AI จะย่อเป็นประเด็นให้ พร้อมป้ายแจ้งให้ตรวจก่อนส่ง';
+    var LIFF_VERSION_NOTE = 'คลังรูปกิจกรรม: ดูรูปที่เก็บจากแชตแยก 3 หมวด แก้ชื่อเรื่อง และลบรูปได้ (เมนูด่วน → รูปกิจกรรม)';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1234,7 +1302,9 @@
       // เปิดร่าง/โหลดต้นฉบับเป็น read-only และไม่หักโควตา/ไม่ส่ง LINE จึงลองซ้ำได้อย่างปลอดภัย
       officialdraftget:1, officialdraftfile:1,
       // คลังเกียรติบัตร: อ่านอย่างเดียว · gallerythumbs ไม่อยู่ที่นี่ (สร้างภาพครั้งแรกอาจเกิน 20 วิ จึงไม่ตั้ง timeout/ไม่ลองซ้ำ)
-      gallerylist:1, gallerylarge:1
+      gallerylist:1, gallerylarge:1,
+      // คลังรูปกิจกรรม (V25): อ่านอย่างเดียว · apthumbs ไม่อยู่ที่นี่ด้วยเหตุผลเดียวกับ gallerythumbs · aprename/apdelete เป็นคำสั่งเขียน
+      aplist:1, apphotos:1, aplarge:1
     };
     var API_RETRY_MAX = 2;                 // ลองซ้ำเพิ่มได้อีกไม่เกิน 2 ครั้ง (รวมครั้งแรกเป็น 3)
     var API_RETRY_DELAYS = [600, 1500];    // หน่วงก่อนลองซ้ำ (มิลลิวินาที) — ครั้งที่ 1 / ครั้งที่ 2
@@ -2792,6 +2862,7 @@
         '<button type="button" class="act" onclick="showDash()"><span class="ico">📊</span>สรุปผลงาน</button>' +
         '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>รายงานผลงาน</button>' +
         '<button type="button" class="act" onclick="showProud()"><span class="ico">🌟</span>ผลงานที่ภาคภูมิใจ</button>' +
+        '<button type="button" class="act" onclick="showActivityPhotos()"><span class="ico">📷</span>รูปกิจกรรม</button>' +
         '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '</div>';
@@ -7576,6 +7647,362 @@
       liffBackFn_ = "showList('saved')";
     }
 
+    /* ---------- คลังรูปกิจกรรม (V25 · Blueprint รอบ 3) — server: ActivityPhotoService.gs ----------
+       แท็บ 3 หมวด (หูแฟ้ม) → เรื่อง (แฟ้มมีสันสี + รูปปก) → แผ่นรวมรูป 3 คอลัมน์ → ภาพใหญ่เต็มจอ
+       ภาพทุกภาพมาเป็น data URL จากเซิร์ฟเวอร์ (ไม่เปิดแชร์ไฟล์ Drive) · ขอภาพย่อเฉพาะที่ใกล้จอ ทีละ 6 รูป พร้อมกันไม่เกิน 2 คำขอ
+       แก้ชื่อเรื่อง/ลบรูปได้เมื่อธงเปิด · ลบรูปต้องกดยืนยันอีกครั้ง และเป็นการซ่อนจากคลัง ไฟล์ยังเก็บสำรองในระบบ */
+    var AP_CATS = [
+      { key: 'SELF_DEV', label: 'พัฒนาตัวเอง', cls: 'ap-c-self' },
+      { key: 'SCHOOL_ACTIVITY', label: 'กิจกรรมในโรงเรียน', cls: 'ap-c-school' },
+      { key: 'PLC', label: 'PLC', cls: 'ap-c-plc' }
+    ];
+    var _ap = { cat: 'SELF_DEV', albums: [], enabled: true, req: 0, album: null, photos: [], thumbs: {},
+      queue: [], inflight: 0, timer: null, obs: null, retries: {}, lbId: '', lbReq: 0, tx: null };
+    var AP_BATCH = 6, AP_MAX_INFLIGHT = 2, AP_RETRY_MS = 20000, AP_MAX_RETRY = 2;
+
+    function apCat_(key){
+      for (var i = 0; i < AP_CATS.length; i++) if (AP_CATS[i].key === key) return AP_CATS[i];
+      return AP_CATS[0];
+    }
+    function apAlbum_(id){
+      for (var i = 0; i < _ap.albums.length; i++) if (_ap.albums[i].albumId === id) return _ap.albums[i];
+      return null;
+    }
+    function apPhotoPos_(id){
+      for (var i = 0; i < _ap.photos.length; i++) if (_ap.photos[i].photoId === id) return i;
+      return -1;
+    }
+
+    function showActivityPhotos(cat){
+      if (cat) _ap.cat = apCat_(cat).key;
+      setNav('home');
+      if (_ap.obs) _ap.obs.disconnect();
+      app.innerHTML = pageHead('คลังรูปกิจกรรม', 'showHome()') +
+        '<div class="msg">รูปที่ส่งเข้าแชตน้องชาโปรแล้วเลือกเก็บไว้ อยู่ในแฟ้มตามหมวด แตะเรื่องเพื่อดูรูป</div>' +
+        '<div class="ap-tabs" role="tablist" aria-label="หมวดรูปกิจกรรม" id="apTabs"></div>' +
+        '<div class="ap-panel ' + apCat_(_ap.cat).cls + '" id="apPanel" role="tabpanel" aria-busy="true"><div class="ap-empty">กำลังโหลดแฟ้ม...</div></div>';
+      apRenderTabs_();
+      var req = ++_ap.req;
+      api('aplist', {})
+        .then(function(r){
+          if (req !== _ap.req || !document.getElementById('apPanel')) return;
+          _ap.albums = (r && r.albums) || [];
+          _ap.enabled = !!(r && r.featureEnabled);
+          apRenderTabs_();
+          apRenderAlbums_();
+        })
+        .catch(function(e){
+          var panel = document.getElementById('apPanel');
+          if (req !== _ap.req || !panel) return;
+          panel.setAttribute('aria-busy', 'false');
+          panel.innerHTML = '<div class="ap-empty">' + esc((e && e.message) || 'โหลดคลังรูปไม่สำเร็จ') + '</div>' +
+            '<button type="button" class="b-second" onclick="showActivityPhotos()">ลองอีกครั้ง</button>';
+        });
+    }
+    function apPickCat_(key){
+      _ap.cat = apCat_(key).key;
+      apRenderTabs_();
+      apRenderAlbums_();
+    }
+    function apRenderTabs_(){
+      var tabs = document.getElementById('apTabs');
+      if (!tabs) return;
+      tabs.innerHTML = AP_CATS.map(function(c){
+        var n = 0;
+        _ap.albums.forEach(function(a){ if (a.category === c.key) n++; });
+        var on = c.key === _ap.cat;
+        return '<button type="button" role="tab" class="ap-tab ' + c.cls + (on ? ' on' : '') + '" aria-selected="' + on + '"' +
+          ' onclick="apPickCat_(\'' + c.key + '\')"><b>' + esc(c.label) + '</b><small>' + n + ' เรื่อง</small></button>';
+      }).join('');
+    }
+    function apRenderAlbums_(){
+      var panel = document.getElementById('apPanel');
+      if (!panel) return;
+      var cat = apCat_(_ap.cat);
+      panel.className = 'ap-panel ' + cat.cls;
+      panel.setAttribute('aria-busy', 'false');
+      if (_ap.obs) _ap.obs.disconnect();
+      var list = _ap.albums.filter(function(a){ return a.category === cat.key; });
+      if (!list.length) {
+        panel.innerHTML = _ap.enabled
+          ? '<div class="ap-empty">ยังไม่มีเรื่องในหมวด ' + esc(cat.label) + '<br>ส่งรูปกิจกรรมเข้าแชตน้องชาโปร แล้วเลือกหมวด “' + esc(cat.label) + '”</div>' +
+            '<button type="button" class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button>'
+          : '<div class="ap-empty">คลังรูปกิจกรรมยังไม่เปิดใช้งาน ติดต่อผู้ดูแลระบบ</div>';
+        return;
+      }
+      panel.innerHTML = list.map(function(a){
+        var cover = a.coverPhotoId
+          ? '<span class="ap-cover" data-ap-thumb="' + esc(a.coverPhotoId) + '" aria-hidden="true"><span class="ap-ph">กำลังโหลด</span></span>'
+          : '<span class="ap-cover" aria-hidden="true"><span class="ap-ph">ยังไม่มีรูป</span></span>';
+        return '<button type="button" class="ap-album" data-album="' + esc(a.albumId) + '">' + cover +
+          '<span class="ap-album-x"><span class="ap-album-t">' + esc(a.title) + '</span>' +
+          '<span class="ap-album-n">' + esc(a.photoCount) + ' รูป</span>' +
+          '<span class="ap-album-d">' + esc(toBE(a.activityDate) || '') + '</span></span></button>';
+      }).join('');
+      panel.onclick = function(e){
+        var b = e.target.closest ? e.target.closest('.ap-album[data-album]') : null;
+        if (b) apOpenAlbum_(b.getAttribute('data-album'));
+      };
+      apWatchThumbs_();
+    }
+
+    /* ---------- หน้าในเรื่อง ---------- */
+    function apOpenAlbum_(albumId){
+      var known = apAlbum_(albumId);
+      var cat = apCat_(known ? known.category : _ap.cat);
+      _ap.cat = cat.key;
+      _ap.album = known ? { albumId: known.albumId, category: known.category, title: known.title, activityDate: known.activityDate } : null;
+      _ap.photos = [];
+      if (_ap.obs) _ap.obs.disconnect();
+      window.scrollTo(0, 0);
+      app.innerHTML = pageHead('รูปในเรื่องนี้', "showActivityPhotos('" + cat.key + "')") +
+        '<div class="ap-head ' + cat.cls + '" id="apHead"></div>' +
+        '<div id="apGrid" class="ap-grid" aria-busy="true"></div>';
+      if (_ap.album) apRenderHead_(false);
+      var req = ++_ap.req;
+      api('apphotos', { albumId: albumId })
+        .then(function(r){
+          if (req !== _ap.req || !document.getElementById('apGrid')) return;
+          _ap.album = r.album;
+          _ap.photos = r.photos || [];
+          apRenderGrid_();
+          apRenderHead_(false);   // หลังตาราง: หัวเรื่องนับรูปเมื่อตารางโหลดเสร็จแล้ว
+        })
+        .catch(function(e){
+          var grid = document.getElementById('apGrid');
+          if (req !== _ap.req || !grid) return;
+          grid.className = '';
+          grid.setAttribute('aria-busy', 'false');
+          grid.innerHTML = '<div class="ap-empty">' + esc((e && e.message) || 'โหลดรูปไม่สำเร็จ') + '</div>';
+        });
+    }
+    function apRenderHead_(editing){
+      var head = document.getElementById('apHead');
+      var al = _ap.album;
+      if (!head || !al) return;
+      var cat = apCat_(al.category);
+      head.className = 'ap-head ' + cat.cls;
+      if (editing) {
+        head.innerHTML = '<div class="ap-head-cat">หมวด ' + esc(cat.label) + '</div>' +
+          '<form class="ap-rename" onsubmit="apRenameSave_();return false;">' +
+          '<label class="ap-head-m" for="apTitleIn">ชื่อเรื่องใหม่ (ไม่เกิน 80 ตัวอักษร)</label>' +
+          '<input type="text" id="apTitleIn" maxlength="80" autocomplete="off" enterkeyhint="done" value="' + esc(al.title) + '">' +
+          '<div class="btns"><button type="button" class="b-second" onclick="apRenderHead_(false)">ยกเลิก</button>' +
+          '<button type="submit" class="b-primary" id="apTitleSave">บันทึกชื่อ</button></div></form>';
+        var inp = document.getElementById('apTitleIn');
+        if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (_) {} }
+        return;
+      }
+      var n = document.getElementById('apGrid') && document.getElementById('apGrid').getAttribute('aria-busy') === 'false'
+        ? '<b>' + _ap.photos.length + ' รูป</b>' : 'กำลังนับรูป...';
+      head.innerHTML = '<div class="ap-head-cat">หมวด ' + esc(cat.label) + '</div>' +
+        '<div class="ap-head-t">' + esc(al.title) + '</div>' +
+        '<div class="ap-head-m">' + n + (al.activityDate ? '<br>เริ่มเก็บ ' + esc(toBE(al.activityDate)) : '') + '</div>' +
+        (_ap.enabled ? '<button type="button" class="ap-rename-btn" onclick="apRenderHead_(true)">แก้ชื่อเรื่อง</button>' : '');
+    }
+    function apRenameSave_(){
+      var inp = document.getElementById('apTitleIn'), btn = document.getElementById('apTitleSave');
+      if (!inp || !btn || !_ap.album) return;
+      var title = String(inp.value || '').replace(/\s+/g, ' ').trim();
+      if (!title) { liffToast('กรุณาพิมพ์ชื่อเรื่อง', 'err'); inp.focus(); return; }
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+      api('aprename', { albumId: _ap.album.albumId, title: title })
+        .then(function(r){
+          if (!_ap.album || _ap.album.albumId !== r.albumId) return;
+          _ap.album.title = r.title;
+          var a = apAlbum_(r.albumId);
+          if (a) a.title = r.title;
+          apRenderHead_(false);
+          liffToast(r.changed ? 'บันทึกชื่อเรื่องแล้ว' : 'ชื่อเรื่องเหมือนเดิม', 'ok');
+        })
+        .catch(function(e){
+          btn.disabled = false; btn.textContent = 'บันทึกชื่อ';
+          liffErr_(e);
+        });
+    }
+    function apRenderGrid_(){
+      var grid = document.getElementById('apGrid');
+      if (!grid) return;
+      grid.setAttribute('aria-busy', 'false');
+      if (_ap.obs) _ap.obs.disconnect();
+      if (!_ap.photos.length) {
+        grid.className = '';
+        grid.innerHTML = '<div class="ap-empty">เรื่องนี้ยังไม่มีรูป<br>ส่งรูปเข้าแชตน้องชาโปร แล้วเลือกเรื่องนี้ได้เลย</div>';
+        return;
+      }
+      grid.className = 'ap-grid';
+      grid.innerHTML = _ap.photos.map(function(p, i){
+        return '<button type="button" class="ap-cell" data-photo="' + esc(p.photoId) + '" data-ap-thumb="' + esc(p.photoId) + '"' +
+          ' aria-label="ดูรูปที่ ' + (i + 1) + ' จาก ' + _ap.photos.length + '"><span class="ap-ph">กำลังโหลด</span></button>';
+      }).join('');
+      grid.onclick = function(e){
+        var b = e.target.closest ? e.target.closest('.ap-cell[data-photo]') : null;
+        if (b) apOpenPhoto_(b.getAttribute('data-photo'));
+      };
+      apWatchThumbs_();
+    }
+
+    /* ---------- ภาพย่อ: ขอเฉพาะช่องที่ใกล้จอ ---------- */
+    function apSlots_(id){
+      var out = [], all = document.querySelectorAll('[data-ap-thumb]');
+      for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-ap-thumb') === id) out.push(all[i]);
+      return out;
+    }
+    function apPaint_(slot, src){
+      var img = document.createElement('img');
+      img.alt = ''; img.decoding = 'async'; img.src = src;
+      slot.innerHTML = ''; slot.appendChild(img);
+      return img;
+    }
+    function apWatchThumbs_(){
+      var slots = document.querySelectorAll('[data-ap-thumb]');
+      if ('IntersectionObserver' in window) {
+        _ap.obs = new IntersectionObserver(function(entries){
+          entries.forEach(function(en){
+            if (!en.isIntersecting) return;
+            _ap.obs.unobserve(en.target);
+            apEnqueue_(en.target.getAttribute('data-ap-thumb'));
+          });
+        }, { rootMargin: '300px 0px' });
+      }
+      for (var i = 0; i < slots.length; i++) {
+        var id = slots[i].getAttribute('data-ap-thumb');
+        if (_ap.thumbs[id]) apPaint_(slots[i], _ap.thumbs[id]);
+        else if (_ap.obs && 'IntersectionObserver' in window) _ap.obs.observe(slots[i]);
+        else apEnqueue_(id);
+      }
+    }
+    function apEnqueue_(id){
+      if (!id || _ap.thumbs[id] || _ap.queue.indexOf(id) !== -1) return;
+      _ap.queue.push(id);
+      clearTimeout(_ap.timer);
+      _ap.timer = setTimeout(apFlush_, 60);
+    }
+    function apFlush_(){
+      while (_ap.queue.length && _ap.inflight < AP_MAX_INFLIGHT) {
+        var batch = _ap.queue.splice(0, AP_BATCH);
+        _ap.inflight++;
+        (function(ids){
+          api('apthumbs', { photoIds: ids })
+            .then(function(r){
+              _ap.inflight--;
+              var t = (r && r.thumbs) || {};
+              ids.forEach(function(id){ apOnThumb_(id, t[id] || { status: 'ERROR' }); });
+              apFlush_();
+            })
+            .catch(function(){
+              _ap.inflight--;
+              ids.forEach(function(id){ apOnThumb_(id, { status: 'ERROR' }); });
+              apFlush_();
+            });
+        })(batch);
+      }
+    }
+    function apOnThumb_(id, t){
+      if (t.status === 'READY') _ap.thumbs[id] = t.src;
+      apSlots_(id).forEach(function(slot){
+        if (t.status === 'READY') apPaint_(slot, t.src);
+        else slot.innerHTML = '<span class="ap-ph">' + (t.status === 'PENDING' ? 'กำลังเตรียมภาพ' : 'แสดงภาพไม่ได้') + '</span>';
+      });
+      // Drive เพิ่งได้รูปใหม่อาจยังทำภาพย่อไม่เสร็จ — ลองใหม่อัตโนมัติไม่เกิน 2 รอบ
+      if (t.status === 'PENDING' && (_ap.retries[id] || 0) < AP_MAX_RETRY) {
+        _ap.retries[id] = (_ap.retries[id] || 0) + 1;
+        setTimeout(function(){ if (apSlots_(id).length) apEnqueue_(id); }, AP_RETRY_MS);
+      }
+    }
+
+    /* ---------- ภาพใหญ่เต็มจอ + ลบรูป ---------- */
+    function apOpenPhoto_(id){
+      var pos = apPhotoPos_(id);
+      if (pos === -1 || !_ap.album) return;
+      _ap.lbId = id;
+      liffBackFn_ = 'apClosePhoto_()';   // ปุ่ม Back ของเครื่อง = ปิดภาพใหญ่ก่อน
+      document.getElementById('viewerRoot').innerHTML =
+        '<div class="cv-overlay lg-lb" role="dialog" aria-modal="true" aria-labelledby="apLbTitle">' +
+        '<button type="button" class="cv-close" onclick="apClosePhoto_()" aria-label="ปิดภาพใหญ่">✕ ปิด</button>' +
+        '<div class="lg-lb-stage" id="apLbStage"></div>' +
+        '<div class="lg-lb-bar">' +
+        '<div class="lg-lb-title" id="apLbTitle">' + esc(_ap.album.title) + '</div>' +
+        '<div class="lg-lb-sub">รูปที่ ' + (pos + 1) + ' จาก ' + _ap.photos.length + '</div>' +
+        '<div class="lg-lb-btns">' +
+        '<button type="button" class="lg-lb-step" onclick="apStep_(-1)"' + (pos > 0 ? '' : ' disabled') + '>‹ ก่อนหน้า</button>' +
+        '<button type="button" class="lg-lb-step" onclick="apStep_(1)"' + (pos < _ap.photos.length - 1 ? '' : ' disabled') + '>ถัดไป ›</button>' +
+        '</div>' +
+        (_ap.enabled ? '<div id="apDelBox">' + apDelBtnHtml_() + '</div>' : '') +
+        '</div></div>';
+      var stage = document.getElementById('apLbStage');
+      stage.addEventListener('touchstart', function(e){ _ap.tx = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+      stage.addEventListener('touchend', function(e){
+        if (_ap.tx === null || !e.changedTouches.length) return;
+        var dx = e.changedTouches[0].clientX - _ap.tx;
+        _ap.tx = null;
+        if (Math.abs(dx) > 60) apStep_(dx < 0 ? 1 : -1);
+      });
+      if (_ap.thumbs[id]) apPaint_(stage, _ap.thumbs[id]);   // ภาพย่อไปก่อนระหว่างรอภาพใหญ่
+      stage.insertAdjacentHTML('beforeend', '<span class="lg-lb-status" id="apLbStatus">กำลังโหลดภาพขนาดใหญ่...</span>');
+      var req = ++_ap.lbReq;
+      api('aplarge', { photoId: id })
+        .then(function(r){
+          if (req !== _ap.lbReq || _ap.lbId !== id) return;
+          apPaint_(stage, r.src).alt = 'รูปที่ ' + (pos + 1) + ' ในเรื่องนี้';
+        })
+        .catch(function(e){
+          if (req !== _ap.lbReq || _ap.lbId !== id) return;
+          var st = document.getElementById('apLbStatus');
+          if (st) st.textContent = (e && e.message) || 'โหลดภาพใหญ่ไม่สำเร็จ';
+        });
+    }
+    function apStep_(dir){
+      var pos = apPhotoPos_(_ap.lbId) + dir;
+      if (pos >= 0 && pos < _ap.photos.length) apOpenPhoto_(_ap.photos[pos].photoId);
+    }
+    function apClosePhoto_(){
+      _ap.lbReq++;
+      _ap.lbId = '';
+      document.getElementById('viewerRoot').innerHTML = '';
+      liffBackFn_ = "showActivityPhotos('" + apCat_(_ap.cat).key + "')";
+    }
+    function apDelBtnHtml_(){
+      return '<button type="button" class="ap-del" onclick="apDeleteAsk_()">ลบรูปนี้</button>';
+    }
+    function apDeleteAsk_(){
+      var box = document.getElementById('apDelBox');
+      if (!box) return;
+      box.innerHTML = '<div class="ap-del-box" role="alert">ลบรูปนี้ออกจากเรื่อง? รูปจะไม่แสดงในคลังอีก ไฟล์ยังเก็บสำรองไว้ในระบบ' +
+        '<div class="lg-lb-btns"><button type="button" class="lg-lb-step" onclick="apDeleteCancel_()">ไม่ลบ</button>' +
+        '<button type="button" class="lg-lb-step ap-del-yes" id="apDelYes" onclick="apDeleteConfirmed_()">ลบรูป</button></div></div>';
+    }
+    function apDeleteCancel_(){
+      var box = document.getElementById('apDelBox');
+      if (box) box.innerHTML = apDelBtnHtml_();
+    }
+    function apDeleteConfirmed_(){
+      var id = _ap.lbId, yes = document.getElementById('apDelYes');
+      if (!id || !yes) return;
+      yes.disabled = true; yes.textContent = 'กำลังลบ...';
+      api('apdelete', { photoId: id })
+        .then(function(r){
+          var pos = apPhotoPos_(id);
+          if (pos !== -1) _ap.photos.splice(pos, 1);
+          delete _ap.thumbs[id];
+          var a = apAlbum_(r.albumId);
+          if (a) {
+            a.photoCount = r.remaining;
+            if (a.coverPhotoId === id) a.coverPhotoId = _ap.photos.length ? _ap.photos[0].photoId : '';
+          }
+          liffToast('ลบรูปแล้ว', 'ok');
+          apRenderGrid_();
+          apRenderHead_(false);
+          if (!_ap.photos.length) apClosePhoto_();
+          else apOpenPhoto_(_ap.photos[Math.min(pos === -1 ? 0 : pos, _ap.photos.length - 1)].photoId);
+        })
+        .catch(function(e){
+          var y = document.getElementById('apDelYes');
+          if (y) { y.disabled = false; y.textContent = 'ลบรูป'; }
+          liffErr_(e);
+        });
+    }
+
     /* ---------- หน้าฟอร์มตรวจ/ยืนยัน ---------- */
     var curCert = null;
     function openDoc(certId){
@@ -8571,6 +8998,7 @@
       else if(tab==='sendhelp'){ showHome(); showSendHelp(); } // Rich Menu ปุ่ม "ส่งเอกสาร" — เปิดหน้าหลักไว้ข้างหลัง + การ์ดวิธีส่งลอยด้านบน
       else if(tab==='pending'){ showList('pending'); }
       else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
+      else if(tab==='aphoto'){ showActivityPhotos(); }  // คลังรูปกิจกรรม (V25)
       else if(tab==='officialdoc'){ showOfficialDocumentSummary(); } // AI สรุปหนังสือราชการ (server ตรวจสิทธิ์ทุกคำขอ)
       else if(tab==='mcpsend'){ showMcpSend(); }        // ลิงก์ตรงสำหรับผู้ดูแลระบบ (server ยังตรวจสิทธิ์ทุกครั้ง)
       else if(tab==='health'){ showSystemCare(); }      // ศูนย์ดูแลสุขภาพระบบสำหรับ ADMIN
