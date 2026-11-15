@@ -240,7 +240,7 @@
     .mo-logo-box { width: 88px; height: 88px; flex: none; border-radius: 14px; border: 1px solid var(--border-strong);
       background: #fff; display: grid; place-items: center; overflow: hidden; }
     .mo-logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    .mo-logo-box .note { font-size: 11px; text-align: center; color: #64748b; }
+    .mo-logo-box .note { font-size: 12px; text-align: center; color: #64748b; }
     .mo-logo-pick { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; cursor: pointer; }
     .doc-ai-act button { width: auto; min-height: 40px; padding: 6px 14px; font-size: 14px; }
     /* ชื่อกิจกรรมยาวได้ ต้องตัดคำลงบรรทัดใหม่ ไม่ดันป้ายสถานะตกขอบจอ */
@@ -301,7 +301,7 @@
     .t-ok { color: var(--ok-text); }
     .t-warn { color: var(--warn-text); }
     /* ป้ายวันหมดอายุ — สีมาจาก .t-ok/.t-warn/.t-err ที่ครอบอีกชั้น จึงตามธีมสว่าง/มืดเองอยู่แล้ว */
-    .expiry-badge { display: inline-block; font-size: 11px; font-weight: 600; white-space: nowrap;
+    .expiry-badge { display: inline-block; font-size: 12px; font-weight: 600; white-space: nowrap;
       padding: 1px 8px; border-radius: 999px; background: var(--bg-inset); border: 1px solid var(--border); }
     .t-err { color: var(--err-text); }
     .t-info { color: var(--info-text); }
@@ -387,7 +387,7 @@
     .ai-preview-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
     .ai-preview-actions button { min-width: 0; min-height: 44px; padding: 9px 6px; font-size: 13px; }
     .ai-preview-actions .ai-use { grid-column: 1 / -1; }
-    .ai-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 800;
+    .ai-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 12px; font-weight: 800;
       color: var(--info-text); background: var(--info-soft); border: 1px solid var(--nx-blue); }
     @media (min-width: 480px) {
       .ai-preview-actions { grid-template-columns: repeat(3, 1fr); }
@@ -456,13 +456,14 @@
     .bnav button {
       flex: none; background: none; border: none; padding: 8px 2px 7px; border-radius: 0;
       display: flex; flex-direction: column; align-items: center; gap: 3px;
-      font-size: 11px; font-weight: 500; color: var(--text-3); font-family: var(--font-body);
+      font-size: 12px; font-weight: 500; color: var(--text-3); font-family: var(--font-body);
       min-height: 56px; justify-content: center;
       min-width: 0; overflow: hidden; white-space: nowrap;
     }
-    /* 6 เมนูบนจอแคบมาก (360px = ช่องละ 60px) — ย่อตัวอักษรแทนที่จะปล่อยให้ตัดคำ */
+    /* 6 เมนูบนจอแคบมาก (360px = ช่องละ 60px) — ลดช่องว่างข้างและไอคอน · ตัวอักษรคง 12px
+       (V19 วัดแล้ว: "หน้าหลัก" กว้าง 44px ช่องจอ 320px เหลือ 49px) */
     @media (max-width: 380px) {
-      .bnav button { font-size: 10px; padding: 8px 1px 7px; }
+      .bnav button { padding: 8px 1px 7px; }
       .bnav .bn-ico { font-size: 18px; }
     }
     .bnav button:active { transform: none; background: var(--nx-surface-2); }
@@ -471,6 +472,7 @@
     .bnav button.on { color: var(--nx-blue); font-weight: 700; box-shadow: inset 0 2px 0 var(--nx-blue); }
     .bnav button.on .bn-ico { transform: translateY(-1px); }
     .bnav .bn-dot { position: absolute; margin: -14px 0 0 16px; min-width: 16px; height: 16px; border-radius: 999px;
+      /* เล็กกว่า 12px โดยตั้งใจ: ตัวเลขในจุดแดงบนเมนูล่าง กว้าง/สูง 16px */
       background: var(--nx-danger); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; padding: 0 4px; }
 
     /* ============ ปฏิทินอบรม ============
@@ -486,7 +488,7 @@
     .lcal-nav button:active { background: var(--bg-hover); }
     /* minmax(0,1fr) ไม่ใช่ 1fr — 1fr มีพื้นความกว้างเป็น min-content ชื่อกิจกรรมยาวๆ จะดันจนล้นจอ */
     .lcal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 10px; }
-    .lcal-dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--text-3);
+    .lcal-dow { text-align: center; font-size: 12px; font-weight: 700; color: var(--text-3);
       padding: 3px 0; min-width: 0; overflow: hidden; }
     .lcal-cell { position: relative; min-height: clamp(42px, 12vw, 64px); padding: 3px 2px;
       border: 1px solid; border-color: var(--nx-line); border-radius: 9px; min-width: 0; overflow: hidden;
@@ -536,7 +538,7 @@
     .lcal-acts button:active { background: var(--bg-hover); }
     .lcal-acts button.pri { border-color: var(--nx-line-hot); color: var(--nx-blue); font-weight: 600; }
     .lcal-acts button.dgr { border-color: var(--nx-danger); color: var(--nx-danger); }
-    .lcal-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px;
+    .lcal-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px;
       font-weight: 700; margin-left: 5px; white-space: nowrap; }
     .lcal-chip.mok { background: var(--nx-surface-2); color: var(--nx-green); }
     .lcal-chip.mlow { background: var(--lux-gold-soft); color: var(--nx-gold); }
@@ -578,6 +580,7 @@
       .lcal-num { font-size: 12.5px; }
       .lcal-dots { display: block; margin-top: 2px; }
       .lcal-dot { width: auto; height: auto; border-radius: 4px; display: block; margin-top: 2px;
+        /* เล็กกว่า 12px โดยตั้งใจ: ชื่อกิจกรรมในช่องวันของปฏิทิน (จอ ≥560px) ตัดด้วย … — ใหญ่ขึ้นจะเห็นชื่อสั้นลง */
         padding: 1px 4px; font-size: 10.5px; line-height: 1.25; max-width: 100%;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         background: var(--nx-surface-2); color: var(--nx-blue); }
@@ -670,18 +673,16 @@
     .wx-day { min-width: 0; overflow: hidden; text-align: center; padding: 7px 1px; border-radius: 10px;
       background: var(--nx-surface-2); border: 1px solid transparent; }
     .wx-day.today { border-color: var(--nx-line-hot); }
-    .wx-day .d { font-size: 10px; font-weight: 700; color: var(--text-2); }
+    .wx-day .d { font-size: 12px; font-weight: 700; color: var(--text-2); }
     .wx-day .i { font-size: 16px; line-height: 1.35; }
-    .wx-day .t { font-size: 11px; font-weight: 700; color: var(--nx-hero-text); font-variant-numeric: tabular-nums; }
-    .wx-day .lo { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .wx-day .t { font-size: 12px; font-weight: 700; color: var(--nx-hero-text); font-variant-numeric: tabular-nums; }
+    .wx-day .lo { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
     /* จอกว้างขึ้น (แท็บเล็ต / LIFF แบบ Full) ช่องเหลือที่ ขยายให้อ่านสบายขึ้น */
     @media (min-width: 480px) {
       .wx-days { gap: 6px; }
       .wx-day { padding: 8px 3px; border-radius: 12px; }
-      .wx-day .d { font-size: 11px; }
       .wx-day .i { font-size: 19px; }
       .wx-day .t { font-size: 12.5px; }
-      .wx-day .lo { font-size: 11px; }
     }
 
     /* บรรทัดพยากรณ์ในแผงรายละเอียดวันของปฏิทิน — เล็กกว่าการ์ดหลัก ไม่ให้แย่งความสนใจจากตัวกิจกรรม */
@@ -738,7 +739,7 @@
     .guide-action { min-width: 0; min-height: 54px; padding: 10px; border-radius: 14px; border: 1px solid var(--nx-line);
       background: var(--nx-surface-2); color: var(--text-1); text-align: left; font-family: var(--font-body); }
     .guide-action b { display: block; font-size: 13px; line-height: 1.35; }
-    .guide-action span { display: block; margin-top: 3px; color: var(--text-3); font-size: 10.5px; line-height: 1.35; }
+    .guide-action span { display: block; margin-top: 3px; color: var(--text-3); font-size: 12px; line-height: 1.35; }
     .guide-action.primary { grid-column: 1 / -1; color: #fff; border-color: transparent;
       background: linear-gradient(120deg, var(--nx-blue), var(--nx-purple)); box-shadow: 0 6px 20px rgba(42,120,214,.22); }
     .guide-action.primary span { color: rgba(255,255,255,.86); }
@@ -829,7 +830,7 @@
     .pw-caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 9px 12px;
       background: linear-gradient(transparent, rgba(0,0,0,.76)); color: #fff; pointer-events: none; }
     .pw-cap-title { font-weight: 700; font-size: 14px; }
-    .pw-cap-meta { font-size: 11px; opacity: .9; margin-top: 2px; }
+    .pw-cap-meta { font-size: 12px; opacity: .9; margin-top: 2px; }
     .pw-cap-desc { font-size: 12px; margin-top: 2px; opacity: .95; max-height: 3.2em; overflow: hidden; }
     .pw-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: none;
       border-radius: 50%; background: rgba(0,0,0,.42); color: #fff; font-size: 26px; line-height: 1;
@@ -869,7 +870,7 @@
     .od-grid .field { min-width: 0; margin: 0; }
     .od-grid .field.wide { grid-column: 1 / -1; }
     .od-grid input, .od-grid textarea, .od-grid select { min-width: 0; width: 100%; box-sizing: border-box; }
-    .od-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; font-size: 11px; color: var(--text-2); }
+    .od-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--text-2); }
     .od-confidence { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 7px; font-weight: 700; }
     .od-clear { color: #39d98a; background: rgba(57,217,138,.12); }
     .od-review { color: #ffd166; background: rgba(255,209,102,.12); }
@@ -906,7 +907,7 @@
     .od-pdf-canvas { display: block; max-width: 100%; max-height: 100%; height: auto; background: #fff;
       box-shadow: 0 2px 12px rgba(15,23,42,.24); transform-origin: center center; user-select: none;
       -webkit-user-select: none; will-change: transform; }
-    .od-pdf-gesture-hint { flex-basis: 100%; text-align: center; color: #64748b; font-size: 11px; line-height: 1.25; }
+    .od-pdf-gesture-hint { flex-basis: 100%; text-align: center; color: #64748b; font-size: 12px; line-height: 1.25; }
     .od-image-stage { width: 100%; height: 100%; min-height: 190px; display: flex; align-items: center; justify-content: center;
       overflow: hidden; background: #e8edf5; }
     .od-image-stage img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain;
@@ -1125,9 +1126,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V18';
+    var LIFF_VERSION = 'V19';
     var LIFF_VERSION_DATE = '15 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'กลับเข้าแอปแล้วข้อมูลไม่ค้างเก่า · เน็ตหลุดมีข้อความบอกชัดเจน · กล่องยืนยันเป็นของแอปทุกจุด';
+    var LIFF_VERSION_NOTE = 'ตัวอักษรเล็กทั่วแอปขยายเป็นอย่างน้อย 12px อ่านง่ายขึ้นบนมือถือ';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1699,7 +1700,7 @@
         if (sent) note += ' • ' + esc(sent);
         // ตอนดู "ทั้งหมด" (ผู้ดูแล) ติดป้ายบอกใบที่ไม่ใช่ของเรา จะได้ไม่สับสนว่าใบไหนของใคร
         var otherTag = (d.isMine === false)
-          ? ' <span style="font-size:11px;color:#b26a00;">· ' + esc(d.ownerName ? '👤 ' + d.ownerName : 'ของครูท่านอื่น') + '</span>'
+          ? ' <span style="font-size:12px;color:#b26a00;">· ' + esc(d.ownerName ? '👤 ' + d.ownerName : 'ของครูท่านอื่น') + '</span>'
           : '';
         if (selMode) {
           // ก้อนที่ 100: โหมดเลือกลบ — แถวกลายเป็นติ๊กเลือกแทนการกดเปิด
@@ -6187,7 +6188,7 @@
          }).join('')+'</select></div>') : '';
 
       var rcStepH = function(t){ return '<div style="font-weight:700;font-size:13px;margin:12px 0 6px;border-left:3px solid var(--nx-primary,#1a73e8);padding-left:8px;">'+t+'</div>'; };
-      var rcChips = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;font-size:11px;">'+
+      var rcChips = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;font-size:12px;">'+
         ['① รูปแบบ','② เงื่อนไข','③ เอกสาร','④ สร้าง & ดูตัวอย่าง'].map(function(c){
           return '<span style="background:var(--nx-surface-2,#eef);border-radius:999px;padding:2px 9px;color:var(--text-3,#667);">'+c+'</span>';
         }).join('')+'</div>';
@@ -6413,7 +6414,7 @@
         '<img src="'+_qrUrl+'" style="width:240px;height:240px;" alt="QR">'+
         '<div class="note" style="margin-top:8px;">สแกนแล้วเปิดรายงานใน Google Drive ได้ทันที ไม่ต้องล็อกอิน</div>'+
         '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="saveQrImage()">💾 บันทึก QR ลงเครื่อง</button>'+
-        '<div class="note" style="margin-top:6px;font-size:11px;">หากไม่บันทึกอัตโนมัติ กดค้างที่รูป QR แล้วเลือก "บันทึกรูป"</div></div>'+
+        '<div class="note" style="margin-top:6px;font-size:12px;">หากไม่บันทึกอัตโนมัติ กดค้างที่รูป QR แล้วเลือก "บันทึกรูป"</div></div>'+
         '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
     }
     function rcPdf(id){
@@ -7180,7 +7181,7 @@
           '<img src="'+_qrUrl+'" style="width:240px;height:240px;" alt="QR">'+
           '<div class="note" style="margin-top:8px;">สแกนแล้วเปิดไฟล์ใบนี้ใน Google Drive ได้ทันที</div>'+
           '<button class="b-primary" style="width:100%;margin-top:10px;" onclick="saveQrImage()">💾 บันทึก QR ลงเครื่อง</button>'+
-          '<div class="note" style="margin-top:6px;font-size:11px;">หากไม่บันทึกอัตโนมัติ กดค้างที่รูป QR แล้วเลือก "บันทึกรูป"</div></div>'+
+          '<div class="note" style="margin-top:6px;font-size:12px;">หากไม่บันทึกอัตโนมัติ กดค้างที่รูป QR แล้วเลือก "บันทึกรูป"</div></div>'+
           '<button class="cv-close" onclick="closeViewer()">✕ ปิด</button></div>';
       }).catch(function(e){
         document.getElementById('viewerRoot').innerHTML = '';
