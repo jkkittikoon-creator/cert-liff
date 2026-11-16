@@ -1145,7 +1145,7 @@
     .lg-lb-step.ap-del-yes { border-color: #d6365a; background: #d6365a; }
     /* รอบ 4 (V26): ดาวน์โหลด — ปุ่มคู่ในหัวเรื่อง + ปุ่มในภาพใหญ่ · ข้อความผลอยู่ใต้ปุ่มที่กด */
     .ap-head-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .ap-head-acts .ap-rename-btn { margin-top: 0; }
+    .ap-head-acts .ap-rename-btn { flex: 0 1 auto; margin-top: 0; white-space: nowrap; }
     .ap-rename-btn:disabled { opacity: 0.6; cursor: default; }
     .ap-dl-msg { margin-top: 8px; font-size: 13px; line-height: 1.6; color: var(--text-2); overflow-wrap: anywhere; }
     .ap-dl-msg:empty { display: none; }
@@ -1156,6 +1156,22 @@
     .ap-dl:focus-visible, .ap-del:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
     .lg-lb-bar .ap-dl-msg { color: rgba(255, 255, 255, 0.85); }
     .lg-lb-bar .ap-dl-msg a { color: #fff; }
+    /* รอบ 5 (V27): รายงาน — กล่องเลือกรูปแบบไฟล์ใต้ปุ่มที่กด (หน้าเรื่อง + หน้าหมวด) · ขอบซ้ายเป็นสันแฟ้มสีหมวด */
+    .ap-cat-acts { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+    .ap-cat-acts .ap-rename-btn { flex: 0 0 auto; margin-top: 0; background: var(--bg-card); }
+    .ap-rep { margin-top: 10px; padding: 12px; border-left: 4px solid var(--ap-ink); border-radius: 4px 12px 12px 4px; background: var(--bg-card); color: var(--text-1); }
+    .ap-rep:empty { display: none; }
+    .ap-panel .ap-rep { margin: 0 0 10px; }
+    .ap-rep-t { font-weight: 700; font-size: 15px; line-height: 1.4; }
+    .ap-rep-i { margin-top: 2px; font-size: 13px; line-height: 1.6; color: var(--text-2); }
+    .ap-rep-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .ap-rep-btns button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 56px; padding: 6px;
+      border: 1px solid var(--ap-ink); border-radius: 10px; background: var(--ap-tint); color: var(--ap-ink); font: inherit; cursor: pointer; }
+    .ap-rep-btns b { font-size: 16px; font-weight: 700; }
+    .ap-rep-btns small { font-size: 12px; color: var(--text-2); }
+    .ap-rep-x { width: 100%; min-height: 40px; margin-top: 6px; border: none; background: transparent; color: var(--text-2); font: inherit; cursor: pointer; }
+    .ap-rep button:disabled { opacity: 0.6; cursor: default; }
+    .ap-rep button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
   </style>
 </head>
 <body>
@@ -1212,9 +1228,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V26';
+    var LIFF_VERSION = 'V27';
     var LIFF_VERSION_DATE = '16 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'คลังรูปกิจกรรม: ดาวน์โหลดรูปทีละรูปจากภาพใหญ่ หรือทั้งเรื่องเป็น ZIP จากหัวเรื่อง';
+    var LIFF_VERSION_NOTE = 'คลังรูปกิจกรรม: ออกรายงานภาพกิจกรรมเป็น PDF หรือ Word ได้ทั้งรายเรื่องและทั้งหมวด';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -7743,7 +7759,9 @@
           : '<div class="ap-empty">คลังรูปกิจกรรมยังไม่เปิดใช้งาน ติดต่อผู้ดูแลระบบ</div>';
         return;
       }
-      panel.innerHTML = list.map(function(a){
+      var canReport = list.some(function(a){ return Number(a.photoCount) > 0; });
+      panel.innerHTML = (canReport ? '<div class="ap-cat-acts"><button type="button" class="ap-rename-btn" onclick="apReportAsk_(\'cat\')">ออกรายงานทั้งหมวด</button></div>' +
+        '<div class="ap-rep" id="apRepBox"></div>' : '') + list.map(function(a){
         var cover = a.coverPhotoId
           ? '<span class="ap-cover" data-ap-thumb="' + esc(a.coverPhotoId) + '" aria-hidden="true"><span class="ap-ph">กำลังโหลด</span></span>'
           : '<span class="ap-cover" aria-hidden="true"><span class="ap-ph">ยังไม่มีรูป</span></span>';
@@ -7809,13 +7827,15 @@
       var loaded = document.getElementById('apGrid') && document.getElementById('apGrid').getAttribute('aria-busy') === 'false';
       var n = loaded ? '<b>' + _ap.photos.length + ' รูป</b>' : 'กำลังนับรูป...';
       // ดาวน์โหลดเป็นการอ่าน: แสดงแม้ธงปิด · แก้ชื่อแสดงเฉพาะตอนธงเปิด
-      var acts = (loaded && _ap.photos.length ? '<button type="button" class="ap-rename-btn" id="apZipBtn" onclick="apZip_()">ดาวน์โหลดทั้งเรื่อง</button>' : '') +
+      var acts = (loaded && _ap.photos.length ? '<button type="button" class="ap-rename-btn" id="apZipBtn" onclick="apZip_()">ดาวน์โหลดทั้งเรื่อง</button>' +
+        '<button type="button" class="ap-rename-btn" onclick="apReportAsk_(\'album\')">ออกรายงาน</button>' : '') +
         (_ap.enabled ? '<button type="button" class="ap-rename-btn" onclick="apRenderHead_(true)">แก้ชื่อเรื่อง</button>' : '');
       head.innerHTML = '<div class="ap-head-cat">หมวด ' + esc(cat.label) + '</div>' +
         '<div class="ap-head-t">' + esc(al.title) + '</div>' +
         '<div class="ap-head-m">' + n + (al.activityDate ? '<br>เริ่มเก็บ ' + esc(toBE(al.activityDate)) : '') + '</div>' +
         (acts ? '<div class="ap-head-acts">' + acts + '</div>' : '') +
-        '<div class="ap-dl-msg" id="apZipMsg" aria-live="polite"></div>';
+        '<div class="ap-dl-msg" id="apZipMsg" aria-live="polite"></div>' +
+        '<div class="ap-rep" id="apRepBox"></div>';
     }
 
     /* ---------- ดาวน์โหลด (V26): server ทำสำเนา/ZIP ในโฟลเดอร์ชั่วคราวแล้วคืนลิงก์ Drive ----------
@@ -7863,6 +7883,63 @@
           var b = document.getElementById('apDlBtn'), m = document.getElementById('apDlMsg');
           if (b) { b.disabled = false; b.textContent = 'ดาวน์โหลดรูปนี้'; }
           if (m) m.textContent = '⚠️ ' + ((e && e.message) || 'เตรียมไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+        });
+    }
+    /* ---------- รายงาน (V27): server จัดหน้า PDF/Word ลงโฟลเดอร์ชั่วคราวแล้วคืนลิงก์ Drive ----------
+       กล่องเลือกรูปแบบไฟล์ใช้ id เดียวกันทั้งหน้าเรื่องและหน้าหมวด (สองหน้านี้ไม่อยู่บนจอพร้อมกัน)
+       เพดานภาพ (30 ต่อเรื่อง · 4 ต่อเรื่องในรายงานหมวด · 10 เรื่อง) ต้องตรงกับ ActivityReportService.gs */
+    function apReportAsk_(scope){
+      var box = document.getElementById('apRepBox');
+      if (!box) return;
+      if (!scope || box.getAttribute('data-scope') === scope) { box.removeAttribute('data-scope'); box.innerHTML = ''; return; }
+      var title, info;
+      if (scope === 'album') {
+        var n = _ap.photos.length;
+        title = 'ออกรายงานของเรื่องนี้';
+        info = n > 30 ? 'เรื่องนี้มี ' + n + ' รูป รายงานใส่ได้ 30 ภาพแรก' : 'ใส่ภาพครบทั้ง ' + n + ' รูป เรียงลำดับเดียวกับในหน้านี้';
+      } else {
+        title = 'ออกรายงานหมวด ' + apCat_(_ap.cat).label;
+        info = 'รวมทุกเรื่องในหมวดนี้ เรื่องละไม่เกิน 4 ภาพ และไม่เกิน 10 เรื่องล่าสุด';
+      }
+      box.setAttribute('data-scope', scope);
+      box.innerHTML = '<div class="ap-rep-t">' + esc(title) + '</div>' +
+        '<div class="ap-rep-i">' + esc(info) + ' · มีหัวรายงาน ตารางภาพ และช่องลงชื่อผู้รายงาน</div>' +
+        '<div class="ap-rep-btns">' +
+        '<button type="button" onclick="apReport_(\'pdf\')"><b>PDF</b><small>พร้อมพิมพ์</small></button>' +
+        '<button type="button" onclick="apReport_(\'docx\')"><b>Word</b><small>แก้ไขต่อได้</small></button></div>' +
+        '<button type="button" class="ap-rep-x" onclick="apReportAsk_(\'\')">ปิด</button>' +
+        '<div class="ap-dl-msg" id="apRepMsg" aria-live="polite"></div>';
+      var first = box.querySelector('.ap-rep-btns button');
+      if (first) first.focus();
+    }
+    function apRepUnlock_(box){
+      var bs = box.querySelectorAll('button');
+      for (var i = 0; i < bs.length; i++) bs[i].disabled = false;
+    }
+    function apReport_(fmt){
+      var box = document.getElementById('apRepBox'), msg = document.getElementById('apRepMsg');
+      if (!box || !msg) return;
+      var scope = box.getAttribute('data-scope');
+      var payload = scope === 'album' ? { albumId: _ap.album ? _ap.album.albumId : '', format: fmt } : { category: _ap.cat, format: fmt };
+      if (scope === 'album' && !payload.albumId) return;
+      var key = scope + ':' + (payload.albumId || payload.category) + ':' + Date.now();
+      box.setAttribute('data-key', key);
+      var bs = box.querySelectorAll('button');
+      for (var i = 0; i < bs.length; i++) bs[i].disabled = true;
+      msg.textContent = 'กำลังจัดหน้ารายงาน ภาพเยอะอาจใช้เวลาสักครู่ อย่าเพิ่งปิดหน้านี้';
+      api('apreport', payload)
+        .then(function(d){
+          liffOpen(d.url);
+          var b = document.getElementById('apRepBox'), m = document.getElementById('apRepMsg');
+          if (!b || !m || b.getAttribute('data-key') !== key) return;
+          apRepUnlock_(b);
+          m.innerHTML = apDlDoneHtml_(d, 'จัดรายงาน ' + (d.format === 'docx' ? 'Word' : 'PDF') + ' ' + esc(d.photos) + ' ภาพแล้ว');
+        })
+        .catch(function(e){
+          var b = document.getElementById('apRepBox'), m = document.getElementById('apRepMsg');
+          if (!b || !m || b.getAttribute('data-key') !== key) return;
+          apRepUnlock_(b);
+          m.textContent = '⚠️ ' + ((e && e.message) || 'จัดรายงานไม่สำเร็จ ลองใหม่อีกครั้ง');
         });
     }
     function apRenameSave_(){
