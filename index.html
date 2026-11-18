@@ -1123,6 +1123,18 @@
     .ap-album-d { font-size: 12px; color: var(--text-2); }
     .ap-empty { padding: 20px 8px; text-align: center; color: var(--text-2); font-size: 14px; line-height: 1.7; }
     .ap-empty + .b-primary, .ap-empty + .b-second { width: 100%; min-height: 44px; }
+    /* คลังเอกสาร (V29) — ใช้ .card .chips .btns .in-txt เดิม ไม่เพิ่มโทเคนสี */
+    .dlv-chips { margin: 10px 0 12px; }
+    .dlv-row { margin-bottom: 10px; }
+    .dlv-t { font-weight: 700; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+    .dlv-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--bg-hover); color: var(--text-2); }
+    .dlv-m, .dlv-ai, .dlv-due, .dlv-msg { font-size: 13px; line-height: 1.6; margin-top: 4px; color: var(--text-2); overflow-wrap: anywhere; }
+    .dlv-due { color: var(--text-1); }
+    .dlv-due.late { color: var(--err-text); font-weight: 600; }
+    .dlv-msg:empty { display: none; }
+    .dlv-org { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .dlv-org select { min-width: 0; }
+    .dlv-row .btns button { min-height: 44px; }
     .ap-head { margin-bottom: 12px; padding: 14px; border-left: 6px solid var(--ap-ink); border-radius: 6px 18px 18px 6px; background: var(--ap-tint); }
     .ap-head-cat { font-size: 13px; font-weight: 600; color: var(--ap-ink); }
     .ap-head-t { margin: 2px 0 6px; font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -1228,9 +1240,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V28';
-    var LIFF_VERSION_DATE = '16 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'คู่มือใช้งาน: เพิ่มวิธีใช้คลังรูปกิจกรรม (เก็บรูป ดาวน์โหลด ออกรายงาน)';
+    var LIFF_VERSION = 'V29';
+    var LIFF_VERSION_DATE = '18 พ.ย. 2569';
+    var LIFF_VERSION_NOTE = 'คลังเอกสาร: ดู ค้น ดาวน์โหลด ปักหมุด และจัดเอกสารรอจัดในแอป LINE';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1327,7 +1339,7 @@
       reportlist:1, yeargoal:1, badges:1, trainings:1, myorg:1, myprofile:1,
       adminguide:1, mcpguide:1, weather:1, career:1, alertprefs:1, digestprefs:1,
       expiryprefs:1, exportyears:1, proudlist:1, prouddisplay:1, proudprefs:1,
-      dropdownoptions:1, mcpsendrecipients:1, aicenter:1, health:1,
+      dropdownoptions:1, mcpsendrecipients:1, aicenter:1, health:1, dllist:1,
       // เปิดร่าง/โหลดต้นฉบับเป็น read-only และไม่หักโควตา/ไม่ส่ง LINE จึงลองซ้ำได้อย่างปลอดภัย
       officialdraftget:1, officialdraftfile:1,
       // คลังเกียรติบัตร: อ่านอย่างเดียว · gallerythumbs ไม่อยู่ที่นี่ (สร้างภาพครั้งแรกอาจเกิน 20 วิ จึงไม่ตั้ง timeout/ไม่ลองซ้ำ)
@@ -2892,6 +2904,7 @@
         '<button type="button" class="act" onclick="showReportCenter()"><span class="ico">📄</span>รายงานผลงาน</button>' +
         '<button type="button" class="act" onclick="showProud()"><span class="ico">🌟</span>ผลงานที่ภาคภูมิใจ</button>' +
         '<button type="button" class="act" onclick="showActivityPhotos()"><span class="ico">📷</span>รูปกิจกรรม</button>' +
+        '<button type="button" class="act" onclick="showDocLibrary()"><span class="ico">📁</span>คลังเอกสาร</button>' +
         '<button type="button" class="act" onclick="showTrash()"><span class="ico">🗑️</span>ถังขยะ</button>' +
         '<button type="button" class="act" onclick="showGuide()"><span class="ico">📖</span>คู่มือใช้งาน</button>' +
         '</div>';
@@ -4192,9 +4205,11 @@
             guideAction_('✨', 'ถาม AI ผู้ช่วยงาน', 'วิเคราะห์ข้อมูลตามสิทธิ์ของคุณ', 'showAiCenter()', false) +
             guideAction_('📊', 'ดูสรุปและรายงาน', 'ชั่วโมง กราฟ PDF และ Word', 'showDash()', false) +
             guideAction_('📷', 'คลังรูปกิจกรรม', 'ดูรูปตามหมวด ดาวน์โหลด และออกรายงาน PDF/Word', 'showActivityPhotos()', false) +
+            guideAction_('📁', 'คลังเอกสาร', 'ดู ค้น ดาวน์โหลด และจัดเอกสารรอจัด', 'showDocLibrary()', false) +
           '</div></div>' +
 
         '<div class="card"><div style="font-weight:800;font-size:16px;margin-bottom:10px;">✨ มีอะไรเพิ่มมาแล้วบ้าง</div>' +
+          guideNew_('📁', '<b>คลังเอกสาร</b> — ไฟล์ Word · Excel · PDF ที่ส่งเข้าแชตเพื่อเก็บเข้าคลัง ดู ค้นชื่อ ดาวน์โหลด ปักหมุด และจัดเอกสาร “รอจัด” (เลือกกลุ่มงาน/ประเภท หรือใช้ข้อเสนอ AI) ได้ที่ปุ่ม “📁 คลังเอกสาร” หน้าหลัก · แก้ไขและลบทำบนเว็บ') +
           guideNew_('📷', '<b>คลังรูปกิจกรรม</b> — ส่งรูปกิจกรรมเข้าแชต เลือกหมวด พัฒนาตัวเอง · กิจกรรมในโรงเรียน · PLC แล้วตั้งชื่อเรื่อง จากนั้นดูรูป ดาวน์โหลด และออกรายงาน PDF/Word ได้ที่ปุ่ม “📷 รูปกิจกรรม” หน้าหลัก') +
           guideNew_('🔎', '<b>ค้นหาอัจฉริยะ</b> — แท็บ 🔍 ค้นหา กรอง “ปี พ.ศ. (ตามวันที่ในเอกสาร)” “สถานะวันที่” และ “รอบประเมิน (ตามวันที่ในเอกสาร)” ได้ แล้วกด “➕ เลือกเข้ารายงาน” ทีละใบ') +
           guideNew_('🧾', '<b>ตรวจเอกสารก่อนสร้างรายงาน</b> — ในศูนย์รายงานผลงาน กด “🔍 ตรวจสอบเอกสารก่อนพิมพ์” ระบบบอกทุกใบว่า 🟢 พร้อมใช้ · 🟡 ต้องตรวจเพิ่ม · ⚪ นอกช่วงวันที่ พร้อมเหตุผล') +
@@ -8160,6 +8175,175 @@
         });
     }
 
+    /* ---------- คลังเอกสาร (รอบ 15 · V29): ดู ค้น ดาวน์โหลด ปักหมุด + จัดเอกสารรอจัด ----------
+       แก้ไข ลบ จัดการหลายไฟล์ แชร์ ส่งออก ทำบนเว็บ · server ตรวจบทบาท/เจ้าของ/ธงใน service เดียวกับเว็บทุกคำขอ */
+    var _dlv = { data: null, filter: 'ALL', q: '', req: 0 };
+    var DLV_MAX_SHOW = 100;
+
+    function showDocLibrary(){
+      setNav('home');
+      app.innerHTML = pageHead('คลังเอกสาร', 'showHome()') +
+        '<div class="msg">ไฟล์ Word · Excel · PDF ที่ส่งเข้าแชตน้องชาโปรเพื่อเก็บเข้าคลัง · แก้ไข ลบ และจัดการหลายไฟล์ทำบนเว็บ</div>' +
+        '<input type="search" class="in-txt" id="dlvQ" maxlength="80" placeholder="🔎 ค้นชื่อเอกสาร" aria-label="ค้นชื่อเอกสาร" value="' + esc(_dlv.q) + '">' +
+        '<div class="chips dlv-chips" id="dlvChips" role="group" aria-label="ตัวกรองเอกสาร"></div>' +
+        '<div id="dlvList" aria-busy="true"><div class="ap-empty">กำลังโหลดคลังเอกสาร...</div></div>';
+      document.getElementById('dlvQ').oninput = function(){ _dlv.q = this.value; dlvRender_(); };
+      document.getElementById('dlvList').onclick = function(e){
+        var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+        var row = b && b.closest('.dlv-row');
+        if (row) dlvAct_(b.getAttribute('data-act'), row.getAttribute('data-id'), row, b);
+      };
+      dlvLoad_();
+    }
+    function dlvLoad_(){
+      var req = ++_dlv.req;
+      api('dllist', {})
+        .then(function(r){
+          if (req !== _dlv.req || !document.getElementById('dlvList')) return;
+          _dlv.data = r || {};
+          dlvRender_();
+        })
+        .catch(function(e){
+          var box = document.getElementById('dlvList');
+          if (req !== _dlv.req || !box) return;
+          box.setAttribute('aria-busy', 'false');
+          box.innerHTML = '<div class="ap-empty">' + esc((e && e.message) || 'โหลดคลังเอกสารไม่สำเร็จ') + '</div>' +
+            '<button type="button" class="b-second" onclick="showDocLibrary()">ลองอีกครั้ง</button>';
+        });
+    }
+    function dlvFilter_(key){ _dlv.filter = key; dlvRender_(); }
+    function dlvFind_(id){
+      var items = (_dlv.data && _dlv.data.items) || [];
+      for (var i = 0; i < items.length; i++) if (items[i].docId === id) return items[i];
+      return null;
+    }
+    function dlvRender_(){
+      var box = document.getElementById('dlvList'), chips = document.getElementById('dlvChips'), r = _dlv.data;
+      if (!box || !chips || !r) return;
+      var items = r.items || [];
+      chips.innerHTML = [['ALL', 'ทั้งหมด'], ['INBOX', 'รอจัด (' + (Number(r.inboxCount) || 0) + ')'], ['PIN', '📌 ปักหมุด'], ['DUE', '📅 มีวันครบกำหนด']]
+        .map(function(f){
+          var on = f[0] === _dlv.filter;
+          return '<button type="button" class="' + (on ? 'on' : '') + '" aria-pressed="' + on + '" onclick="dlvFilter_(\'' + f[0] + '\')">' + esc(f[1]) + '</button>';
+        }).join('');
+      box.setAttribute('aria-busy', 'false');
+      var q = String(_dlv.q || '').trim().toLowerCase();
+      var list = items.filter(function(it){
+        if (_dlv.filter === 'INBOX' && it.status !== 'INBOX') return false;
+        if (_dlv.filter === 'PIN' && !it.pinned) return false;
+        if (_dlv.filter === 'DUE' && !it.dueDate) return false;
+        return !q || (it.title + ' ' + it.fileName).toLowerCase().indexOf(q) !== -1;
+      });
+      list.sort(_dlv.filter === 'DUE'
+        ? function(a, b){ return a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0; }
+        : function(a, b){ return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
+      if (!list.length) {
+        box.innerHTML = items.length
+          ? '<div class="ap-empty">ไม่พบเอกสารตามที่เลือก</div>'
+          : '<div class="ap-empty">ยังไม่มีเอกสารในคลัง<br>ส่งไฟล์ Word · Excel · PDF เข้าแชตน้องชาโปรเพื่อเก็บเข้าคลัง</div>' +
+            '<button type="button" class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button>';
+        return;
+      }
+      box.innerHTML = list.slice(0, DLV_MAX_SHOW).map(dlvRow_).join('') +
+        (list.length > DLV_MAX_SHOW ? '<div class="ap-empty">แสดง ' + DLV_MAX_SHOW + ' จาก ' + list.length + ' รายการ พิมพ์ค้นชื่อเพื่อหาเพิ่ม</div>' : '');
+    }
+    function dlvRow_(it){
+      var r = _dlv.data, s = it.status === 'INBOX' ? it.suggest : null;
+      var meta = [it.category, it.workGroup, it.year ? 'ปี ' + it.year : '', dlvSize_(it.fileSize)].filter(Boolean).map(esc).join(' · ');
+      var due = it.dueDate
+        ? '<div class="dlv-due' + (dlvDays_(it.dueDate) < 0 ? ' late' : '') + '">📅 ' + esc(dlvDueLabel_(it.dueDate)) + '</div>' : '';
+      var org = '';
+      if (it.status === 'INBOX' && r.enabled) {
+        org = (s ? '<div class="dlv-ai">🤖 AI เสนอ' + (s.title ? ': <b>' + esc(s.title) + '</b>' : '') +
+            (s.year ? ' · ปีการศึกษา ' + esc(s.year) : '') +
+            (s.dueDate ? ' · ครบกำหนด ' + esc(dlvThaiDate_(s.dueDate)) : '') + '</div>' : '') +
+          '<div class="dlv-org">' + dlvSelect_('g', r.workGroups, 'เลือกกลุ่มงาน', s && s.workGroup) +
+            dlvSelect_('c', r.categories, 'เลือกประเภท', s && s.category) + '</div>' +
+          '<div class="btns"><button type="button" class="b-primary" data-act="org">จัดเข้าคลัง</button>' +
+            (s ? '<button type="button" class="b-second" data-act="ai">ใช้ข้อเสนอ AI</button>' : '') + '</div>';
+      }
+      return '<div class="card dlv-row" data-id="' + esc(it.docId) + '">' +
+        '<div class="dlv-t">' + (it.pinned ? '📌 ' : '') + esc(it.title) +
+          (it.status === 'INBOX' ? ' <span class="dlv-tag">รอจัด</span>' : '') + '</div>' +
+        (meta ? '<div class="dlv-m">' + meta + '</div>' : '') + due + org +
+        '<div class="btns"><button type="button" class="b-second" data-act="dl">ดาวน์โหลด</button>' +
+          (r.enabled ? '<button type="button" class="b-second" data-act="pin">' + (it.pinned ? 'เลิกปักหมุด' : 'ปักหมุด') + '</button>' : '') + '</div>' +
+        '<div class="dlv-msg" aria-live="polite"></div></div>';
+    }
+    function dlvSelect_(k, list, ph, pick){
+      return '<select class="in-txt" data-k="' + k + '" aria-label="' + esc(ph) + '"><option value="">' + esc(ph) + '</option>' +
+        (list || []).map(function(v){
+          return '<option value="' + esc(v) + '"' + (v === pick ? ' selected' : '') + '>' + esc(v) + '</option>';
+        }).join('') + '</select>';
+    }
+    function dlvSize_(n){
+      n = Number(n) || 0;
+      if (!n) return '';
+      return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+    }
+    // วันครบกำหนด — สูตรเดียวกับเว็บ (dlDaysLeft_/dlDueText_/dlThaiDate_ ใน IndexApp.html)
+    function dlvDays_(due){
+      var t = new Date(), b = String(due).split('-');
+      return Math.round((Date.UTC(+b[0], b[1] - 1, +b[2]) - Date.UTC(t.getFullYear(), t.getMonth(), t.getDate())) / 86400000);
+    }
+    function dlvThaiDate_(due){
+      var p = String(due).split('-');
+      return Number(p[2]) + '/' + Number(p[1]) + '/' + (Number(p[0]) + 543);
+    }
+    function dlvDueLabel_(due){
+      var n = dlvDays_(due);
+      return 'ครบกำหนด ' + dlvThaiDate_(due) + ' · ' + (n < 0 ? 'เลยกำหนด ' + (-n) + ' วัน' : n === 0 ? 'ครบกำหนดวันนี้' : 'อีก ' + n + ' วัน');
+    }
+    function dlvAct_(act, id, row, btn){
+      var it = dlvFind_(id), msg = row.querySelector('.dlv-msg');
+      if (!it) return;
+      msg.textContent = '';
+      if (act === 'dl') {
+        btn.disabled = true; btn.textContent = 'กำลังเตรียมไฟล์...';
+        api('dldownload', { docId: id })
+          .then(function(d){
+            liffOpen(d.url);
+            btn.disabled = false; btn.textContent = 'ดาวน์โหลด';
+            msg.innerHTML = apDlDoneHtml_(d, 'เตรียมไฟล์แล้ว');
+          })
+          .catch(function(e){
+            btn.disabled = false; btn.textContent = 'ดาวน์โหลด';
+            msg.textContent = '⚠️ ' + ((e && e.message) || 'เตรียมไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง');
+          });
+        return;
+      }
+      var g = row.querySelector('select[data-k="g"]'), c = row.querySelector('select[data-k="c"]');
+      g = g ? g.value : ''; c = c ? c.value : '';
+      var call, done;
+      if (act === 'pin') {
+        call = api('dlpin', { docId: id, on: !it.pinned });
+        done = it.pinned ? 'เลิกปักหมุดแล้ว' : 'ปักหมุดแล้ว 📌';
+      } else if (act === 'org') {
+        if (!g && !c) { msg.textContent = 'เลือกกลุ่มงานหรือประเภทก่อน'; return; }
+        call = api('dlorganize', { docId: id, workGroup: g, category: c });
+      } else if (act === 'ai') {
+        var s = it.suggest || {}, patch = {};
+        if (s.title) patch.title = s.title;
+        if (s.year) patch.year = s.year;
+        if (s.dueDate && !it.dueDate) patch.dueDate = s.dueDate;
+        if (g) patch.workGroup = g;
+        if (c) patch.category = c;
+        call = api('dlsuggest', { docId: id, data: patch });
+      } else return;
+      [].forEach.call(row.querySelectorAll('button'), function(b){ b.disabled = true; });
+      call
+        .then(function(res){
+          liffToast(done || (res && res.status === 'INBOX'
+            ? 'บันทึกแล้ว ยังขาดกลุ่มงานหรือประเภท จึงอยู่ใน “รอจัด”' : 'จัดเข้าคลังแล้ว ✅'), 'ok');
+          dlvLoad_();
+        })
+        .catch(function(e){
+          [].forEach.call(row.querySelectorAll('button'), function(b){ b.disabled = false; });
+          msg.textContent = '⚠️ ' + ((e && e.message) || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+        });
+    }
+    /* ---------- จบคลังเอกสาร ---------- */
+
     /* ---------- หน้าฟอร์มตรวจ/ยืนยัน ---------- */
     var curCert = null;
     function openDoc(certId){
@@ -9156,6 +9340,7 @@
       else if(tab==='pending'){ showList('pending'); }
       else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
       else if(tab==='aphoto'){ showActivityPhotos(); }  // คลังรูปกิจกรรม (V25)
+      else if(tab==='doclib'){ showDocLibrary(); }      // คลังเอกสาร (V29)
       else if(tab==='officialdoc'){ showOfficialDocumentSummary(); } // AI สรุปหนังสือราชการ (server ตรวจสิทธิ์ทุกคำขอ)
       else if(tab==='mcpsend'){ showMcpSend(); }        // ลิงก์ตรงสำหรับผู้ดูแลระบบ (server ยังตรวจสิทธิ์ทุกครั้ง)
       else if(tab==='health'){ showSystemCare(); }      // ศูนย์ดูแลสุขภาพระบบสำหรับ ADMIN
