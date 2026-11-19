@@ -1139,6 +1139,15 @@
     .dlv-org { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
     .dlv-org select { min-width: 0; }
     .dlv-row .btns button { min-height: 44px; }
+    /* DL19 (V32): ส่งทาง LINE + หน้าเปิดเอกสารที่ส่งถึงคุณ */
+    .dlv-share { font-size: 13px; line-height: 1.6; margin-top: 4px; color: var(--text-1); overflow-wrap: anywhere; }
+    .dlv-send-box { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
+    .dlv-send-h { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+    .dlv-opt { display: block; padding: 8px 0; font-size: 14px; line-height: 1.5; cursor: pointer; }
+    .dlv-opt input { width: 18px; height: 18px; margin: 0 6px 0 0; vertical-align: -3px; }
+    .dlv-opt span { display: block; margin-left: 24px; font-size: 12px; color: var(--text-2); }
+    .dlv-days { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 14px; }
+    .dlv-days select { flex: 1; min-width: 0; }
     .ap-head { margin-bottom: 12px; padding: 14px; border-left: 6px solid var(--ap-ink); border-radius: 6px 18px 18px 6px; background: var(--ap-tint); }
     .ap-head-cat { font-size: 13px; font-weight: 600; color: var(--ap-ink); }
     .ap-head-t { margin: 2px 0 6px; font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -1244,9 +1253,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V31';
+    var LIFF_VERSION = 'V32';
     var LIFF_VERSION_DATE = '19 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'เปิดผ่านเบราว์เซอร์บนคอมพิวเตอร์: ต่ออายุการเข้าสู่ระบบอัตโนมัติ ไม่ค้างที่ยืนยันตัวตนไม่สำเร็จ';
+    var LIFF_VERSION_NOTE = 'คลังเอกสาร: ส่งเอกสารเข้าแชต LINE เป็นการ์ด เลือกได้ว่าเปิดเฉพาะคนในระบบหรือใครมีลิงก์ก็เปิดได้';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1466,6 +1475,14 @@
       if (sp.get('tab')) return sp.get('tab');
       var st = sp.get('liff.state');
       if (st){ try { var s2 = new URLSearchParams(st.charAt(0)==='?'?st.slice(1):st); if (s2.get('tab')) return s2.get('tab'); } catch(e){} }
+      return '';
+    }
+    /* DL19: ค่าพารามิเตอร์ใด ๆ — เปิดจาก liff.line.me ค่าจะมาใน liff.state */
+    function getLiffParam_(name){
+      var sp = new URLSearchParams(location.search);
+      if (sp.get(name)) return sp.get(name);
+      var st = sp.get('liff.state');
+      if (st){ try { var s2 = new URLSearchParams(st.charAt(0)==='?'?st.slice(1):st); if (s2.get(name)) return s2.get(name); } catch(e){} }
       return '';
     }
     function getOfficialDraftParam(){
@@ -8256,6 +8273,7 @@
     }
     function dlvRow_(it){
       var r = _dlv.data, s = it.status === 'INBOX' ? it.suggest : null;
+      // DL19: ส่งทาง LINE (r.share = ผู้ดูแลเปิดสวิตช์แชร์) · แชร์อยู่ = it.shared + it.shareMode + it.shareUntil · ปุ่มอยู่ใน dlvShareHtml_
       var meta = [it.category, it.workGroup, it.year ? 'ปี ' + it.year : '', dlvSize_(it.fileSize)].filter(Boolean).map(esc).join(' · ');
       var due = it.dueDate
         ? '<div class="dlv-due' + (dlvDays_(it.dueDate) < 0 ? ' late' : '') + '">📅 ' + esc(dlvDueLabel_(it.dueDate)) + '</div>' : '';
@@ -8275,6 +8293,7 @@
         (meta ? '<div class="dlv-m">' + meta + '</div>' : '') + due + org +
         '<div class="btns"><button type="button" class="b-second" data-act="dl">ดาวน์โหลด</button>' +
           (r.enabled ? '<button type="button" class="b-second" data-act="pin">' + (it.pinned ? 'เลิกปักหมุด' : 'ปักหมุด') + '</button>' : '') + '</div>' +
+        dlvShareHtml_(it, r) +
         '<div class="dlv-msg" aria-live="polite"></div></div>';
     }
     function dlvSelect_(k, list, ph, pick){
@@ -8305,6 +8324,10 @@
       var it = dlvFind_(id), msg = row.querySelector('.dlv-msg');
       if (!it) return;
       msg.textContent = '';
+      if (act === 'send') { var sb = row.querySelector('.dlv-send'); sb.innerHTML = sb.innerHTML ? '' : dlvSendPanel_(it); return; }
+      if (act === 'sendcancel') { row.querySelector('.dlv-send').innerHTML = ''; return; }
+      if (act === 'sendgo') { dlvSend_(id, row, btn); return; }
+      if (act === 'unshare') { dlvUnshare_(id); return; }
       if (act === 'dl') {
         btn.disabled = true; btn.textContent = 'กำลังเตรียมไฟล์...';
         api('dldownload', { docId: id })
@@ -8348,6 +8371,116 @@
           [].forEach.call(row.querySelectorAll('button'), function(b){ b.disabled = false; });
           msg.textContent = '⚠️ ' + ((e && e.message) || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
         });
+    }
+    /* ---------- DL19 (V32): ส่งเอกสารเข้าแชต LINE เป็นการ์ด ----------
+       ผู้ใช้เลือกผู้รับและกดส่งเองใน shareTargetPicker (ส่งในนามผู้ใช้ ไม่ใช้โควตาบอท)
+       server (DL18 v427) ตรวจเจ้าของ/ธงแชร์/คอลัมน์ · MEMBER = ลิงก์ LIFF ?tab=docview · PUBLIC = ลิงก์หน้าเว็บ ?docview= */
+    function dlvShareHtml_(it, r){
+      var st = it.shared
+        ? '<div class="dlv-share">' + (it.shareMode === 'MEMBER' ? '🔒 ส่งแบบเฉพาะคนในระบบ' : '🔗 ส่งแบบใครมีลิงก์ก็เปิดได้') +
+          (it.shareUntil ? ' · ลิงก์ใช้ได้ถึง ' + esc(it.shareUntil) : '') + '</div>' : '';
+      var btns = (r.share ? '<button type="button" class="b-second" data-act="send">ส่งทาง LINE</button>' : '') +
+        (it.shared ? '<button type="button" class="b-second" data-act="unshare">ปิดลิงก์</button>' : '');
+      return st + (btns ? '<div class="btns">' + btns + '</div>' : '') + '<div class="dlv-send"></div>';
+    }
+    function dlvSendPanel_(it){
+      var nm = 'dlvm-' + esc(it.docId);
+      return '<div class="dlv-send-box" role="group" aria-label="ตั้งค่าการส่งทาง LINE">' +
+        '<div class="dlv-send-h">ใครเปิดเอกสารได้</div>' +
+        '<label class="dlv-opt"><input type="radio" data-k="mode" name="' + nm + '" value="MEMBER" checked>🔒 เฉพาะคนในระบบ' +
+          '<span>ผู้รับต้องเป็นสมาชิกที่เชื่อมบัญชี LINE กับระบบแล้ว เปิดจากแอป LINE</span></label>' +
+        '<label class="dlv-opt"><input type="radio" data-k="mode" name="' + nm + '" value="PUBLIC">🔗 ใครมีลิงก์ก็เปิดได้' +
+          '<span>ไม่ต้องล็อกอิน ลิงก์ส่งต่อได้</span></label>' +
+        '<label class="dlv-days">ลิงก์ใช้ได้ <select class="in-txt" data-k="days" aria-label="อายุลิงก์">' +
+          '<option value="1">1 วัน</option><option value="7" selected>7 วัน</option><option value="30">30 วัน</option></select></label>' +
+        (it.shared ? '<div class="dlv-m">ส่งแบบเดิมอีกครั้ง = ใช้ลิงก์เดิมและวันหมดอายุเดิม · เปลี่ยนแบบ = ลิงก์เดิมใช้ไม่ได้อีก</div>' : '') +
+        '<div class="btns"><button type="button" class="b-second" data-act="sendcancel">ยกเลิก</button>' +
+          '<button type="button" class="b-primary" data-act="sendgo">เลือกแชตและส่ง</button></div></div>';
+    }
+    function dlvSend_(id, row, btn){
+      var it = dlvFind_(id), box = row.querySelector('.dlv-send'), msg = row.querySelector('.dlv-msg');
+      if (!it || !box) return;
+      if (!canShareChat_()) { msg.textContent = 'ส่งทาง LINE ได้เมื่อเปิดหน้านี้ในแอป LINE บนมือถือ'; return; }
+      var pick = box.querySelector('input[data-k="mode"]:checked'), sel = box.querySelector('select[data-k="days"]');
+      var mode = pick ? pick.value : 'MEMBER', days = sel ? Number(sel.value) : 7;
+      btn.disabled = true; btn.textContent = 'กำลังเตรียมลิงก์...';
+      api('dlshare', { docId: id, on: true, days: days, mode: mode })
+        .then(function(res){ return liff.shareTargetPicker([dlvFlex_(it, res)], { isMultiple: true }); })
+        .then(function(sent){
+          if (sent) liffToast('ส่งแล้ว', 'ok');
+          dlvLoad_();   // ปิดหน้าต่างเลือกแชตโดยไม่ส่ง ลิงก์ก็ยังเปิดอยู่ — รายการบอกสถานะ + ปุ่มปิดลิงก์
+        })
+        .catch(function(e){
+          btn.disabled = false; btn.textContent = 'เลือกแชตและส่ง';
+          msg.textContent = '⚠️ ' + ((e && e.fromServer && e.message) || 'ส่งไม่สำเร็จ ลองใหม่อีกครั้ง');
+        });
+    }
+    function dlvUnshare_(id){
+      liffConfirm({ title: 'ปิดลิงก์แชร์', okLabel: 'ปิดลิงก์',
+        message: 'ลิงก์ที่ส่งไปแล้วจะเปิดไม่ได้อีก ถ้าส่งใหม่ภายหลังจะได้ลิงก์ใหม่' }, function(){
+        api('dlshare', { docId: id, on: false })
+          .then(function(){ liffToast('ปิดลิงก์แล้ว ลิงก์เดิมใช้ไม่ได้อีก', 'ok'); dlvLoad_(); })
+          .catch(liffErr_);
+      });
+    }
+    /* การ์ด Flex — ข้อความล้วน (Flex ไม่ใช่ HTML จึงไม่ escape) · ห้ามมีข้อความว่าง ไม่งั้น LINE ไม่ยอมส่ง
+       DL21 จะเพิ่มบรรทัดสรุปเอกสารต่อจากบรรทัดประเภท/กลุ่มงาน */
+    function dlvFlex_(it, res){
+      var title = String(it.title || '').trim() || 'เอกสาร';
+      var meta = [it.category, it.workGroup, it.year ? 'ปี ' + it.year : ''].filter(Boolean).join(' · ');
+      var body = [
+        { type: 'text', text: '📄 เอกสารจากคลัง', size: 'xs', color: '#888888' },
+        { type: 'text', text: title.slice(0, 300), weight: 'bold', size: 'md', wrap: true, margin: 'sm' }
+      ];
+      if (meta) body.push({ type: 'text', text: meta.slice(0, 300), size: 'sm', color: '#666666', wrap: true, margin: 'sm' });
+      body.push({ type: 'text', text: res.mode === 'MEMBER' ? '🔒 เปิดได้เฉพาะสมาชิกในระบบ' : '🔗 ใครมีลิงก์ก็เปิดได้',
+        size: 'xs', color: '#666666', wrap: true, margin: 'md' });
+      if (res.until) body.push({ type: 'text', text: 'ลิงก์ใช้ได้ถึง ' + res.until, size: 'xs', color: '#666666', wrap: true, margin: 'xs' });
+      return { type: 'flex', altText: ('📄 ' + title).slice(0, 400), contents: { type: 'bubble',
+        body: { type: 'box', layout: 'vertical', contents: body },
+        footer: { type: 'box', layout: 'vertical', contents: [
+          { type: 'button', style: 'primary', color: '#06C755', height: 'sm', action: { type: 'uri', label: 'เปิดเอกสาร', uri: String(res.url) } }
+        ] } } };
+    }
+    /* เอกสารที่ส่งถึงคุณ (?tab=docview&t=) — server ตรวจสมาชิก ACTIVE + โทเคน + วันหมดอายุ + ธงแชร์ (dlview) */
+    function showDocView_(t){
+      setNav('home');
+      t = String(t || '').replace(/[^0-9a-f]/gi, '').slice(0, 64);
+      app.innerHTML = pageHead('เอกสารที่ส่งถึงคุณ', 'showHome()') +
+        '<div id="dvBox" aria-busy="true"><div class="ap-empty">กำลังเปิดเอกสาร...</div></div>';
+      if (!t) { dlvViewRender_({ found: false }); return; }
+      api('dlview', { t: t }).then(dlvViewRender_).catch(function(e){
+        if (e && e.notLinked) { dlvViewRender_({ found: false, notLinked: true }); return; }
+        var box = document.getElementById('dvBox');
+        if (!box) return;
+        box.setAttribute('aria-busy', 'false');
+        box.innerHTML = '<div class="ap-empty">' + esc((e && e.message) || 'เปิดเอกสารไม่สำเร็จ') + '</div>' +
+          '<button type="button" class="b-second" onclick="showDocView_(\'' + t + '\')">ลองอีกครั้ง</button>';
+      });
+    }
+    function dlvViewRender_(d){
+      var box = document.getElementById('dvBox');
+      if (!box) return;
+      box.setAttribute('aria-busy', 'false');
+      if (d && d.notLinked) {
+        box.innerHTML = '<div class="card"><div class="dlv-t">🔒 เอกสารนี้เปิดได้เฉพาะสมาชิกในระบบ</div>' +
+          '<div class="dlv-m">บัญชี LINE นี้ยังไม่ได้เชื่อมกับระบบ เชื่อมบัญชีก่อน แล้วแตะการ์ดในแชตอีกครั้ง</div></div>' +
+          '<button type="button" class="b-primary" onclick="showHome()">ไปหน้าหลัก</button>';
+        return;
+      }
+      if (!d || !d.found) {
+        box.innerHTML = '<div class="card"><div class="dlv-t">ไม่พบเอกสารนี้</div>' +
+          '<div class="dlv-m">ลิงก์อาจไม่ถูกต้อง หมดอายุแล้ว หรือเจ้าของปิดการแชร์ ขอให้ผู้ส่งส่งใหม่อีกครั้ง</div></div>' +
+          '<button type="button" class="b-second" onclick="showHome()">ไปหน้าหลัก</button>';
+        return;
+      }
+      var meta = [d.category, d.workGroup, d.year ? 'ปี ' + d.year : '', dlvSize_(d.fileSize)].filter(Boolean).map(esc).join(' · ');
+      box.innerHTML = '<div class="card dlv-row"><div class="dlv-t">📄 ' + esc(d.title) + '</div>' +
+        (meta ? '<div class="dlv-m">' + meta + '</div>' : '') +
+        (d.until ? '<div class="dlv-m">เปิดได้ถึง ' + esc(d.until) + '</div>' : '') +
+        '<div class="btns"><button type="button" class="b-primary" id="dvDl">ดาวน์โหลด</button></div>' +
+        '<div class="dlv-m">ลิงก์ดาวน์โหลดใช้ได้ประมาณ 1 ชั่วโมง ถ้าใช้ไม่ได้ให้แตะการ์ดในแชตอีกครั้ง</div></div>';
+      document.getElementById('dvDl').onclick = function(){ liffOpen(d.url); };
     }
     /* ---------- จบคลังเอกสาร ---------- */
 
@@ -9348,6 +9481,7 @@
       else if(tab==='calendar'){ showCalendar(); }      // ลิงก์/Rich Menu ปุ่ม "ปฏิทินอบรม"
       else if(tab==='aphoto'){ showActivityPhotos(); }  // คลังรูปกิจกรรม (V25)
       else if(tab==='doclib'){ showDocLibrary(); }      // คลังเอกสาร (V29)
+      else if(tab==='docview'){ showDocView_(getLiffParam_('t')); } // เอกสารที่ส่งถึงคุณ (DL19 · V32)
       else if(tab==='officialdoc'){ showOfficialDocumentSummary(); } // AI สรุปหนังสือราชการ (server ตรวจสิทธิ์ทุกคำขอ)
       else if(tab==='mcpsend'){ showMcpSend(); }        // ลิงก์ตรงสำหรับผู้ดูแลระบบ (server ยังตรวจสิทธิ์ทุกครั้ง)
       else if(tab==='health'){ showSystemCare(); }      // ศูนย์ดูแลสุขภาพระบบสำหรับ ADMIN
