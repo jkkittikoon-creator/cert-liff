@@ -1244,9 +1244,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V30';
+    var LIFF_VERSION = 'V31';
     var LIFF_VERSION_DATE = '19 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'ปุ่มตัวกรองที่เลือกอยู่อ่านชัดขึ้นในโหมดสว่างและมืด';
+    var LIFF_VERSION_NOTE = 'เปิดผ่านเบราว์เซอร์บนคอมพิวเตอร์: ต่ออายุการเข้าสู่ระบบอัตโนมัติ ไม่ค้างที่ยืนยันตัวตนไม่สำเร็จ';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -1372,6 +1372,9 @@
     function liffReauth_(){
       try {
         if (liff.isInClient && liff.isInClient()) { location.reload(); return; }
+        // V31: นอกแอป isLoggedIn() ยังเป็นจริงทั้งที่ token หมดอายุ และ login() กลับมาได้ token เก่าตัวเดิม
+        // → ล้าง token ที่เก็บในเครื่องก่อน แล้ว login ใหม่ (ถ้า LINE ยังจำการเข้าสู่ระบบไว้ จะกลับมาทันทีไม่ต้องกรอกอะไร)
+        try { if (liff.logout) liff.logout(); } catch(_) { /* ล้างไม่ได้ก็ยัง login ตามเดิม */ }
         liff.login({ redirectUri: location.href });
       } catch(_) { try { location.reload(); } catch(__){} }
     }
