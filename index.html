@@ -1148,6 +1148,14 @@
     .dlv-opt span { display: block; margin-left: 24px; font-size: 12px; color: var(--text-2); }
     .dlv-days { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 14px; }
     .dlv-days select { flex: 1; min-width: 0; }
+    /* V33: แก้ไข + ถังขยะ */
+    .dlv-fld { display: block; margin-top: 8px; font-size: 13px; color: var(--text-2); }
+    .dlv-fld .in-txt { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; }
+    .dlv-fld textarea.in-txt { min-height: 64px; resize: vertical; }
+    .b-second.dlv-del { color: var(--err-text); }
+    .dlv-trash { margin-top: 12px; }
+    .dlv-trash summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+    .dlv-trash .dlv-row { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--border); }
     .ap-head { margin-bottom: 12px; padding: 14px; border-left: 6px solid var(--ap-ink); border-radius: 6px 18px 18px 6px; background: var(--ap-tint); }
     .ap-head-cat { font-size: 13px; font-weight: 600; color: var(--ap-ink); }
     .ap-head-t { margin: 2px 0 6px; font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.35; overflow-wrap: anywhere; }
@@ -1253,9 +1261,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V32';
+    var LIFF_VERSION = 'V33';
     var LIFF_VERSION_DATE = '19 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'คลังเอกสาร: ส่งเอกสารเข้าแชต LINE เป็นการ์ด เลือกได้ว่าเปิดเฉพาะคนในระบบหรือใครมีลิงก์ก็เปิดได้';
+    var LIFF_VERSION_NOTE = 'คลังเอกสาร: แก้ไขชื่อและรายละเอียด ลบลงถังขยะ และกู้คืนได้ในแอป LINE';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -8207,7 +8215,7 @@
     function showDocLibrary(){
       setNav('home');
       app.innerHTML = pageHead('คลังเอกสาร', 'showHome()') +
-        '<div class="msg">ไฟล์ Word · Excel · PDF ที่ส่งเข้าแชตน้องชาโปรเพื่อเก็บเข้าคลัง · แก้ไข ลบ และจัดการหลายไฟล์ทำบนเว็บ</div>' +
+        '<div class="msg">ไฟล์ Word · Excel · PDF ที่ส่งเข้าแชตน้องชาโปรเพื่อเก็บเข้าคลัง · เลือกหลายไฟล์ แทนที่ไฟล์ และส่งออก Excel ทำบนเว็บ</div>' +
         '<input type="search" class="in-txt" id="dlvQ" maxlength="80" placeholder="🔎 ค้นชื่อเอกสาร" aria-label="ค้นชื่อเอกสาร" value="' + esc(_dlv.q) + '">' +
         '<div class="chips dlv-chips" id="dlvChips" role="group" aria-label="ตัวกรองเอกสาร"></div>' +
         '<div id="dlvList" aria-busy="true"><div class="ap-empty">กำลังโหลดคลังเอกสาร...</div></div>';
@@ -8266,10 +8274,12 @@
           ? '<div class="ap-empty">ไม่พบเอกสารตามที่เลือก</div>'
           : '<div class="ap-empty">ยังไม่มีเอกสารในคลัง<br>ส่งไฟล์ Word · Excel · PDF เข้าแชตน้องชาโปรเพื่อเก็บเข้าคลัง</div>' +
             '<button type="button" class="b-primary" onclick="closeOrHome()">ไปที่แชต LINE</button>';
+        box.innerHTML += dlvTrashHtml_(r);
         return;
       }
       box.innerHTML = list.slice(0, DLV_MAX_SHOW).map(dlvRow_).join('') +
-        (list.length > DLV_MAX_SHOW ? '<div class="ap-empty">แสดง ' + DLV_MAX_SHOW + ' จาก ' + list.length + ' รายการ พิมพ์ค้นชื่อเพื่อหาเพิ่ม</div>' : '');
+        (list.length > DLV_MAX_SHOW ? '<div class="ap-empty">แสดง ' + DLV_MAX_SHOW + ' จาก ' + list.length + ' รายการ พิมพ์ค้นชื่อเพื่อหาเพิ่ม</div>' : '') +
+        dlvTrashHtml_(r);
     }
     function dlvRow_(it){
       var r = _dlv.data, s = it.status === 'INBOX' ? it.suggest : null;
@@ -8293,6 +8303,9 @@
         (meta ? '<div class="dlv-m">' + meta + '</div>' : '') + due + org +
         '<div class="btns"><button type="button" class="b-second" data-act="dl">ดาวน์โหลด</button>' +
           (r.enabled ? '<button type="button" class="b-second" data-act="pin">' + (it.pinned ? 'เลิกปักหมุด' : 'ปักหมุด') + '</button>' : '') + '</div>' +
+        (r.enabled ? '<div class="btns"><button type="button" class="b-second" data-act="edit">แก้ไข</button>' +
+          '<button type="button" class="b-second dlv-del" data-act="del">ลบ</button></div>' : '') +
+        '<div class="dlv-edit"></div>' +
         dlvShareHtml_(it, r) +
         '<div class="dlv-msg" aria-live="polite"></div></div>';
     }
@@ -8322,8 +8335,19 @@
     }
     function dlvAct_(act, id, row, btn){
       var it = dlvFind_(id), msg = row.querySelector('.dlv-msg');
+      if (act === 'restore') {   // เอกสารในถังขยะไม่อยู่ใน items จึงทำก่อนเช็ก it
+        btn.disabled = true; btn.textContent = 'กำลังกู้คืน...';
+        api('dlrestore', { docId: id })
+          .then(function(res){ liffToast(res && res.status === 'INBOX' ? 'กู้คืนแล้ว อยู่ใน “รอจัด”' : 'กู้คืนแล้ว ✅', 'ok'); dlvLoad_(); })
+          .catch(function(e){ btn.disabled = false; btn.textContent = 'กู้คืน'; msg.textContent = '⚠️ ' + ((e && e.message) || 'กู้คืนไม่สำเร็จ ลองใหม่อีกครั้ง'); });
+        return;
+      }
       if (!it) return;
       msg.textContent = '';
+      if (act === 'edit') { var eb = row.querySelector('.dlv-edit'); eb.innerHTML = eb.innerHTML ? '' : dlvEditPanel_(it, _dlv.data); return; }
+      if (act === 'editcancel') { row.querySelector('.dlv-edit').innerHTML = ''; return; }
+      if (act === 'editsave') { dlvEditSave_(id, row, btn); return; }
+      if (act === 'del') { dlvDelete_(id); return; }
       if (act === 'send') { var sb = row.querySelector('.dlv-send'); sb.innerHTML = sb.innerHTML ? '' : dlvSendPanel_(it); return; }
       if (act === 'sendcancel') { row.querySelector('.dlv-send').innerHTML = ''; return; }
       if (act === 'sendgo') { dlvSend_(id, row, btn); return; }
@@ -8371,6 +8395,59 @@
           [].forEach.call(row.querySelectorAll('button'), function(b){ b.disabled = false; });
           msg.textContent = '⚠️ ' + ((e && e.message) || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
         });
+    }
+    /* ---------- V33: แก้ไข + ถังขยะ — ช่องเดียวกับหน้าเว็บ (dlEditOpen) · server ตรวจเจ้าของ/ADMIN + ธงใน service เดียวกัน ---------- */
+    function dlvEditPanel_(it, r){
+      return '<div class="dlv-send-box" role="group" aria-label="แก้ไขรายละเอียดเอกสาร">' +
+        '<label class="dlv-fld">ชื่อเอกสาร<input type="text" class="in-txt" data-k="title" maxlength="120" value="' + esc(it.title) + '"></label>' +
+        '<label class="dlv-fld">กลุ่มงาน' + dlvSelect_('workGroup', r.workGroups, 'ยังไม่เลือกกลุ่มงาน', it.workGroup) + '</label>' +
+        '<label class="dlv-fld">ประเภท' + dlvSelect_('category', r.categories, 'ยังไม่เลือกประเภท', it.category) + '</label>' +
+        '<label class="dlv-fld">ปีการศึกษา (พ.ศ.)<input type="text" class="in-txt" data-k="year" inputmode="numeric" maxlength="4" value="' + esc(it.year || '') + '"></label>' +
+        '<label class="dlv-fld">วันครบกำหนด (ถ้ามี)<input type="date" class="in-txt" data-k="dueDate" value="' + esc(it.dueDate || '') + '"></label>' +
+        '<label class="dlv-fld">หมายเหตุ<textarea class="in-txt" data-k="note" maxlength="500" rows="2">' + esc(it.note || '') + '</textarea></label>' +
+        '<div class="dlv-m">ไม่เลือกกลุ่มงานหรือประเภท = เอกสารกลับไปอยู่ “รอจัด”</div>' +
+        '<div class="btns"><button type="button" class="b-second" data-act="editcancel">ยกเลิก</button>' +
+          '<button type="button" class="b-primary" data-act="editsave">บันทึก</button></div></div>';
+    }
+    function dlvEditSave_(id, row, btn){
+      var box = row.querySelector('.dlv-edit'), msg = row.querySelector('.dlv-msg'), data = {};
+      ['title', 'workGroup', 'category', 'year', 'note', 'dueDate'].forEach(function(k){
+        var el = box && box.querySelector('[data-k="' + k + '"]');
+        if (el) data[k] = el.value;
+      });
+      if (!String(data.title || '').trim()) { msg.textContent = 'กรุณาใส่ชื่อเอกสาร'; return; }
+      btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+      api('dledit', { docId: id, data: data })
+        .then(function(res){
+          liffToast(res && res.status === 'INBOX' ? 'บันทึกแล้ว ยังขาดกลุ่มงานหรือประเภท จึงอยู่ใน “รอจัด”' : 'บันทึกแล้ว ✅', 'ok');
+          dlvLoad_();
+        })
+        .catch(function(e){
+          btn.disabled = false; btn.textContent = 'บันทึก';
+          msg.textContent = '⚠️ ' + ((e && e.message) || 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง');
+        });
+    }
+    function dlvDelete_(id){
+      var it = dlvFind_(id);
+      liffConfirm({ title: 'ลบเอกสารลงถังขยะ', okLabel: 'ลบ',
+        message: '“' + (it ? it.title : 'เอกสารนี้') + '” จะย้ายไปถังขยะท้ายหน้านี้ กู้คืนได้ภายหลัง' +
+          (it && it.shared ? ' · ลิงก์แชร์ของเอกสารนี้จะใช้ไม่ได้' : '') }, function(){
+        api('dldelete', { docId: id })
+          .then(function(){ liffToast('ย้ายไปถังขยะแล้ว', 'ok'); dlvLoad_(); })
+          .catch(liffErr_);
+      });
+    }
+    function dlvTrashHtml_(r){
+      var list = (r && r.trash) || [];
+      if (!list.length) return '';
+      return '<details class="card dlv-trash"><summary>🗑️ ถังขยะ (' + list.length + ')</summary>' +
+        list.slice(0, 50).map(function(t){
+          return '<div class="dlv-row dlv-trash-row" data-id="' + esc(t.docId) + '"><div class="dlv-t">' + esc(t.title || 'ไม่มีชื่อ') + '</div>' +
+            (t.deletedAt ? '<div class="dlv-m">ลบเมื่อ ' + esc(dlvThaiDate_(String(t.deletedAt).slice(0, 10))) + '</div>' : '') +
+            (r.enabled ? '<div class="btns"><button type="button" class="b-second" data-act="restore">กู้คืน</button></div>' : '') +
+            '<div class="dlv-msg" aria-live="polite"></div></div>';
+        }).join('') +
+        (list.length > 50 ? '<div class="dlv-m">แสดง 50 จาก ' + list.length + ' รายการ ดูทั้งหมดได้บนเว็บ</div>' : '') + '</details>';
     }
     /* ---------- DL19 (V32): ส่งเอกสารเข้าแชต LINE เป็นการ์ด ----------
        ผู้ใช้เลือกผู้รับและกดส่งเองใน shareTargetPicker (ส่งในนามผู้ใช้ ไม่ใช้โควตาบอท)
