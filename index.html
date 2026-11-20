@@ -1134,6 +1134,7 @@
     .dlv-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--bg-hover); color: var(--text-2); }
     .dlv-m, .dlv-ai, .dlv-due, .dlv-msg { font-size: 13px; line-height: 1.6; margin-top: 4px; color: var(--text-2); overflow-wrap: anywhere; }
     .dlv-due { color: var(--text-1); }
+    .dlv-sum { white-space: pre-line; }
     .dlv-due.late { color: var(--err-text); font-weight: 600; }
     .dlv-msg:empty { display: none; }
     .dlv-org { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
@@ -1261,9 +1262,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V34';
-    var LIFF_VERSION_DATE = '19 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'คลังเอกสาร: การ์ดแบบใครมีลิงก์ก็เปิดได้ เปิดในแอป LINE แทนหน้าเว็บ';
+    var LIFF_VERSION = 'V35';
+    var LIFF_VERSION_DATE = '20 พ.ย. 2569';
+    var LIFF_VERSION_NOTE = 'คลังเอกสาร: เห็นสรุปโดย AI และเลขที่หนังสือ แก้เลขที่ได้ การ์ดที่ส่งทาง LINE มีสรุปด้วย';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -8287,11 +8288,20 @@
       var meta = [it.category, it.workGroup, it.year ? 'ปี ' + it.year : '', dlvSize_(it.fileSize)].filter(Boolean).map(esc).join(' · ');
       var due = it.dueDate
         ? '<div class="dlv-due' + (dlvDays_(it.dueDate) < 0 ? ' late' : '') + '">📅 ' + esc(dlvDueLabel_(it.dueDate)) + '</div>' : '';
+      // DL21d: สรุปโดย AI + เลขที่/วันที่หนังสือ (เหมือนเว็บ) · AI พบเลขที่ของเอกสารจัดแล้ว = ข้อเสนอ ต้องกด "ใช้"
+      var sum = it.aiSummary ? '<div class="dlv-m dlv-sum">🤖 สรุปโดย AI: ' + esc(it.aiSummary) + '</div>' : '';
+      var ref = (it.docNumber || it.docDate) ? '<div class="dlv-m">📄 ' + (it.docNumber ? 'ที่ ' + esc(it.docNumber) : '') +
+        (it.docNumber && it.docDate ? ' · ' : '') + (it.docDate ? 'ลงวันที่ ' + esc(dlvThaiDate_(it.docDate)) : '') + '</div>' : '';
+      var rs = it.refSuggest;
+      if (rs && r.enabled) ref += '<div class="dlv-ai">🤖 AI พบ' + (rs.docNumber ? ' เลขที่หนังสือ <b>' + esc(rs.docNumber) + '</b>' : '') +
+        (rs.docDate ? ' ลงวันที่ ' + esc(dlvThaiDate_(rs.docDate)) : '') + '</div>' +
+        '<div class="btns"><button type="button" class="b-second" data-act="airef">ใช้เลขที่นี้</button></div>';
       var org = '';
       if (it.status === 'INBOX' && r.enabled) {
         org = (s ? '<div class="dlv-ai">🤖 AI เสนอ' + (s.title ? ': <b>' + esc(s.title) + '</b>' : '') +
             (s.year ? ' · ปีการศึกษา ' + esc(s.year) : '') +
-            (s.dueDate ? ' · ครบกำหนด ' + esc(dlvThaiDate_(s.dueDate)) : '') + '</div>' : '') +
+            (s.dueDate ? ' · ครบกำหนด ' + esc(dlvThaiDate_(s.dueDate)) : '') +
+            (s.docNumber ? ' · ที่ ' + esc(s.docNumber) : '') + (s.docDate ? ' · ลงวันที่ ' + esc(dlvThaiDate_(s.docDate)) : '') + '</div>' : '') +
           '<div class="dlv-org">' + dlvSelect_('g', r.workGroups, 'เลือกกลุ่มงาน', s && s.workGroup) +
             dlvSelect_('c', r.categories, 'เลือกประเภท', s && s.category) + '</div>' +
           '<div class="btns"><button type="button" class="b-primary" data-act="org">จัดเข้าคลัง</button>' +
@@ -8300,7 +8310,7 @@
       return '<div class="card dlv-row" data-id="' + esc(it.docId) + '">' +
         '<div class="dlv-t">' + (it.pinned ? '📌 ' : '') + esc(it.title) +
           (it.status === 'INBOX' ? ' <span class="dlv-tag">รอจัด</span>' : '') + '</div>' +
-        (meta ? '<div class="dlv-m">' + meta + '</div>' : '') + due + org +
+        (meta ? '<div class="dlv-m">' + meta + '</div>' : '') + ref + sum + due + org +
         '<div class="btns"><button type="button" class="b-second" data-act="dl">ดาวน์โหลด</button>' +
           (r.enabled ? '<button type="button" class="b-second" data-act="pin">' + (it.pinned ? 'เลิกปักหมุด' : 'ปักหมุด') + '</button>' : '') + '</div>' +
         (r.enabled ? '<div class="btns"><button type="button" class="b-second" data-act="edit">แก้ไข</button>' +
@@ -8380,9 +8390,17 @@
         if (s.title) patch.title = s.title;
         if (s.year) patch.year = s.year;
         if (s.dueDate && !it.dueDate) patch.dueDate = s.dueDate;
+        if (s.docNumber && !it.docNumber) patch.docNumber = s.docNumber;   // DL21d
+        if (s.docDate && !it.docDate) patch.docDate = s.docDate;
         if (g) patch.workGroup = g;
         if (c) patch.category = c;
         call = api('dlsuggest', { docId: id, data: patch });
+      } else if (act === 'airef') {   // DL21d: เลขที่/วันที่ที่ AI พบ — เฉพาะช่องที่ยังว่าง
+        var rs = it.refSuggest || {}, rp = {};
+        if (rs.docNumber && !it.docNumber) rp.docNumber = rs.docNumber;
+        if (rs.docDate && !it.docDate) rp.docDate = rs.docDate;
+        call = api('dlsuggest', { docId: id, data: rp });
+        done = 'บันทึกเลขที่หนังสือแล้ว ✅';
       } else return;
       [].forEach.call(row.querySelectorAll('button'), function(b){ b.disabled = true; });
       call
@@ -8404,6 +8422,8 @@
         '<label class="dlv-fld">ประเภท' + dlvSelect_('category', r.categories, 'ยังไม่เลือกประเภท', it.category) + '</label>' +
         '<label class="dlv-fld">ปีการศึกษา (พ.ศ.)<input type="text" class="in-txt" data-k="year" inputmode="numeric" maxlength="4" value="' + esc(it.year || '') + '"></label>' +
         '<label class="dlv-fld">วันครบกำหนด (ถ้ามี)<input type="date" class="in-txt" data-k="dueDate" value="' + esc(it.dueDate || '') + '"></label>' +
+        '<label class="dlv-fld">เลขที่หนังสือ (ถ้ามี)<input type="text" class="in-txt" data-k="docNumber" maxlength="60" placeholder="เช่น ศธ 04002/ว1234" value="' + esc(it.docNumber || '') + '"></label>' +
+        '<label class="dlv-fld">วันที่หนังสือ (ถ้ามี)<input type="date" class="in-txt" data-k="docDate" value="' + esc(it.docDate || '') + '"></label>' +
         '<label class="dlv-fld">หมายเหตุ<textarea class="in-txt" data-k="note" maxlength="500" rows="2">' + esc(it.note || '') + '</textarea></label>' +
         '<div class="dlv-m">ไม่เลือกกลุ่มงานหรือประเภท = เอกสารกลับไปอยู่ “รอจัด”</div>' +
         '<div class="btns"><button type="button" class="b-second" data-act="editcancel">ยกเลิก</button>' +
@@ -8411,7 +8431,7 @@
     }
     function dlvEditSave_(id, row, btn){
       var box = row.querySelector('.dlv-edit'), msg = row.querySelector('.dlv-msg'), data = {};
-      ['title', 'workGroup', 'category', 'year', 'note', 'dueDate'].forEach(function(k){
+      ['title', 'workGroup', 'category', 'year', 'note', 'dueDate', 'docNumber', 'docDate'].forEach(function(k){
         var el = box && box.querySelector('[data-k="' + k + '"]');
         if (el) data[k] = el.value;
       });
@@ -8510,6 +8530,11 @@
         { type: 'text', text: title.slice(0, 300), weight: 'bold', size: 'md', wrap: true, margin: 'sm' }
       ];
       if (meta) body.push({ type: 'text', text: meta.slice(0, 300), size: 'sm', color: '#666666', wrap: true, margin: 'sm' });
+      // DL21d: เลขที่หนังสือ + สรุปโดย AI (มีเมื่อมีค่า · ไม่มี = การ์ดเดิม)
+      var ref = [it.docNumber ? 'ที่ ' + it.docNumber : '', it.docDate ? 'ลงวันที่ ' + dlvThaiDate_(it.docDate) : ''].filter(Boolean).join(' · ');
+      if (ref) body.push({ type: 'text', text: ref.slice(0, 300), size: 'sm', color: '#666666', wrap: true, margin: 'xs' });
+      var sum = String(it.aiSummary || '').trim();
+      if (sum) body.push({ type: 'text', text: sum.slice(0, 300), size: 'sm', color: '#333333', wrap: true, margin: 'md' });
       body.push({ type: 'text', text: res.mode === 'MEMBER' ? '🔒 เปิดได้เฉพาะสมาชิกในระบบ' : '🔗 ใครมีลิงก์ก็เปิดได้',
         size: 'xs', color: '#666666', wrap: true, margin: 'md' });
       if (res.until) body.push({ type: 'text', text: 'ลิงก์ใช้ได้ถึง ' + res.until, size: 'xs', color: '#666666', wrap: true, margin: 'xs' });
@@ -8555,6 +8580,9 @@
       var meta = [d.category, d.workGroup, d.year ? 'ปี ' + d.year : '', dlvSize_(d.fileSize)].filter(Boolean).map(esc).join(' · ');
       box.innerHTML = '<div class="card dlv-row"><div class="dlv-t">📄 ' + esc(d.title) + '</div>' +
         (meta ? '<div class="dlv-m">' + meta + '</div>' : '') +
+        (d.docNumber || d.docDate ? '<div class="dlv-m">📄 ' + (d.docNumber ? 'ที่ ' + esc(d.docNumber) : '') + (d.docNumber && d.docDate ? ' · ' : '') +
+          (d.docDate ? 'ลงวันที่ ' + esc(dlvThaiDate_(d.docDate)) : '') + '</div>' : '') +
+        (d.aiSummary ? '<div class="dlv-m dlv-sum">🤖 สรุปโดย AI: ' + esc(d.aiSummary) + '</div>' : '') +   // DL21d
         (d.until ? '<div class="dlv-m">เปิดได้ถึง ' + esc(d.until) + '</div>' : '') +
         '<div class="btns"><button type="button" class="b-primary" id="dvDl">ดาวน์โหลด</button></div>' +
         '<div class="dlv-m">ลิงก์ดาวน์โหลดใช้ได้ประมาณ 1 ชั่วโมง ถ้าใช้ไม่ได้ให้แตะการ์ดในแชตอีกครั้ง</div></div>';
