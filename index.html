@@ -1144,6 +1144,15 @@
     .dlv-th { float: right; width: 48px; height: 64px; margin: 0 0 6px 10px; border-radius: 6px; overflow: hidden; background: #fff; border: 1px solid var(--border-strong); }
     .dlv-th img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
     .dlv-row > .btns { clear: both; }   /* แถวปุ่มเต็มความกว้างเสมอ ไม่ถูกภาพบีบ */
+    /* V37 (DL24): การ์ดคู่เอกสารที่อาจซ้ำ */
+    .dlv-dup { margin-bottom: 10px; }
+    .dlv-dup-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .dlv-dup-h b { min-width: 0; overflow-wrap: anywhere; }
+    .dlv-dup-x { flex: none; width: auto; min-height: 44px; padding: 0 14px; }
+    .dlv-dup-card { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .dlv-dup-doc { margin-top: 6px; overflow-wrap: anywhere; }
+    .dlv-dup-btns { flex-direction: column; }
+    .dlv-dup-btns button { width: 100%; min-height: 44px; }
     /* DL19 (V32): ส่งทาง LINE + หน้าเปิดเอกสารที่ส่งถึงคุณ */
     .dlv-share { font-size: 13px; line-height: 1.6; margin-top: 4px; color: var(--text-1); overflow-wrap: anywhere; }
     .dlv-send-box { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
@@ -1266,9 +1275,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V36';
+    var LIFF_VERSION = 'V37';
     var LIFF_VERSION_DATE = '20 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'คลังเอกสาร: ดูทั้งไฟล์ได้โดยไม่ต้องดาวน์โหลด เห็นภาพหน้าแรก และขอชื่อเรื่องจาก AI ได้';
+    var LIFF_VERSION_NOTE = 'คลังเอกสาร: หาเอกสารที่อาจซ้ำ แล้วเก็บเป็นฉบับเก่าหรือบอกว่าไม่ซ้ำได้ในแอป';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -8223,8 +8232,18 @@
         '<div class="msg">ไฟล์ Word · Excel · PDF ที่ส่งเข้าแชตน้องชาโปรเพื่อเก็บเข้าคลัง · เลือกหลายไฟล์ แทนที่ไฟล์ และส่งออก Excel ทำบนเว็บ</div>' +
         '<input type="search" class="in-txt" id="dlvQ" maxlength="80" placeholder="🔎 ค้นชื่อเอกสาร" aria-label="ค้นชื่อเอกสาร" value="' + esc(_dlv.q) + '">' +
         '<div class="chips dlv-chips" id="dlvChips" role="group" aria-label="ตัวกรองเอกสาร"></div>' +
+        '<div id="dlvDupBar"></div><div id="dlvDup" class="card dlv-dup" role="region" aria-label="เอกสารที่อาจซ้ำ" aria-live="polite" hidden></div>' +
         '<div id="dlvList" aria-busy="true"><div class="ap-empty">กำลังโหลดคลังเอกสาร...</div></div>';
+      _dlv.dup = null;
       document.getElementById('dlvQ').oninput = function(){ _dlv.q = this.value; dlvRender_(); };
+      document.getElementById('dlvDup').onclick = function(e){   // V37: ปุ่มในการ์ดคู่ซ้ำ
+        var b = e.target.closest ? e.target.closest('button[data-dup]') : null;
+        if (!b) return;
+        var kind = b.getAttribute('data-dup'), oldId = b.getAttribute('data-old'), keepId = b.getAttribute('data-keep');
+        if (kind === 'keep') dlvDupKeep_(oldId, keepId, b);
+        else if (kind === 'no') dlvDupNo_(oldId, keepId, b);
+        else if (kind === 'close') this.hidden = true;
+      };
       document.getElementById('dlvList').onclick = function(e){
         var b = e.target.closest ? e.target.closest('button[data-act]') : null;
         var row = b && b.closest('.dlv-row');
@@ -8264,6 +8283,8 @@
           return '<button type="button" class="' + (on ? 'on' : '') + '" aria-pressed="' + on + '" onclick="dlvFilter_(\'' + f[0] + '\')">' + esc(f[1]) + '</button>';
         }).join('');
       box.setAttribute('aria-busy', 'false');
+      var dupBar = document.getElementById('dlvDupBar');
+      if (dupBar) dupBar.innerHTML = dlvDupBarHtml_(r);   // V37
       var q = String(_dlv.q || '').trim().toLowerCase();
       var list = items.filter(function(it){
         if (_dlv.filter === 'INBOX' && it.status !== 'INBOX') return false;
@@ -8565,6 +8586,85 @@
           .then(function(){ liffToast('ย้ายไปถังขยะแล้ว', 'ok'); dlvLoad_(); })
           .catch(liffErr_);
       });
+    }
+    /* ---------- V37 (DL24): หาเอกสารที่อาจซ้ำ — ชุดเดียวกับเว็บ (dlFindDup ใน IndexApp.html) ไม่ใช้ AI ----------
+       server v439 เทียบเฉพาะเอกสารของผู้ใช้ · เก็บเป็นฉบับเก่า = รายการเดิมลงถังขยะ กู้คืนได้ (ดูฉบับเก่าได้บนเว็บ) */
+    function dlvDupBarHtml_(r){
+      var items = (r && r.items) || [];
+      return r && r.enabled && items.length >= 2
+        ? '<div class="btns"><button type="button" class="b-second" id="dlvDupBtn" onclick="dlvFindDup_(this)">🔍 หาเอกสารที่อาจซ้ำ</button></div>'
+        : '';
+    }
+    function dlvFindDup_(btn){
+      btn.disabled = true; btn.textContent = 'กำลังเทียบเอกสาร...';
+      api('dldups', {})
+        .then(function(res){
+          btn.disabled = false; btn.textContent = '🔍 หาเอกสารที่อาจซ้ำ';
+          _dlv.dup = res || { pairs: [], total: 0 };
+          dlvDupRender_(_dlv.dup);
+        })
+        .catch(function(e){
+          btn.disabled = false; btn.textContent = '🔍 หาเอกสารที่อาจซ้ำ';
+          liffErr_(e);
+        });
+    }
+    function dlvDupRender_(res){
+      var box = document.getElementById('dlvDup');
+      if (!box) return;
+      var pairs = (res && res.pairs) || [], total = (res && res.total) || 0;
+      var day = function(iso){ return iso ? dlvThaiDate_(String(iso).slice(0, 10)) : '-'; };
+      var doc = function(n, it){
+        return '<div class="dlv-dup-doc"><div class="dlv-t">' + n + ' ' + esc(it.title || 'ไม่มีชื่อ') + '</div>' +
+          '<div class="dlv-m">เก็บเมื่อ ' + esc(day(it.createdAt)) + (it.status === 'INBOX' ? ' · รอจัด' : '') + '</div></div>';
+      };
+      box.hidden = false;
+      box.innerHTML = '<div class="dlv-dup-h"><b>🔍 ' + (pairs.length
+          ? 'เอกสารที่อาจซ้ำ ' + total + ' คู่' + (total > pairs.length ? ' (แสดง ' + pairs.length + ' คู่ที่คล้ายที่สุด)' : '')
+          : 'ไม่พบเอกสารที่น่าจะซ้ำ') + '</b>' +
+        '<button type="button" class="b-second dlv-dup-x" data-dup="close">ปิด</button></div>' +
+        '<div class="dlv-m">เทียบชื่อและข้อความในไฟล์ ไม่ใช้ AI · ตรวจก่อนกดทุกครั้ง · รายการที่เก็บเป็นฉบับเก่าจะไปอยู่ถังขยะ กู้คืนได้</div>' +
+        pairs.map(function(p){
+          var o = esc(p.older.docId), n = esc(p.newer.docId);
+          var why = p.sameFile ? 'ไฟล์เดียวกันทุกไบต์'
+            : (p.content !== null && p.content !== undefined ? 'เนื้อหาคล้ายกัน ' + p.content + '% · ' : '') + 'ชื่อคล้ายกัน ' + p.title + '%';
+          return '<div class="dlv-dup-card"><div class="dlv-m">' + esc(why) + '</div>' + doc('①', p.older) + doc('②', p.newer) +
+            '<div class="btns dlv-dup-btns">' +
+            '<button type="button" class="b-primary" data-dup="keep" data-old="' + o + '" data-keep="' + n + '">เก็บ ① เป็นฉบับเก่าของ ②</button>' +
+            '<button type="button" class="b-second" data-dup="keep" data-old="' + n + '" data-keep="' + o + '">เก็บ ② เป็นฉบับเก่าของ ①</button>' +
+            '<button type="button" class="b-second" data-dup="no" data-old="' + o + '" data-keep="' + n + '">ไม่ซ้ำ</button></div></div>';
+        }).join('');
+    }
+    /* เอาคู่ที่จัดการแล้วออก — b ว่าง = ทุกคู่ที่มี a (a ลงถังขยะแล้ว) */
+    function dlvDupDrop_(a, b){
+      if (!_dlv.dup) return;
+      var before = _dlv.dup.pairs.length;
+      _dlv.dup.pairs = _dlv.dup.pairs.filter(function(p){
+        var ids = [p.older.docId, p.newer.docId];
+        return b ? !(ids.indexOf(a) !== -1 && ids.indexOf(b) !== -1) : ids.indexOf(a) === -1;
+      });
+      _dlv.dup.total = Math.max(0, _dlv.dup.total - (before - _dlv.dup.pairs.length));
+      dlvDupRender_(_dlv.dup);
+    }
+    function dlvDupKeep_(oldId, keepId, btn){
+      var o = dlvFind_(oldId), k = dlvFind_(keepId);
+      liffConfirm({ title: 'เก็บเป็นฉบับเก่า?', okLabel: 'เก็บเป็นฉบับเก่า',
+        message: '“' + (o ? o.title : 'เอกสารนี้') + '” จะเป็นฉบับเก่าของ “' + (k ? k.title : 'อีกเอกสาร') +
+          '” และรายการเดิมจะย้ายไปถังขยะ กู้คืนได้ · ดูฉบับเก่าได้บนเว็บ' }, function(){
+        btn.disabled = true;
+        api('dlkeepver', { oldId: oldId, keepId: keepId })
+          .then(function(){
+            liffToast('เก็บเป็นฉบับเก่าแล้ว ✅', 'ok');
+            dlvDupDrop_(oldId);
+            dlvLoad_();
+          })
+          .catch(function(e){ btn.disabled = false; liffErr_(e); });
+      });
+    }
+    function dlvDupNo_(oldId, keepId, btn){
+      btn.disabled = true;
+      api('dlnotdup', { docA: oldId, docB: keepId })
+        .then(function(){ liffToast('จำไว้แล้ว จะไม่เสนอคู่นี้อีก', 'ok'); dlvDupDrop_(oldId, keepId); })
+        .catch(function(e){ btn.disabled = false; liffErr_(e); });
     }
     function dlvTrashHtml_(r){
       var list = (r && r.trash) || [];
