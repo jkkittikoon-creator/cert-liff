@@ -1275,9 +1275,9 @@
     var HOURS_DEFAULT_DOC_TYPES = ['เกียรติบัตร','ใบประกาศ','วุฒิบัตร','ประกาศนียบัตร','ประกาศเกียรติคุณ','ใบประกาศความสำเร็จ','ใบรับรอง'];
     /* เวอร์ชัน LIFF ที่ขึ้น GitHub Pages — นับใหม่ตั้งแต่ V1 (20 ต.ค. 2569) และเพิ่มเลขทุกครั้งที่ปล่อย (V2, V3, …)
        ใช้ดูว่ามือถือโหลดตัวใหม่แล้วหรือยัง · ปล่อยครั้งถัดไป: แก้ 3 ค่านี้ก่อนสร้าง candidate (contract liff-version ตรวจรูปแบบ) */
-    var LIFF_VERSION = 'V38';
+    var LIFF_VERSION = 'V39';
     var LIFF_VERSION_DATE = '23 พ.ย. 2569';
-    var LIFF_VERSION_NOTE = 'คลังเอกสาร: หน้าหาเอกสารที่อาจซ้ำบอกแล้วว่าตรวจไปกี่รายการ';
+    var LIFF_VERSION_NOTE = 'คลังเอกสาร: ภาพหน้าแรกของเอกสารขึ้นเองแล้วเมื่อเลื่อนดูรายการ';
     var THMONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
     function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
@@ -8320,14 +8320,15 @@
         ents.forEach(function(e){
           if (!e.isIntersecting) return;
           io.unobserve(e.target);
-          dlvThumbQueue_(e.target.getAttribute('data-thumb'));
+          var slot = e.target.getAttribute('data-thumb') ? e.target : e.target.querySelector('[data-thumb]');
+          if (slot) dlvThumbQueue_(slot.getAttribute('data-thumb'));
         });
       }, { rootMargin: '200px' }) : null;
       _dlv.io = io;
       els.forEach(function(el, i){
         var id = el.getAttribute('data-thumb');
         if (_dlv.thumbs.hasOwnProperty(id)) dlvThumbPaint_(id);
-        else if (io) io.observe(el);
+        else if (io) io.observe(el.parentNode || el);   // V39: ช่องภาพ hidden (display:none) ตัวเฝ้ามองไม่เห็น → เฝ้าการ์ดแทน
         else if (i < 24) dlvThumbQueue_(id);
       });
     }
